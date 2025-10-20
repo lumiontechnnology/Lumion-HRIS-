@@ -1,0 +1,650 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion — Payroll Dashboard (Prototype)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--brand:#4f46e5;--muted:#6b7280}
+    body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    .glass{background:rgba(255,255,255,0.8);backdrop-filter: blur(6px);border:1px solid rgba(15,23,42,0.04)}
+    .small-muted{font-size:.85rem;color:var(--muted)}
+    .card {border-radius:12px;padding:16px;background:white;box-shadow:0 6px 24px rgba(15,23,42,0.06);border:1px solid rgba(15,23,42,0.03)}
+    /* responsive tweaks for demo */
+    @media (min-width:1024px){ .hero-grid {grid-template-columns: 1fr 380px} }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+  <!-- Top nav -->
+  <header class="bg-white border-b sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="https://i.ibb.co/XfRLzWwy/Logo.png" alt="Lumion" class="h-8 w-auto">
+        <div>
+          <div class="text-lg font-bold">Lumion HR — Payroll</div>
+          <div class="small-muted">Access Holdings</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="btn-new-run" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700">Create Payroll Run</button>
+        <div class="w-40">
+          <input id="search" placeholder="Search employee..." class="w-full px-3 py-2 border rounded-md" />
+        </div>
+        <div class="text-sm small-muted">Hello, Gideon</div>
+        <div class="w-10 h-10 bg-indigo-600 rounded-full text-white grid place-items-center font-semibold">G</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main content -->
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- hero + right panel -->
+    <div class="grid gap-6 hero-grid lg:grid-cols-2">
+      <div class="card">
+        <div class="flex items-start justify-between">
+          <div>
+            <h2 class="text-xl font-extrabold">Payroll Overview</h2>
+            <p class="small-muted mt-1">Latest payroll run summary & quick controls</p>
+          </div>
+          <div class="text-right">
+            <div class="text-sm small-muted">Upcoming payment</div>
+            <div class="text-lg font-bold">₦ 6,200,000</div>
+            <div class="small-muted">Due 2025-11-25</div>
+          </div>
+        </div>
+
+        <!-- summary cards -->
+        <div class="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-3">
+          <div class="p-4 rounded-lg border">
+            <div class="small-muted">Employees</div>
+            <div class="text-2xl font-bold" id="summary-employees">0</div>
+            <div class="small-muted">Active on payroll</div>
+          </div>
+          <div class="p-4 rounded-lg border">
+            <div class="small-muted">Gross Payroll (current)</div>
+            <div class="text-2xl font-bold text-indigo-600" id="summary-gross">₦0</div>
+            <div class="small-muted">Total pre-deductions</div>
+          </div>
+          <div class="p-4 rounded-lg border">
+            <div class="small-muted">Total Net Payout</div>
+            <div class="text-2xl font-bold" id="summary-net">₦0</div>
+            <div class="small-muted">After deductions</div>
+          </div>
+        </div>
+
+        <!-- compliance -->
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="card">
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="small-muted">Compliance Snapshot</div>
+                <div class="font-semibold">Tax / Pension / Statutory</div>
+              </div>
+              <div>
+                <!-- toggle rates modal -->
+                <button id="btn-config" class="px-3 py-1 border rounded text-sm">Edit rates</button>
+              </div>
+            </div>
+            <div class="mt-4 small-muted">Configured rates used for demo calculations. Modify to match local laws.</div>
+            <div class="mt-3">
+              <ul class="space-y-2 small-muted">
+                <li>Income Tax Rate: <strong id="rate-tax">10%</strong></li>
+                <li>Pension Contribution (employee): <strong id="rate-pension">8%</strong></li>
+                <li>Employer Pension: <strong id="rate-pension-employer">10%</strong></li>
+                <li>Other statutory deduction: <strong id="rate-other">2%</strong></li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="small-muted">Upcoming Reminders</div>
+            <ul class="mt-3 space-y-3">
+              <li class="flex justify-between"><div>Run payroll for November</div><div class="text-sm small-muted">Due 2025-11-25</div></li>
+              <li class="flex justify-between"><div>Submit PAYE returns</div><div class="text-sm small-muted">Due 2025-12-05</div></li>
+              <li class="flex justify-between"><div>Pension remittance</div><div class="text-sm small-muted">Due 2025-11-28</div></li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- payroll run history -->
+        <div class="mt-6">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold">Payroll Runs</h3>
+            <div class="small-muted">Saved payroll runs you can export or reopen</div>
+          </div>
+          <div id="runs-list" class="mt-3 space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- right panel: employee list -->
+      <aside class="card">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold">Employees</h3>
+            <div class="small-muted">Click a row to open payslip preview / actions</div>
+          </div>
+          <div class="flex gap-2">
+            <button id="export-all" class="px-3 py-1 border rounded text-sm">Export CSV</button>
+            <button id="fill-sample" class="px-3 py-1 bg-green-600 text-white rounded text-sm">Seed Sample</button>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <table class="w-full text-left text-sm">
+            <thead class="small-muted text-xs uppercase">
+              <tr>
+                <th class="p-2">Name</th>
+                <th class="p-2">Position</th>
+                <th class="p-2">Gross</th>
+                <th class="p-2">Net</th>
+                <th class="p-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="employees-table" class="divide-y"></tbody>
+          </table>
+        </div>
+      </aside>
+    </div>
+
+    <!-- bottom section: payroll run detail -->
+    <section class="mt-8 card">
+      <div class="flex items-center justify-between">
+        <h3 class="font-semibold">Selected Payroll Run</h3>
+        <div class="flex items-center gap-3">
+          <button id="download-csv" class="px-3 py-1 border rounded text-sm">Download CSV</button>
+          <button id="print-run" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">Print Payslips</button>
+        </div>
+      </div>
+
+      <div id="run-detail" class="mt-4">
+        <div class="small-muted">No payroll run selected. Click "Create Payroll Run" to produce a run from current employee data.</div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Payslip modal (hidden initially) -->
+  <div id="payslip-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="w-full max-w-2xl bg-white rounded-lg overflow-hidden">
+      <div class="flex items-center justify-between p-4 border-b">
+        <div><strong>Payslip Preview</strong><div class="small-muted" id="payslip-employee-name"></div></div>
+        <div class="flex gap-2">
+          <button id="payslip-download" class="px-3 py-1 bg-indigo-600 text-white rounded">Print / Save PDF</button>
+          <button id="payslip-close" class="px-3 py-1 border rounded">Close</button>
+        </div>
+      </div>
+      <div class="p-6" id="payslip-content" style="max-height:70vh;overflow:auto"></div>
+    </div>
+  </div>
+
+  <!-- Config modal -->
+  <div id="config-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="w-full max-w-md bg-white rounded-lg overflow-hidden">
+      <div class="p-4 border-b"><strong>Payroll Rates & Settings</strong></div>
+      <div class="p-4 space-y-3">
+        <div>
+          <label class="small-muted">Income tax rate (%)</label>
+          <input id="input-tax" type="number" class="w-full mt-1 p-2 border rounded" value="10" />
+        </div>
+        <div>
+          <label class="small-muted">Employee pension (%)</label>
+          <input id="input-pension" type="number" class="w-full mt-1 p-2 border rounded" value="8" />
+        </div>
+        <div>
+          <label class="small-muted">Employer pension (%)</label>
+          <input id="input-pension-employer" type="number" class="w-full mt-1 p-2 border rounded" value="10" />
+        </div>
+        <div>
+          <label class="small-muted">Other deduction (%)</label>
+          <input id="input-other" type="number" class="w-full mt-1 p-2 border rounded" value="2" />
+        </div>
+        <div class="flex justify-end gap-2">
+          <button id="config-save" class="px-3 py-2 bg-indigo-600 text-white rounded">Save</button>
+          <button id="config-cancel" class="px-3 py-2 border rounded">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* -------------------------
+   Configurable demo settings
+   -------------------------
+   Update these to match your local labour rules.
+*/
+const CONFIG = {
+  taxRate: 0.10,              // 10% flat income tax (demo only — replace with progressive logic)
+  pensionEmployee: 0.08,      // 8% employee pension
+  pensionEmployer: 0.10,      // 10% employer pension (shown for compliance)
+  otherDeduction: 0.02        // Other statutory deductions (2%)
+};
+
+/* -------------------------
+   SAMPLE EMPLOYEES (20)
+   - name, id, position, monthlyGross (local currency)
+   - you can edit/add entries here
+*/
+let employees = [
+  {id:"E001", name:"Ada Bello", position:"Software Engineer", gross:350000},
+  {id:"E002", name:"Chike Okoro", position:"Sales Lead", gross:280000},
+  {id:"E003", name:"Sade Akin", position:"Product Manager", gross:420000},
+  {id:"E004", name:"Emeka Obi", position:"Data Scientist", gross:390000},
+  {id:"E005", name:"Lilian N.", position:"HR Manager", gross:300000},
+  {id:"E006", name:"Tunde K.", position:"Frontend Dev", gross:320000},
+  {id:"E007", name:"Aisha M.", position:"Backend Dev", gross:330000},
+  {id:"E008", name:"Ifeanyi U.", position:"QA Engineer", gross:210000},
+  {id:"E009", name:"Peter O.", position:"Design Lead", gross:260000},
+  {id:"E010", name:"Rashida I.", position:"Marketing Lead", gross:250000},
+  {id:"E011", name:"John P.", position:"Customer Success", gross:150000},
+  {id:"E012", name:"Grace S.", position:"Finance Officer", gross:220000},
+  {id:"E013", name:"Michael O.", position:"Ops Manager", gross:280000},
+  {id:"E014", name:"Yusuf A.", position:"Sys Admin", gross:200000},
+  {id:"E015", name:"Chinwe L.", position:"Recruiter", gross:180000},
+  {id:"E016", name:"Bola K.", position:"Analyst", gross:190000},
+  {id:"E017", name:"Tim J.", position:"DevOps", gross:360000},
+  {id:"E018", name:"Nkechi R.", position:"Content", gross:130000},
+  {id:"E019", name:"Samuel V.", position:"Sales Rep", gross:160000},
+  {id:"E020", name:"Olivia W.", position:"Executive Asst", gross:170000}
+];
+
+/* -------------------------
+   Runtime state
+*/
+let payrollRuns = [];   // saved runs
+let currentRun = null;  // active run object
+
+/* -------------------------
+   Helper utilities
+*/
+function fmt(n){ // format currency (Naira style for demo)
+  return "₦ " + n.toLocaleString();
+}
+function round(n){ return Math.round(n); }
+
+/* payroll calculation for an employee (returns breakdown) */
+function calcEmployeePayroll(emp, cfg=CONFIG){
+  const gross = Number(emp.gross);
+  // Simple demo calculations:
+  const tax = round(gross * cfg.taxRate);
+  const pensionEmp = round(gross * cfg.pensionEmployee);
+  const other = round(gross * cfg.otherDeduction);
+  const totalDeductions = tax + pensionEmp + other;
+  const net = round(gross - totalDeductions);
+  const employerPension = round(gross * cfg.pensionEmployer);
+  return {gross, tax, pensionEmp, other, totalDeductions, net, employerPension};
+}
+
+/* -------------------------
+   Render functions
+*/
+function renderEmployeesTable(list=employees){
+  const tbody = document.getElementById('employees-table');
+  tbody.innerHTML = '';
+  list.forEach(emp=>{
+    const calc = calcEmployeePayroll(emp);
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-gray-50 cursor-pointer';
+    tr.innerHTML = `
+      <td class="p-2">${emp.name} <div class="small-muted text-xs">${emp.id}</div></td>
+      <td class="p-2 small-muted">${emp.position}</td>
+      <td class="p-2 font-medium text-sm">${fmt(calc.gross)}</td>
+      <td class="p-2 font-semibold text-sm text-indigo-600">${fmt(calc.net)}</td>
+      <td class="p-2"><span class="px-2 py-1 text-xs rounded bg-green-50 text-green-700">Active</span></td>
+    `;
+    tr.onclick = ()=> openPayslip(emp);
+    tbody.appendChild(tr);
+  });
+  document.getElementById('summary-employees').textContent = ''+list.length;
+  // update summary totals
+  const totals = list.reduce((acc,e)=>{
+    const c = calcEmployeePayroll(e);
+    acc.gross += c.gross;
+    acc.net += c.net;
+    return acc;
+  }, {gross:0, net:0});
+  document.getElementById('summary-gross').textContent = fmt(totals.gross);
+  document.getElementById('summary-net').textContent = fmt(totals.net);
+}
+
+/* runs list */
+function renderRuns(){
+  const container = document.getElementById('runs-list');
+  container.innerHTML = '';
+  payrollRuns.slice().reverse().forEach((run,idx)=>{
+    const el = document.createElement('div');
+    el.className = 'p-3 rounded border flex items-center justify-between';
+    el.innerHTML = `
+      <div>
+        <div class="font-semibold">${run.name}</div>
+        <div class="small-muted text-xs">${run.date} • ${run.employees.length} employees</div>
+      </div>
+      <div class="flex gap-2">
+        <button class="px-2 py-1 text-sm border rounded" onclick="openRun('${run.id}')">Open</button>
+        <button class="px-2 py-1 text-sm border rounded" onclick="downloadRunCSV('${run.id}')">CSV</button>
+      </div>
+    `;
+    container.appendChild(el);
+  });
+}
+
+/* render selected run detail */
+function renderRunDetail(){
+  const container = document.getElementById('run-detail');
+  if(!currentRun){
+    container.innerHTML = `<div class="small-muted">No payroll run selected. Create a run to view details.</div>`;
+    return;
+  }
+  const totals = currentRun.employees.reduce((acc,e)=>{
+    const c = calcEmployeePayroll(e);
+    acc.gross += c.gross;
+    acc.net += c.net;
+    acc.tax += c.tax;
+    acc.pension += c.pensionEmp;
+    return acc;
+  }, {gross:0,net:0,tax:0,pension:0});
+  container.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="card">
+        <div class="small-muted">Run</div>
+        <div class="text-lg font-semibold">${currentRun.name}</div>
+        <div class="small-muted">${currentRun.date}</div>
+      </div>
+      <div class="card">
+        <div class="small-muted">Totals</div>
+        <div class="text-xl font-bold text-indigo-600">${fmt(totals.gross)}</div>
+        <div class="small-muted">Net payout: ${fmt(totals.net)}</div>
+      </div>
+      <div class="card">
+        <div class="small-muted">Compliance</div>
+        <div>Tax collected: <strong>${fmt(totals.tax)}</strong></div>
+        <div>Pension (employee): <strong>${fmt(totals.pension)}</strong></div>
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <table class="w-full text-sm">
+        <thead class="small-muted text-xs uppercase">
+          <tr><th class="p-2">Name</th><th class="p-2">Gross</th><th class="p-2">Tax</th><th class="p-2">Pension</th><th class="p-2">Net</th><th class="p-2">Action</th></tr>
+        </thead>
+        <tbody>
+          ${currentRun.employees.map(emp=>{
+            const c = calcEmployeePayroll(emp);
+            return `<tr class="border-t hover:bg-gray-50">
+              <td class="p-2">${emp.name}</td>
+              <td class="p-2">${fmt(c.gross)}</td>
+              <td class="p-2">${fmt(c.tax)}</td>
+              <td class="p-2">${fmt(c.pensionEmp)}</td>
+              <td class="p-2 font-semibold text-indigo-600">${fmt(c.net)}</td>
+              <td class="p-2"><button class="px-2 py-1 text-sm border rounded" onclick='openPayslipById("${emp.id}")'>Payslip</button></td>
+            </tr>`
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+/* -------------------------
+   Payroll run actions
+*/
+function createPayrollRun(){
+  if(employees.length === 0){ alert("No employees available. Seed sample or add employees."); return; }
+  const id = 'run_' + Date.now();
+  const run = {
+    id,
+    name: `Payroll ${new Date().toLocaleString()}`,
+    date: new Date().toISOString().split('T')[0],
+    employees: JSON.parse(JSON.stringify(employees)) // snapshot
+  };
+  payrollRuns.push(run);
+  currentRun = run;
+  renderRuns();
+  renderRunDetail();
+  alert('Payroll run created: ' + run.name);
+}
+
+/* open run by id */
+function openRun(id){
+  currentRun = payrollRuns.find(r=>r.id===id) || null;
+  renderRunDetail();
+}
+
+/* download CSV for run */
+function downloadRunCSV(id){
+  const run = payrollRuns.find(r=>r.id===id);
+  if(!run){ alert("Run not found"); return; }
+  const headers = ['id','name','position','gross','tax','pension_employee','other','net'];
+  const rows = run.employees.map(e=>{
+    const c = calcEmployeePayroll(e);
+    return [e.id,e.name,e.position,c.gross,c.tax,c.pensionEmp,c.other,c.net];
+  });
+  const csv = [headers.join(','), ...rows.map(r=>r.map(cell=>`"${cell}"`).join(','))].join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${run.name.replace(/\s+/g,'_')}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+/* download current run (selected) */
+function downloadSelectedCSV(){
+  if(!currentRun){ alert("No run selected"); return; }
+  downloadRunCSV(currentRun.id);
+}
+
+/* print payslips for run (opens print window for each employee) */
+function printRunPayslips(){
+  if(!currentRun){ alert("Select a payroll run first"); return; }
+  currentRun.employees.forEach((e,i)=>{
+    const c = calcEmployeePayroll(e);
+    const html = payslipHTML(e,c,currentRun);
+    const w = window.open('','_blank','width=800,height=600');
+    w.document.write(html);
+    w.document.close();
+    // print each (user can cancel). To avoid spamming print dialogs, only open first print automatically
+    if(i===0) setTimeout(()=>w.print(),500);
+  });
+}
+
+/* -------------------------
+   Payslip UI
+*/
+function payslipHTML(emp,calc,run){
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Payslip - ${emp.name}</title>
+    <style>
+      body{font-family:Inter,Arial,Helvetica,sans-serif;padding:28px;color:#111}
+      .header{display:flex;justify-content:space-between;align-items:center}
+      .box{border:1px solid #eee;padding:12px;border-radius:8px}
+      h2{color:${CONFIG.brand||'#111'}}
+    </style>
+    </head><body>
+    <div class="header">
+      <div>
+        <img src="https://i.ibb.co/XfRLzWwy/Logo.png" style="height:36px"/>
+        <div style="font-weight:600">Lumion HR</div>
+        <div style="font-size:12px;color:#666">Payslip for ${run.date}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700">${emp.name}</div>
+        <div style="font-size:13px;color:#666">${emp.position} • ${emp.id}</div>
+      </div>
+    </div>
+    <hr style="margin:12px 0 18px 0;border:none;border-top:1px solid #eee"/>
+    <div style="display:flex;gap:18px">
+      <div style="flex:1">
+        <div class="box">
+          <div style="font-size:13px;color:#888">Earnings</div>
+          <div style="font-weight:700;font-size:18px">${fmt(calc.gross)}</div>
+        </div>
+      </div>
+      <div style="width:320px">
+        <div class="box">
+          <div style="font-size:13px;color:#888">Deductions</div>
+          <div style="margin-top:8px"><div>Tax: ${fmt(calc.tax)}</div><div>Pension: ${fmt(calc.pensionEmp)}</div><div>Other: ${fmt(calc.other)}</div></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:18px" class="box">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div style="font-weight:700">Net Pay</div>
+        <div style="font-size:20px;font-weight:800;color:#1f2937">${fmt(calc.net)}</div>
+      </div>
+    </div>
+    <div style="margin-top:20px;font-size:12px;color:#666">This is a system-generated payslip for payroll run ${run.name}.</div>
+    </body></html>`;
+}
+
+/* open payslip modal for an employee */
+function openPayslip(emp){
+  const calc = calcEmployeePayroll(emp);
+  document.getElementById('payslip-employee-name').textContent = emp.name + ' • ' + emp.position;
+  const content = document.getElementById('payslip-content');
+  content.innerHTML = payslipHTMLSnippet(emp,calc);
+  document.getElementById('payslip-modal').classList.remove('hidden');
+  // attach print
+  document.getElementById('payslip-download').onclick = ()=> {
+    const html = payslipHTML(emp,calc, currentRun || {name:'Ad-hoc run', date:new Date().toISOString().split('T')[0]});
+    const w = window.open('','_blank','width=800,height=600'); w.document.write(html); w.document.close(); w.print();
+  };
+}
+
+function openPayslipById(id){
+  const emp = (currentRun ? currentRun.employees : employees).find(e=>e.id===id) || employees.find(e=>e.id===id);
+  if(emp) openPayslip(emp);
+}
+function payslipHTMLSnippet(emp,calc){
+  return `
+    <div>
+      <div class="flex justify-between items-start">
+        <div>
+          <div class="small-muted">Employee</div>
+          <div class="font-semibold">${emp.name}</div>
+          <div class="small-muted">${emp.position} • ${emp.id}</div>
+        </div>
+        <div class="text-right">
+          <div class="small-muted">Pay Date</div>
+          <div class="font-semibold">${new Date().toISOString().split('T')[0]}</div>
+        </div>
+      </div>
+      <div class="mt-4 grid grid-cols-2 gap-4">
+        <div class="card">
+          <div class="small-muted">Gross Salary</div>
+          <div class="text-xl font-bold">${fmt(calc.gross)}</div>
+        </div>
+        <div class="card">
+          <div class="small-muted">Net Pay</div>
+          <div class="text-xl font-bold text-indigo-600">${fmt(calc.net)}</div>
+        </div>
+      </div>
+      <div class="mt-4 card">
+        <div class="small-muted">Deductions</div>
+        <div class="mt-2 grid grid-cols-2 gap-2">
+          <div>Tax: ${fmt(calc.tax)}</div>
+          <div>Pension: ${fmt(calc.pensionEmp)}</div>
+          <div>Other: ${fmt(calc.other)}</div>
+          <div>Employer Pension: ${fmt(calc.employerPension)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/* -------------------------
+   Search & utility handlers
+*/
+document.getElementById('search').addEventListener('input', e=>{
+  const q = e.target.value.toLowerCase().trim();
+  if(!q) return renderEmployeesTable(employees);
+  renderEmployeesTable(employees.filter(emp=>{
+    return emp.name.toLowerCase().includes(q) || emp.position.toLowerCase().includes(q) || emp.id.toLowerCase().includes(q)
+  }));
+});
+
+/* seed sample button for manual trigger (useful if table is empty) */
+document.getElementById('fill-sample').addEventListener('click', ()=>{
+  renderEmployeesTable(employees);
+  alert('Sample employees loaded/updated.');
+});
+
+/* export all employees CSV */
+document.getElementById('export-all').addEventListener('click', ()=>{
+  const headers = ['id','name','position','gross'];
+  const rows = employees.map(e => [e.id,e.name,e.position,e.gross]);
+  const csv = [headers.join(','), ...rows.map(r=>r.map(c=>`"${c}"`).join(','))].join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'employees.csv'; a.click(); URL.revokeObjectURL(url);
+});
+
+/* create payroll run btn */
+document.getElementById('btn-new-run').addEventListener('click', createPayrollRun);
+
+/* open/close payslip modal */
+document.getElementById('payslip-close').addEventListener('click', ()=> document.getElementById('payslip-modal').classList.add('hidden'));
+
+/* download selected run */
+document.getElementById('download-csv').addEventListener('click', downloadSelectedCSV);
+
+/* print run payslips */
+document.getElementById('print-run').addEventListener('click', printRunPayslips);
+
+/* config modal */
+document.getElementById('btn-config').addEventListener('click', ()=> {
+  document.getElementById('input-tax').value = CONFIG.taxRate*100;
+  document.getElementById('input-pension').value = CONFIG.pensionEmployee*100;
+  document.getElementById('input-pension-employer').value = CONFIG.pensionEmployer*100;
+  document.getElementById('input-other').value = CONFIG.otherDeduction*100;
+  document.getElementById('config-modal').classList.remove('hidden');
+});
+document.getElementById('config-cancel').addEventListener('click', ()=> document.getElementById('config-modal').classList.add('hidden'));
+document.getElementById('config-save').addEventListener('click', ()=> {
+  CONFIG.taxRate = Number(document.getElementById('input-tax').value)/100;
+  CONFIG.pensionEmployee = Number(document.getElementById('input-pension').value)/100;
+  CONFIG.pensionEmployer = Number(document.getElementById('input-pension-employer').value)/100;
+  CONFIG.otherDeduction = Number(document.getElementById('input-other').value)/100;
+  // update UI
+  document.getElementById('rate-tax').textContent = (CONFIG.taxRate*100).toFixed(1) + '%';
+  document.getElementById('rate-pension').textContent = (CONFIG.pensionEmployee*100).toFixed(1) + '%';
+  document.getElementById('rate-pension-employer').textContent = (CONFIG.pensionEmployer*100).toFixed(1) + '%';
+  document.getElementById('rate-other').textContent = (CONFIG.otherDeduction*100).toFixed(1) + '%';
+  document.getElementById('config-modal').classList.add('hidden');
+  // re-render
+  renderEmployeesTable(employees);
+  if(currentRun) renderRunDetail();
+});
+
+/* open payslip by id helper for run table */
+window.openPayslipById = openPayslipById;
+
+/* download run csv helper */
+window.downloadRunCSV = downloadRunCSV;
+
+/* open run helper */
+window.openRun = openRun;
+
+/* init */
+(function init(){
+  document.getElementById('rate-tax').textContent = (CONFIG.taxRate*100) + '%';
+  document.getElementById('rate-pension').textContent = (CONFIG.pensionEmployee*100) + '%';
+  document.getElementById('rate-pension-employer').textContent = (CONFIG.pensionEmployer*100) + '%';
+  document.getElementById('rate-other').textContent = (CONFIG.otherDeduction*100) + '%';
+  renderEmployeesTable(employees);
+
+  // small UX: seed a default payroll run to demo
+  payrollRuns.push({
+    id: 'run_demo',
+    name: 'Payroll (Demo)',
+    date: new Date().toISOString().split('T')[0],
+    employees: employees.slice(0,12) // partial payroll demo
+  });
+  currentRun = payrollRuns[0];
+  renderRuns();
+  renderRunDetail();
+})();
+</script>
+
+</body>
+</html>

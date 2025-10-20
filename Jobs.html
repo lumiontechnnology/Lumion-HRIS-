@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion — Employer Jobs Dashboard (Prototype)</title>
+  <link rel="icon" href="static/Logo__mark.png">
+  <!-- Tailwind via CDN (for prototyping) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    /* small overrides for nice cards */
+    .blur-card { backdrop-filter: blur(6px); }
+    .tiny { font-size:12px; }
+    .pointer { cursor: pointer; }
+    .status-badge { padding: 6px 10px; border-radius: 999px; font-weight:600; font-size:12px; }
+  </style>
+</head>
+<body class="bg-gray-50">
+
+  <!-- NAV -->
+  <nav class="bg-white shadow-sm sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="static/Logo__mark.png" alt="Logo" class="h-8 w-8 object-contain">
+        <div class="text-lg font-bold text-indigo-700">Lumion — Employer</div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="text-sm text-gray-600">Acme Corp • Admin</div>
+        <button id="inviteBtn" class="px-3 py-2 bg-indigo-600 text-white rounded-md shadow">Invite Team</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="max-w-7xl mx-auto px-6 py-8 grid grid-cols-12 gap-8">
+    <!-- Left column: Jobs list -->
+    <section class="col-span-4">
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-lg">Open Positions</h2>
+          <div class="text-xs text-gray-500">7 live</div>
+        </div>
+        <p class="text-sm text-gray-600 mt-2">Click a job to view candidates. Use auto-source to demo LinkedIn/Indeed/Glassdoor lookups.</p>
+
+        <div id="jobsList" class="mt-4 space-y-3"></div>
+
+        <div class="mt-6 flex gap-2">
+          <button id="newJobBtn" class="flex-1 py-2 bg-green-600 text-white rounded hover:bg-green-700">+ New Job</button>
+          <button id="exportAllJobs" class="py-2 px-4 border rounded">Export JSON</button>
+        </div>
+      </div>
+
+      <!-- Auto-source panel -->
+      <div class="bg-white rounded-lg shadow p-4 mt-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold">Auto-Source (simulate)</h3>
+            <p class="text-sm text-gray-600">Simulate fetching candidates from external sources</p>
+          </div>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <button class="py-2 rounded bg-blue-600 text-white" onclick="simulateSource('linkedin')">Source: LinkedIn</button>
+          <button class="py-2 rounded bg-sky-600 text-white" onclick="simulateSource('indeed')">Source: Indeed</button>
+          <button class="py-2 rounded bg-amber-500 text-white" onclick="simulateSource('glassdoor')">Source: Glassdoor</button>
+          <button class="py-2 rounded bg-indigo-600 text-white" onclick="simulateSource('lumion')">Source: Lumion DB</button>
+        </div>
+
+        <div class="mt-4">
+          <label class="inline-flex items-center gap-2">
+            <input id="autoApplyToggle" type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600" />
+            <span class="text-sm">Auto-apply sourced candidates to currently selected job</span>
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right column: Job details and candidates -->
+    <section class="col-span-8">
+      <div id="jobDetail" class="bg-white rounded-lg shadow p-6 min-h-[480px]">
+        <!-- header populated by JS -->
+        <div id="detailHeader" class="flex items-start justify-between">
+          <div>
+            <h1 id="jobTitle" class="text-2xl font-bold">Select a job to view candidates</h1>
+            <p id="jobMeta" class="text-sm text-gray-500 mt-1">Job details will appear here.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div id="jobStatusBadge" class="status-badge bg-gray-100 text-gray-800">No Job</div>
+            <button id="addCandidateBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">+ Add Candidate</button>
+            <div class="px-3 py-2 border rounded text-sm text-gray-600">Open Positions: <span id="openCount">0</span></div>
+          </div>
+        </div>
+
+        <!-- controls -->
+        <div class="mt-6 flex items-center gap-3">
+          <input id="candidateSearch" type="search" placeholder="Search candidates by name, skill, company..." class="flex-1 px-4 py-2 border rounded" />
+          <select id="filterStatus" class="px-3 py-2 border rounded">
+            <option value="">All statuses</option>
+            <option>Applied</option>
+            <option>Interview</option>
+            <option>Shortlisted</option>
+            <option>Offered</option>
+            <option>Hired</option>
+            <option>Onboarding</option>
+            <option>Rejected</option>
+          </select>
+          <button id="exportCsv" class="px-4 py-2 border rounded">Export CSV</button>
+        </div>
+
+        <!-- candidate area -->
+        <div id="candidatesArea" class="mt-6 grid grid-cols-1 gap-4"></div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- Candidate Preview Modal -->
+  <div id="candidateModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 p-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 id="modalName" class="text-xl font-bold"></h3>
+          <div class="text-sm text-gray-600" id="modalHeadline"></div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div id="modalMatch" class="text-sm font-semibold text-indigo-700">AI Match: 0%</div>
+          <button onclick="closeModal()" class="px-3 py-1 rounded border">Close</button>
+        </div>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2">
+          <h4 class="font-semibold text-gray-700">Experience</h4>
+          <div id="modalExperience" class="text-sm text-gray-700 mt-2"></div>
+
+          <h4 class="font-semibold text-gray-700 mt-4">Certifications</h4>
+          <div id="modalCerts" class="text-sm text-gray-700 mt-2"></div>
+
+          <h4 class="font-semibold text-gray-700 mt-4">Skills</h4>
+          <div id="modalSkills" class="flex flex-wrap gap-2 mt-2"></div>
+
+          <h4 class="font-semibold text-gray-700 mt-4">Notes</h4>
+          <div id="modalNotes" class="text-sm text-gray-700 mt-2"></div>
+        </div>
+
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="text-sm text-gray-600">Profile summary</div>
+          <div class="mt-2">
+            <div class="text-lg font-semibold" id="modalCompany"></div>
+            <div class="text-sm text-gray-600" id="modalYears"></div>
+            <a id="modalCV" class="mt-4 inline-block text-indigo-600 underline" href="#" target="_blank">Open CV</a>
+          </div>
+
+          <div class="mt-6">
+            <label class="text-sm block mb-1">Status</label>
+            <select id="modalStatus" class="w-full px-3 py-2 border rounded"></select>
+            <button id="modalShortlist" class="mt-3 w-full px-4 py-2 bg-green-600 text-white rounded">Shortlist</button>
+            <button id="modalMoveOnboard" class="mt-2 w-full px-4 py-2 bg-indigo-600 text-white rounded">Move to Onboarding (Hired)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed right-6 bottom-6 hidden bg-gray-900 text-white px-4 py-2 rounded shadow">Saved</div>
+
+<script>
+/* -------------------------
+   Prototype Data & Helpers
+   ------------------------- */
+
+const STATUS_COLORS = {
+  Applied: 'bg-blue-100 text-blue-800',
+  Interview: 'bg-emerald-100 text-emerald-800',
+  Shortlisted: 'bg-indigo-100 text-indigo-800',
+  Offered: 'bg-purple-100 text-purple-800',
+  Hired: 'bg-amber-100 text-amber-800',
+  Onboarding: 'bg-green-50 text-green-800',
+  Rejected: 'bg-red-100 text-red-800'
+};
+
+const initialJobs = [
+  { id: "j1", title: "Senior Product Manager", location: "Lagos, Nigeria", type: "Full-time", openings: 1, team: "Product", description: "Lead product for payments & payroll" },
+  { id: "j2", title: "Frontend Engineer (React)", location: "Remote", type: "Full-time", openings: 2, team: "Engineering", description: "Build delightful web experiences" },
+  { id: "j3", title: "Head of Talent", location: "Nairobi, Kenya", type: "Full-time", openings: 1, team: "People", description: "Lead recruiting & employer branding" },
+  { id: "j4", title: "HR Business Partner", location: "Accra, Ghana", type: "Full-time", openings: 1, team: "HR", description: "Strategic HR for business units" },
+  { id: "j5", title: "Data Scientist (ML)", location: "Remote", type: "Full-time", openings: 1, team: "Data", description: "Build matching & predictive models" },
+  { id: "j6", title: "Customer Success Lead", location: "Lagos, Nigeria", type: "Contract", openings: 1, team: "CS", description: "Support enterprise customers" },
+  { id: "j7", title: "Payroll Specialist", location: "Cape Town, S.A.", type: "Full-time", openings: 1, team: "Finance", description: "Handle payroll & PAYE compliance" }
+];
+
+const sampleCandidates = [
+  { id: 'c1', name: "Ada Bello", title:"Senior PM", company: "Flutterwave", years:6, skills:["Product","Payments","Roadmaps"], certs:["PMP"], match:92, status:"Applied", cv:"#", notes:"Strong payments background" },
+  { id: 'c2', name: "Chike Okoro", title:"Frontend Engineer", company: "Paystack", years:4, skills:["React","Next.js","Tailwind"], certs:["React Pro"], match:78, status:"Interview", cv:"#", notes:"Great UI instincts" },
+  { id: 'c3', name: "Sana Yusuf", title:"HRBP", company: "Andela", years:5, skills:["Employee Relations","Onboarding"], certs:["SHRM-CP"], match:85, status:"Shortlisted", cv:"#", notes:"Excellent people ops" },
+  { id: 'c4', name: "Kofi Mensah", title:"Data Scientist", company: "Jumia", years:3, skills:["Python","ML","Pandas"], certs:["DataX"], match:74, status:"Applied", cv:"#", notes:"Good prototyping skills" },
+  { id: 'c5', name: "Nkechi Eze", title:"Payroll Specialist", company: "SeamlessHR", years:5, skills:["Payroll","Compliance"], certs:["ACCA Module"], match:88, status:"Offered", cv:"#", notes:"Knows African payroll" },
+  { id: 'c6', name: "Samuel Ade", title:"Customer Success", company: "PayNow", years:4, skills:["CS","SaaS"], certs:[], match:70, status:"Applied", cv:"#", notes:"Strong client handling" },
+  { id: 'c7', name: "Lydia Owusu", title:"Head of Talent", company: "MTN", years:8, skills:["Hiring Strategy","Employer Brand"], certs:["HRBP"], match:95, status:"Interview", cv:"#", notes:"Very networked" }
+];
+
+function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+
+/* local storage wrapper */
+function saveState(state){
+  localStorage.setItem('lumion_jobs_state', JSON.stringify(state));
+  showToast('Saved locally');
+}
+function loadState(){
+  const raw = localStorage.getItem('lumion_jobs_state');
+  if(!raw) return null;
+  try { return JSON.parse(raw); } catch(e){ return null; }
+}
+
+/* -------------------------
+   App State
+   ------------------------- */
+let state = loadState() || {
+  jobs: initialJobs.map(j => ({...j, candidates: []})),
+  pool: sampleCandidates.slice(), // lumion DB / pool
+  selectedJobId: null
+};
+
+/* seed each job with 1-2 initial candidates for demo */
+if(state.jobs.every(j=>j.candidates.length===0)){
+  state.jobs[0].candidates.push({...sampleCandidates[0]});
+  state.jobs[1].candidates.push({...sampleCandidates[1]});
+  state.jobs[2].candidates.push({...sampleCandidates[6]});
+  state.jobs[6].candidates.push({...sampleCandidates[4]});
+  saveState(state);
+}
+
+/* -------------------------
+   UI RENDER
+   ------------------------- */
+
+const jobsListEl = document.getElementById('jobsList');
+const candidatesArea = document.getElementById('candidatesArea');
+const jobTitle = document.getElementById('jobTitle');
+const jobMeta = document.getElementById('jobMeta');
+const jobStatusBadge = document.getElementById('jobStatusBadge');
+const openCount = document.getElementById('openCount');
+
+function renderJobs(){
+  jobsListEl.innerHTML = '';
+  state.jobs.forEach(job=>{
+    const isSelected = state.selectedJobId === job.id;
+    const card = document.createElement('div');
+    card.className = `p-3 rounded-lg border ${isSelected?'bg-indigo-50 border-indigo-200':'bg-white border-gray-100'} pointer`;
+    card.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-semibold">${job.title}</div>
+          <div class="text-xs text-gray-500">${job.location} • ${job.type} • ${job.team}</div>
+        </div>
+        <div class="text-right tiny">
+          <div class="text-sm font-semibold">${job.openings}</div>
+          <div class="text-xs text-gray-500">open</div>
+        </div>
+      </div>
+    `;
+    card.onclick = ()=> selectJob(job.id);
+    jobsListEl.appendChild(card);
+  });
+
+  // update open count in header
+  openCount.textContent = state.jobs.length;
+}
+
+function selectJob(jobId){
+  state.selectedJobId = jobId;
+  saveState(state);
+  renderJobs();
+  renderJobDetail();
+}
+
+function renderJobDetail(){
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job){
+    jobTitle.textContent = 'Select a job to view candidates';
+    jobMeta.textContent = 'Job details will appear here.';
+    candidatesArea.innerHTML = '<div class="text-gray-500">No job selected.</div>';
+    jobStatusBadge.className = 'status-badge bg-gray-100 text-gray-800';
+    return;
+  }
+
+  jobTitle.textContent = job.title;
+  jobMeta.textContent = `${job.team} • ${job.location} • ${job.type} — ${job.description}`;
+  jobStatusBadge.className = 'status-badge ' + (job.openings>0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+
+  // filter/search
+  const q = document.getElementById('candidateSearch').value.toLowerCase();
+  const statusFilter = document.getElementById('filterStatus').value;
+
+  let list = (job.candidates || []);
+  if(q) list = list.filter(c => (c.name + ' ' + (c.skills||[]).join(' ') + ' ' + (c.company||'')).toLowerCase().includes(q));
+  if(statusFilter) list = list.filter(c => c.status === statusFilter);
+
+  if(list.length === 0){
+    candidatesArea.innerHTML = '<div class="p-6 bg-gray-50 rounded text-gray-500">No candidates yet — use Auto-Source to add candidate profiles.</div>';
+    return;
+  }
+
+  candidatesArea.innerHTML = '';
+  list.forEach(c=>{
+    const card = document.createElement('div');
+    card.className = 'p-4 bg-white rounded-lg border flex items-start gap-4';
+    card.innerHTML = `
+      <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-700 font-bold">${(c.name.split(' ').map(n=>n[0]).slice(0,2).join(''))}</div>
+      <div class="flex-1">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-semibold">${c.name} <span class="text-sm text-gray-500">• ${c.title}</span></div>
+            <div class="text-xs text-gray-500">${c.company} • ${c.years} yrs</div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm font-semibold text-gray-700">${c.match || 0}%</div>
+            <div class="text-xs text-gray-500">AI Match</div>
+          </div>
+        </div>
+
+        <div class="mt-3 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-2 flex-wrap">
+            ${ (c.skills||[]).slice(0,5).map(s=>`<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${s}</span>`).join('') }
+          </div>
+          <div class="flex items-center gap-2">
+            <select data-cid="${c.id}" class="px-2 py-1 border rounded text-sm" onchange="changeStatus('${c.id}', this.value)">
+              ${Object.keys(STATUS_COLORS).map(s => `<option ${s===c.status?'selected':''}>${s}</option>`).join('')}
+            </select>
+            <button onclick="openPreview('${c.id}')" class="px-3 py-1 border rounded text-sm">Preview</button>
+            <button onclick="quickActionHire('${c.id}')" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">Hire</button>
+          </div>
+        </div>
+      </div>
+    `;
+    candidatesArea.appendChild(card);
+  });
+}
+
+/* -------------------------
+   Candidate Actions
+   ------------------------- */
+
+function changeStatus(candidateId, newStatus){
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job) return;
+  const c = job.candidates.find(x=>x.id===candidateId);
+  if(!c) return;
+  c.status = newStatus;
+  saveState(state);
+  renderJobDetail();
+}
+
+function openPreview(candidateId){
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  const c = (job ? job.candidates.find(x=>x.id===candidateId) : null) || state.pool.find(x=>x.id===candidateId);
+  if(!c) return;
+  document.getElementById('modalName').innerText = c.name;
+  document.getElementById('modalHeadline').innerText = `${c.title} • ${c.company}`;
+  document.getElementById('modalExperience').innerText = `${c.years} years — worked at ${c.company}`;
+  document.getElementById('modalCerts').innerText = (c.certs && c.certs.length) ? c.certs.join(', ') : '—';
+  document.getElementById('modalSkills').innerHTML = (c.skills||[]).map(s=>`<span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs">${s}</span>`).join(' ');
+  document.getElementById('modalNotes').innerText = c.notes || '';
+  document.getElementById('modalCompany').innerText = c.company;
+  document.getElementById('modalYears').innerText = `${c.years} years experience`;
+  document.getElementById('modalCV').href = c.cv || '#';
+  document.getElementById('modalMatch').innerText = `AI Match: ${c.match || 0}%`;
+
+  const statusSelect = document.getElementById('modalStatus');
+  statusSelect.innerHTML = Object.keys(STATUS_COLORS).map(s => `<option ${s===c.status?'selected':''}>${s}</option>`).join('');
+  statusSelect.onchange = (e) => {
+    c.status = e.target.value;
+    saveState(state);
+    renderJobDetail();
+  };
+
+  document.getElementById('modalShortlist').onclick = () => {
+    c.status = 'Shortlisted';
+    saveState(state);
+    renderJobDetail();
+    closeModal();
+  };
+  document.getElementById('modalMoveOnboard').onclick = () => {
+    c.status = 'Onboarding'; c.hired = true;
+    saveState(state);
+    renderJobDetail();
+    closeModal();
+  };
+
+  document.getElementById('candidateModal').classList.remove('hidden');
+  document.getElementById('candidateModal').classList.add('flex');
+}
+
+function closeModal(){
+  document.getElementById('candidateModal').classList.add('hidden');
+  document.getElementById('candidateModal').classList.remove('flex');
+}
+
+function quickActionHire(candidateId){
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job) return;
+  const c = job.candidates.find(x=>x.id===candidateId);
+  if(!c) return;
+  c.status = 'Onboarding';
+  c.hired = true;
+  saveState(state);
+  renderJobDetail();
+  showToast(`${c.name} moved to onboarding`);
+}
+
+/* -------------------------
+   Simulate external sourcing
+   ------------------------- */
+
+function simulateSource(sourceName){
+  // create 3 fake candidates per source with slight variants
+  const pool = [];
+  for(let i=0;i<3;i++){
+    const base = state.pool[Math.floor(Math.random()*state.pool.length)];
+    const clone = {...base};
+    clone.id = uid('sim');
+    clone.name = (base.name.split(' ')[0] + ' ' + (Math.random()>0.5? 'Okafor':'Mensah'));
+    clone.company = sourceName === 'lumion' ? (base.company + ' (Lumion)') : `${sourceName.toUpperCase()} sourced`;
+    clone.match = Math.min(98, Math.max(60, base.match + Math.floor((Math.random()-0.5)*20)));
+    clone.cv = '#'; clone.status = 'Applied';
+    clone.notes = `Sourced from ${sourceName}.`;
+    clone.years = Math.max(1, base.years + Math.floor((Math.random()-0.5)*3));
+    pool.push(clone);
+  }
+
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  const autoApply = document.getElementById('autoApplyToggle').checked;
+  if(job){
+    if(autoApply){
+      job.candidates.push(...pool);
+      showToast(`Auto-applied ${pool.length} sourced candidates to ${job.title}`);
+    } else {
+      // add to candidate pool (Lumion DB) and let user add manually
+      state.pool.push(...pool);
+      showToast(`Added ${pool.length} candidates to Lumion DB`);
+    }
+    saveState(state);
+    renderJobDetail();
+  } else {
+    // if no job selected, add to pool always
+    state.pool.push(...pool);
+    saveState(state);
+    showToast(`${pool.length} candidates added to Lumion DB (no job selected)`);
+  }
+}
+
+/* -------------------------
+   Job / Candidate CRUD
+   ------------------------- */
+
+document.getElementById('newJobBtn').onclick = () => {
+  const title = prompt('New job title?','New Role at Lumion');
+  if(!title) return;
+  const j = { id: uid('j'), title, location:'Remote', type:'Full-time', openings:1, team:'General', description:'Created from prototype', candidates:[] };
+  state.jobs.unshift(j);
+  saveState(state);
+  renderJobs();
+  selectJob(j.id);
+};
+
+document.getElementById('addCandidateBtn').onclick = () => {
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job){ alert('Select a job first'); return; }
+  const name = prompt('Candidate full name (for demo):','New Candidate');
+  if(!name) return;
+  const c = { id: uid('c'), name, title:'Unknown', company:'N/A', years:0, skills:[], certs:[], match:65, status:'Applied', cv:'#', notes:'' };
+  job.candidates.push(c);
+  saveState(state);
+  renderJobDetail();
+  showToast('Candidate added');
+};
+
+document.getElementById('exportAllJobs').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  downloadURL(url, 'lumion-jobs-state.json');
+};
+
+document.getElementById('exportCsv').onclick = () => {
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job){ alert('Select a job first'); return; }
+  const rows = [ ['id','name','title','company','years','skills','certs','match','status','notes'] ];
+  job.candidates.forEach(c => rows.push([c.id, c.name, c.title, c.company, c.years, (c.skills||[]).join(';'), (c.certs||[]).join(';'), c.match, c.status, (c.notes||'')]));
+  const csv = rows.map(r => r.map(cell => `"${String(cell||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  downloadURL(url, `${job.title.replace(/\s+/g,'_')}_candidates.csv`);
+};
+
+function downloadURL(url, filename){
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.remove('hidden');
+  t.classList.add('block');
+  setTimeout(()=>{ t.classList.add('hidden'); t.classList.remove('block'); }, 1800);
+}
+
+/* -------------------------
+   Search / Filters
+   ------------------------- */
+document.getElementById('candidateSearch').addEventListener('input', ()=> renderJobDetail());
+document.getElementById('filterStatus').addEventListener('change', ()=> renderJobDetail());
+
+/* -------------------------
+   Persistence & init
+   ------------------------- */
+renderJobs();
+renderJobDetail();
+
+/* optional: expose for console debugging */
+window.lumionState = state;
+window.simulateSource = simulateSource;
+window.openPreview = openPreview;
+window.changeStatus = changeStatus;
+window.quickActionHire = quickActionHire;
+
+/* make modal close on outside click */
+document.getElementById('candidateModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'candidateModal') closeModal();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion — Leave & Attendance</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* small custom tweaks */
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
+    .tiny { font-size: 0.82rem; }
+    .status-pill { padding: 6px 10px; border-radius: 999px; font-weight:600; font-size:0.85rem; }
+    /* modal center */
+    .modal-bg { background: rgba(2,6,23,0.45); }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <div class="max-w-7xl mx-auto p-6">
+
+    <!-- Header -->
+    <header class="flex items-center justify-between mb-6">
+      <div>
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-md bg-indigo-600 flex items-center justify-center text-white font-bold">L</div>
+          <div>
+            <div class="text-lg font-extrabold">Lumion — Leave & Attendance</div>
+            <div class="tiny text-gray-500">Full policy-driven leave management & attendance tracking (standalone prototype)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button id="simulateDayBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow">Simulate Day</button>
+        <button id="downloadCSV" class="px-4 py-2 bg-white border rounded-lg">Export CSV</button>
+        <button id="addLeaveBtn" class="px-4 py-2 bg-green-600 text-white rounded-lg">Add Leave</button>
+      </div>
+    </header>
+
+    <!-- Top summary -->
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="card p-4">
+        <div class="text-sm text-gray-500">Total Employees</div>
+        <div class="text-2xl font-bold" id="cardEmployees">0</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-sm text-gray-500">Active Leave Requests</div>
+        <div class="text-2xl font-bold" id="cardTotalRequests">0</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-sm text-gray-500">Pending</div>
+        <div class="text-2xl font-bold text-amber-600" id="cardPending">0</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-sm text-gray-500">Absent Today</div>
+        <div class="text-2xl font-bold text-red-600" id="cardAbsent">0</div>
+      </div>
+    </section>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <!-- Left column: Leave Requests + Add form-->
+      <div class="md:col-span-2 space-y-6">
+
+        <!-- Leave Requests table -->
+        <div class="card p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-lg font-semibold">Leave Requests</h3>
+              <div class="tiny text-gray-500">Review and action leave requests</div>
+            </div>
+            <div class="flex items-center gap-2 tiny text-gray-600">
+              <label class="mr-2">Filter:</label>
+              <select id="filterStatus" class="border rounded p-1">
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead class="text-sm text-gray-500">
+                <tr>
+                  <th class="py-2 px-3">Employee</th>
+                  <th class="py-2 px-3">Type</th>
+                  <th class="py-2 px-3">Start</th>
+                  <th class="py-2 px-3">End</th>
+                  <th class="py-2 px-3">Days</th>
+                  <th class="py-2 px-3">Status</th>
+                  <th class="py-2 px-3">Action</th>
+                </tr>
+              </thead>
+              <tbody id="requestsBody" class="text-sm text-gray-700"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Attendance table -->
+        <div class="card p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-lg font-semibold">Attendance — Today</h3>
+              <div class="tiny text-gray-500">Clock-in / Clock-out and daily status</div>
+            </div>
+            <div class="tiny text-gray-600">
+              <button id="markAllOnTime" class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded">Mark All On-time</button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead class="text-sm text-gray-500">
+                <tr>
+                  <th class="py-2 px-3">Employee</th>
+                  <th class="py-2 px-3">Clock In</th>
+                  <th class="py-2 px-3">Clock Out</th>
+                  <th class="py-2 px-3">Hours</th>
+                  <th class="py-2 px-3">Status</th>
+                  <th class="py-2 px-3">Action</th>
+                </tr>
+              </thead>
+              <tbody id="attendanceBody" class="text-sm text-gray-700"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right column: policy, balances, charts, insights -->
+      <aside class="space-y-6">
+        <!-- Policy card -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-2">Leave Policy</h4>
+          <div class="tiny text-gray-600 space-y-1">
+            <div>Annual Leave: 20 days/year</div>
+            <div>Sick Leave: 10 days/year</div>
+            <div>Maternity: 60 days (female)</div>
+            <div>Paternity: 10 days (male)</div>
+            <div>Compassionate: 5 days</div>
+            <div>Study Leave: 15 days</div>
+            <div>Unpaid Leave: Admin discretion</div>
+          </div>
+        </div>
+
+        <!-- Balances -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-3">Sample Employee Balances</h4>
+          <div id="balancesList" class="tiny text-gray-700 space-y-3 max-h-56 overflow-auto"></div>
+        </div>
+
+        <!-- Chart -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-3">Monthly Attendance Trend</h4>
+          <canvas id="attendanceChart" width="300" height="220"></canvas>
+        </div>
+
+        <!-- Predictive insights -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-2">Lumion Insight</h4>
+          <div id="insightBox" class="text-sm text-gray-700 tiny">No insights yet — run simulation or add requests.</div>
+        </div>
+      </aside>
+    </div>
+
+    <!-- CSV / Data download area (hidden) -->
+    <div id="downloadArea" class="hidden"></div>
+  </div>
+
+  <!-- Add Leave Modal -->
+  <div id="addLeaveModal" class="fixed inset-0 z-50 hidden items-center justify-center modal-bg">
+    <div class="bg-white rounded-lg w-full max-w-xl p-6 shadow-lg">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-semibold">Add Leave Request</h3>
+        <button id="closeModal" class="text-gray-500">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-sm font-medium">Employee</label>
+          <select id="modalEmployee" class="w-full p-2 border rounded mt-1"></select>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Leave Type</label>
+          <select id="modalType" class="w-full p-2 border rounded mt-1">
+            <option value="annual">Annual</option>
+            <option value="sick">Sick</option>
+            <option value="maternity">Maternity</option>
+            <option value="paternity">Paternity</option>
+            <option value="compassionate">Compassionate</option>
+            <option value="study">Study</option>
+            <option value="unpaid">Unpaid</option>
+          </select>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm font-medium">Start Date</label>
+            <input id="modalStart" type="date" class="w-full p-2 border rounded mt-1" />
+          </div>
+          <div>
+            <label class="text-sm font-medium">End Date</label>
+            <input id="modalEnd" type="date" class="w-full p-2 border rounded mt-1" />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">Reason (optional)</label>
+          <input id="modalReason" type="text" class="w-full p-2 border rounded mt-1" placeholder="e.g., family commitment" />
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div id="modalValidation" class="text-sm text-red-600"></div>
+          <div class="flex gap-2">
+            <button id="submitLeave" class="px-4 py-2 bg-green-600 text-white rounded">Submit</button>
+            <button id="cancelLeave" class="px-4 py-2 bg-gray-100 rounded">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* -------------------------
+   SAMPLE DATA (20 employees)
+   ------------------------- */
+const employees = [
+  { id:1,name:"Ada Bello", department:"Engineering", gender:"F" },
+  { id:2,name:"Chike Okoro", department:"Sales", gender:"M" },
+  { id:3,name:"Kemi Adegoke", department:"HR", gender:"F" },
+  { id:4,name:"Bayo Aden", department:"Finance", gender:"M" },
+  { id:5,name:"Zainab Yusuf", department:"Support", gender:"F" },
+  { id:6,name:"Ibrahim Sani", department:"Engineering", gender:"M" },
+  { id:7,name:"Ngozi E.", department:"Sales", gender:"F" },
+  { id:8,name:"Tunde Martins", department:"Product", gender:"M" },
+  { id:9,name:"Fatima Ali", department:"Marketing", gender:"F" },
+  { id:10,name:"David O.", department:"Design", gender:"M" },
+  { id:11,name:"Mercy I.", department:"HR", gender:"F" },
+  { id:12,name:"Paul N.", department:"Engineering", gender:"M" },
+  { id:13,name:"Ruth K.", department:"Support", gender:"F" },
+  { id:14,name:"Emeka O.", department:"Finance", gender:"M" },
+  { id:15,name:"Sadia B.", department:"Marketing", gender:"F" },
+  { id:16,name:"Ola P.", department:"Product", gender:"M" },
+  { id:17,name:"Hanna L.", department:"Sales", gender:"F" },
+  { id:18,name:"Markus R.", department:"Engineering", gender:"M" },
+  { id:19,name:"Chinaza V.", department:"Design", gender:"F" },
+  { id:20,name:"Kingsley U.", department:"Support", gender:"M" }
+];
+
+/* Leave policy default totals */
+const policy = {
+  annual:20, sick:10, maternity:60, paternity:10, compassionate:5, study:15, unpaid: null
+};
+
+/* Build per-employee leave balance (used = random small number) */
+const employeesData = employees.map(e => ({
+  ...e,
+  leaveBalance: {
+    annual: { total: policy.annual, used: Math.floor(Math.random()*6) },
+    sick: { total: policy.sick, used: Math.floor(Math.random()*3) },
+    maternity: { total: policy.maternity, used: 0 },
+    paternity: { total: policy.paternity, used: 0 },
+    compassionate: { total: policy.compassionate, used: 0 },
+    study: { total: policy.study, used: Math.floor(Math.random()*3) },
+    unpaid: { total: null, used: 0 }
+  },
+  attendance: [], // daily entries
+}));
+
+/* leave requests (in-memory) */
+let leaveRequests = []; // {id, employeeId, type, start, end, days, status, reason, createdAt}
+
+/* attendance records (per day) */
+let attendanceRecords = {}; // key: date -> array of {employeeId, clockIn, clockOut, hours, status}
+
+/* utility */
+const $ = id => document.getElementById(id);
+
+/* initialize UI */
+function initUI() {
+  $('cardEmployees').innerText = employeesData.length;
+  populateBalances();
+  populateRequestsTable();
+  populateAttendanceTable();
+  renderAttendanceChart(generateRandomMonthlyAttendance());
+  updateSummaryCards();
+  // modal employee select
+  const empSelect = $('modalEmployee');
+  empSelect.innerHTML = employeesData.map(e=>`<option value="${e.id}">${e.name} — ${e.department}</option>`).join('');
+}
+
+/* populate balances sidebar */
+function populateBalances() {
+  const out = employeesData.map(e => {
+    const bal = e.leaveBalance;
+    const remAnnual = Math.max(0, bal.annual.total - bal.annual.used);
+    return `
+      <div class="flex justify-between items-center border-b py-2">
+        <div class="text-sm"><strong>${e.name}</strong><div class="tiny text-gray-500">${e.department}</div></div>
+        <div class="text-right tiny text-gray-600">
+          Annual: <span class="font-semibold">${remAnnual}</span>
+        </div>
+      </div>`;
+  }).join('');
+  $('balancesList').innerHTML = out;
+}
+
+/* calculate days between two dates inclusive */
+function daysBetween(a,b){
+  const d1=new Date(a), d2=new Date(b);
+  const ms = d2 - d1;
+  return Math.floor(ms/86400000)+1;
+}
+
+/* Requests table render */
+function populateRequestsTable(filter='all') {
+  const body = $('requestsBody');
+  const rows = leaveRequests
+    .filter(r => filter==='all' ? true : r.status===filter)
+    .sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))
+    .map(r => {
+      const emp = employeesData.find(e=>e.id===r.employeeId);
+      const statusPill = r.status==='pending'
+        ? `<span class="status-pill bg-amber-100 text-amber-700">Pending</span>`
+        : r.status==='approved'
+          ? `<span class="status-pill bg-green-100 text-green-700">Approved</span>`
+          : `<span class="status-pill bg-red-100 text-red-700">Rejected</span>`;
+      return `
+      <tr class="border-t">
+        <td class="py-3 px-3">${emp.name}<div class="tiny text-gray-500">${emp.department}</div></td>
+        <td class="py-3 px-3">${capitalize(r.type)}</td>
+        <td class="py-3 px-3">${r.start}</td>
+        <td class="py-3 px-3">${r.end}</td>
+        <td class="py-3 px-3">${r.days}</td>
+        <td class="py-3 px-3">${statusPill}</td>
+        <td class="py-3 px-3">
+          ${r.status==='pending' ? `<button data-id="${r.id}" class="approveBtn px-3 py-1 bg-green-50 text-green-700 rounded mr-2">Approve</button>
+          <button data-id="${r.id}" class="rejectBtn px-3 py-1 bg-red-50 text-red-700 rounded">Reject</button>` : `<button data-id="${r.id}" class="viewBtn px-3 py-1 bg-gray-50 text-gray-700 rounded">View</button>`}
+        </td>
+      </tr>`;
+    }).join('');
+  body.innerHTML = rows || `<tr><td colspan="7" class="py-4 px-3 text-center text-gray-500">No requests</td></tr>`;
+  attachRequestActions();
+}
+
+/* Attach Approve/Reject handlers */
+function attachRequestActions(){
+  document.querySelectorAll('.approveBtn').forEach(btn=>{
+    btn.onclick = () => {
+      const id = +btn.dataset.id;
+      approveRequest(id);
+    };
+  });
+  document.querySelectorAll('.rejectBtn').forEach(btn=>{
+    btn.onclick = () => {
+      const id = +btn.dataset.id;
+      rejectRequest(id);
+    };
+  });
+  document.querySelectorAll('.viewBtn').forEach(btn=>{
+    btn.onclick = () => {
+      const id = +btn.dataset.id;
+      const r = leaveRequests.find(x=>x.id===id);
+      alert(`${r.days} day(s): ${r.type} for ${employeesData.find(e=>e.id===r.employeeId).name}\nReason: ${r.reason||'—'}`);
+    };
+  });
+}
+
+/* Approve request with policy validation (balance) */
+function approveRequest(id){
+  const r = leaveRequests.find(x=>x.id===id);
+  if(!r) return;
+  const emp = employeesData.find(e=>e.id===r.employeeId);
+  const balance = emp.leaveBalance[r.type];
+  if(r.type!=='unpaid' && balance && (balance.total - balance.used) < r.days){
+    alert(`Cannot approve — ${emp.name} has only ${balance.total - balance.used} ${r.type} days remaining.`);
+    return;
+  }
+  // deduct
+  if(r.type!=='unpaid' && balance){
+    balance.used += r.days;
+  }
+  r.status = 'approved';
+  updateAfterChange();
+}
+
+/* Reject */
+function rejectRequest(id){
+  const r = leaveRequests.find(x=>x.id===id);
+  if(!r) return;
+  r.status = 'rejected';
+  updateAfterChange();
+}
+
+/* Update UI after data changes */
+function updateAfterChange(){
+  populateRequestsTable($('filterStatus').value);
+  populateBalances();
+  populateAttendanceTable();
+  updateSummaryCards();
+  computeInsight();
+}
+
+/* Attendance functions */
+function populateAttendanceTable(){
+  const dateKey = todayKey();
+  if(!attendanceRecords[dateKey]) {
+    attendanceRecords[dateKey] = employeesData.map(e => ({
+      employeeId: e.id, clockIn: null, clockOut: null, hours: 0, status: 'absent'
+    }));
+  }
+  const rows = attendanceRecords[dateKey].map(rec => {
+    const emp = employeesData.find(e=>e.id===rec.employeeId);
+    const statusColor = rec.status==='On Time' ? 'bg-green-100 text-green-700' : rec.status==='Late' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700';
+    return `
+      <tr class="border-t">
+        <td class="py-3 px-3">${emp.name}<div class="tiny text-gray-500">${emp.department}</div></td>
+        <td class="py-3 px-3">${rec.clockIn || '—'}</td>
+        <td class="py-3 px-3">${rec.clockOut || '—'}</td>
+        <td class="py-3 px-3">${rec.hours ? rec.hours.toFixed(2) : '—'}</td>
+        <td class="py-3 px-3"><span class="status-pill ${statusColor}">${rec.status}</span></td>
+        <td class="py-3 px-3">
+          <button data-id="${rec.employeeId}" class="markBtn px-3 py-1 bg-indigo-50 text-indigo-700 rounded">Mark</button>
+        </td>
+      </tr>`;
+  }).join('');
+  $('attendanceBody').innerHTML = rows;
+  document.querySelectorAll('.markBtn').forEach(b => {
+    b.onclick = () => {
+      const id = +b.dataset.id;
+      manualMark(id);
+    };
+  });
+  updateSummaryCards();
+}
+
+/* manually mark attendance for one employee (current date) */
+function manualMark(empId){
+  const dateKey = todayKey();
+  const rec = attendanceRecords[dateKey].find(r=>r.employeeId===empId);
+  const now = new Date();
+  if(!rec.clockIn){
+    rec.clockIn = timeString(now);
+    rec.status = isLate(rec.clockIn) ? 'Late' : 'On Time';
+    rec.hours = 0;
+  } else if(!rec.clockOut){
+    rec.clockOut = timeString(now);
+    rec.hours = (new Date().setHours(...parseTime(rec.clockOut.split(':'))) - new Date().setHours(...parseTime(rec.clockIn.split(':')))) / 3600000;
+    if(rec.hours < 0) rec.hours = 0;
+  } else {
+    alert('Already clocked out for today');
+  }
+  populateAttendanceTable();
+  computeInsight();
+}
+
+/* simulate day for all employees (random normal times) */
+function simulateDay(){
+  const dateKey = todayKey();
+  attendanceRecords[dateKey] = employeesData.map(e=>{
+    // 80% present, 10% late, 10% absent
+    const r = Math.random();
+    if(r < 0.1) return { employeeId: e.id, clockIn:null, clockOut:null, hours:0, status:'Absent' };
+    const late = r < 0.2;
+    const baseIn = late ? 9+Math.random()*1 : 8 + Math.random()*0.5;
+    const inH = Math.floor(baseIn);
+    const inM = Math.floor((baseIn - inH)*60);
+    const outH = 17 + Math.floor(Math.random()*1);
+    const outM = Math.floor(Math.random()*60);
+    const clockIn = pad(inH)+':'+pad(inM);
+    const clockOut = pad(outH)+':'+pad(outM);
+    const hours = (outH + outM/60) - (inH + inM/60);
+    return { employeeId: e.id, clockIn, clockOut, hours: Math.max(0,Math.round(hours*100)/100), status: late? 'Late' : 'On Time' };
+  });
+  populateAttendanceTable();
+  renderAttendanceChart(generateRandomMonthlyAttendance()); // regenerate trend
+  computeInsight();
+}
+
+/* helpers */
+function pad(n){return n.toString().padStart(2,'0');}
+function timeString(d){ return pad(d.getHours())+':'+pad(d.getMinutes()); }
+function isLate(clockIn){ if(!clockIn) return true; const [h,m]=clockIn.split(':').map(Number); return (h>9) || (h===9 && m>15); }
+function parseTime([h,m]){ return [Number(h), Number(m), 0, 0]; }
+function capitalize(s){ return s[0].toUpperCase()+s.slice(1); }
+function todayKey(){ const d=new Date(); return d.toISOString().slice(0,10); }
+
+/* Add leave request from modal */
+function submitLeaveFromModal(){
+  const empId = +$('modalEmployee').value;
+  const type = $('modalType').value;
+  const start = $('modalStart').value;
+  const end = $('modalEnd').value;
+  const reason = $('modalReason').value.trim();
+  if(!start || !end) { $('modalValidation').innerText = 'Please choose start and end dates.'; return; }
+  const days = daysBetween(start,end);
+  const newId = leaveRequests.length ? (Math.max(...leaveRequests.map(r=>r.id))+1) : 1;
+  const request = { id:newId, employeeId:empId, type, start, end, days, status:'pending', reason, createdAt: new Date().toISOString() };
+  // client-side validation: if not unpaid, check available balance and warn (but still allow request)
+  const emp = employeesData.find(e=>e.id===empId);
+  if(type!=='unpaid'){
+    const bal = emp.leaveBalance[type];
+    if(bal && (bal.total - bal.used) < days){
+      const proceed = confirm(`${emp.name} has only ${bal.total - bal.used} ${type} days remaining. Submit request anyway?`);
+      if(!proceed) return;
+    }
+  }
+  leaveRequests.push(request);
+  closeModal();
+  updateAfterChange();
+}
+
+/* modal open/close */
+function openModal(){ $('addLeaveModal').classList.remove('hidden'); $('addLeaveModal').classList.add('flex'); $('modalValidation').innerText=''; }
+function closeModal(){ $('addLeaveModal').classList.add('hidden'); $('addLeaveModal').classList.remove('flex'); }
+
+/* summary cards update */
+function updateSummaryCards(){
+  $('cardEmployees').innerText = employeesData.length;
+  $('cardTotalRequests').innerText = leaveRequests.length;
+  $('cardPending').innerText = leaveRequests.filter(r=>r.status==='pending').length;
+  // absent today:
+  const dateKey = todayKey();
+  const absent = (attendanceRecords[dateKey] || []).filter(r=>r.status==='Absent' || r.status==='absent' || !r.clockIn).length;
+  $('cardAbsent').innerText = absent;
+}
+
+/* insights: simple heuristics for prototype */
+function computeInsight(){
+  const pending = leaveRequests.filter(r=>r.status==='pending').length;
+  const approved = leaveRequests.filter(r=>r.status==='approved').length;
+  const dateKey = todayKey();
+  const attendance = attendanceRecords[dateKey] || [];
+  const lateCount = attendance.filter(a=>a.status==='Late').length;
+  const absentCount = attendance.filter(a=>!a.clockIn || a.status==='Absent' || a.status==='absent').length;
+  const insights = [];
+  if(pending > Math.max(5, employeesData.length * 0.05)){
+    insights.push(`Leave requests are high (${pending}). Consider temporary coverage or shift adjustments.`);
+  }
+  if(absentCount > Math.max(2, employeesData.length * 0.05)){
+    insights.push(`Absent rate today is ${absentCount}. Consider a quick engagement check-in.`);
+  }
+  if(lateCount > Math.max(2, employeesData.length * 0.05)){
+    insights.push(`Late clock-ins trending (${lateCount} today) — consider a reminder or flexible start times.`);
+  }
+  if(approved > 8){
+    insights.push(`Many approvals this month (${approved}) — watch for capacity gaps.`);
+  }
+  $('insightBox').innerText = insights.length ? insights.join('\n\n') : 'No urgent insights detected. All systems nominal.';
+}
+
+/* Attendance trend chart (monthly) */
+let attendanceChart=null;
+function renderAttendanceChart(data){
+  const ctx = document.getElementById('attendanceChart').getContext('2d');
+  if(attendanceChart) attendanceChart.destroy();
+  attendanceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.labels,
+      datasets: [{
+        label: 'Attendance %',
+        data: data.values,
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,0.12)',
+        fill:true,
+        tension:0.25,
+        pointRadius:2
+      }]
+    },
+    options: {
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{y:{min:0,max:100}}
+    }
+  });
+}
+
+/* generate random monthly attendance (prototype) */
+function generateRandomMonthlyAttendance(){
+  const labels=[], values=[];
+  const days = 30;
+  for(let i=days;i>0;i--){
+    labels.unshift(`${i}d`);
+    values.unshift(Math.round(80 + Math.random()*20));
+  }
+  return { labels, values };
+}
+
+/* Export CSV (leaveRequests + attendance today) */
+function downloadCSV() {
+  // combine into two sheets in one CSV separated by blank line
+  let csv = "LEAVE REQUESTS\n";
+  csv += "id,employee,type,start,end,days,status,reason,createdAt\n";
+  leaveRequests.forEach(r=>{
+    const emp = employeesData.find(e=>e.id===r.employeeId);
+    csv += `${r.id},"${emp.name}",${r.type},${r.start},${r.end},${r.days},${r.status},"${r.reason||''}",${r.createdAt}\n`;
+  });
+  csv += `\nATTENDANCE (${todayKey()})\n`;
+  csv += "employee,clockIn,clockOut,hours,status\n";
+  const today = attendanceRecords[todayKey()] || [];
+  today.forEach(a=>{
+    const emp = employeesData.find(e=>e.id===a.employeeId);
+    csv += `"${emp.name}",${a.clockIn||''},${a.clockOut||''},${a.hours||0},${a.status}\n`;
+  });
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `lumion_leave_attendance_${todayKey()}.csv`;
+  a.click();
+}
+
+/* event wiring */
+document.addEventListener('DOMContentLoaded', ()=> {
+  initUI();
+  // simulate day button
+  $('simulateDayBtn').addEventListener('click', ()=> {
+    simulateDay();
+  });
+  // add leave open modal
+  $('addLeaveBtn').addEventListener('click', openModal);
+  $('closeModal').addEventListener('click', closeModal);
+  $('cancelLeave').addEventListener('click', closeModal);
+  $('submitLeave').addEventListener('click', submitLeaveFromModal);
+  $('filterStatus').addEventListener('change', ()=> populateRequestsTable($('filterStatus').value));
+  $('downloadCSV').addEventListener('click', downloadCSV);
+  // mark all on time
+  $('markAllOnTime').addEventListener('click', ()=>{
+    const dateKey = todayKey();
+    attendanceRecords[dateKey] = employeesData.map(e=>({ employeeId:e.id, clockIn:'08:45', clockOut:'17:00', hours:8.25, status:'On Time' }));
+    populateAttendanceTable();
+  });
+
+  // seed a few initial leave requests for demo
+  leaveRequests.push({
+    id:1, employeeId:3, type:'annual', start: addDays(-5), end: addDays(-1), days:5, status:'approved', reason:'Vacation', createdAt: new Date().toISOString()
+  });
+  leaveRequests.push({
+    id:2, employeeId:7, type:'sick', start: addDays(1), end: addDays(2), days:2, status:'pending', reason:'Medical', createdAt: new Date().toISOString()
+  });
+  leaveRequests.push({
+    id:3, employeeId:11, type:'annual', start: addDays(7), end: addDays(10), days:4, status:'pending', reason:'Family', createdAt: new Date().toISOString()
+  });
+  updateAfterChange();
+});
+
+/* tiny helpers for demo */
+function addDays(n){ const d=new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+
+/* random monthly trend on load */
+renderAttendanceChart(generateRandomMonthlyAttendance());
+
+/* utilities used above require global scope for quick prototyping */
+window.simulateDay = simulateDay;
+window.submitLeaveFromModal = submitLeaveFromModal;
+window.openModal = openModal;
+
+/* END */
+</script>
+
+</body>
+</html>
