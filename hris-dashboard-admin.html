@@ -1,246 +1,759 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lumion - Africa's HRTech Marketplace & Career Accelerator</title>
-  <link rel="icon" type="image/png" href="static/Logo__mark.png">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion HR — Admin Dashboard</title>
+  <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png">
+  <!-- Tailwind CDN for quick prototyping -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-  <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Chart.js for predictive chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
   <style>
-    body { font-family: 'Inter', sans-serif; scroll-behavior: smooth; }
-    .hero-canvas { position:absolute; inset:0; z-index:0; }
-    .ai-watermark { opacity:0.05; position:absolute; top:-50px; right:-50px; width:400px; }
-    #chatbot button { position: fixed; bottom: 24px; right: 24px; z-index: 50; }
-    #chatWindow {
-      display: none; flex-direction: column;
-      position: fixed; bottom: 90px; right: 24px;
-      width: 360px; background: white; border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-      z-index: 60; overflow: hidden;
-      animation: fadeIn 0.3s ease;
-    }
-    #chatHeader {
-      background: #4F46E5; color: white; font-weight: 600;
-      padding: 14px; text-align: center;
-    }
-    #chatMessages { padding: 14px; height: 260px; overflow-y: auto; font-size: 15px; }
-    .chat-bubble {
-      background: #F3F4F6; padding: 10px 14px; border-radius: 10px; margin-bottom: 8px;
-      max-width: 80%; word-wrap: break-word;
-    }
-    .chat-ai { background: #EEF2FF; color: #4F46E5; align-self: flex-start; }
-    .chat-user { background: #4F46E5; color: white; align-self: flex-end; }
-    #chatInput {
-      display: flex; border-top: 1px solid #E5E7EB;
-    }
-    #chatInput input {
-      flex: 1; padding: 10px; border: none; outline: none;
-    }
-    #chatInput button {
-      padding: 10px 16px; background: #4F46E5; color: white; border: none; cursor: pointer;
-    }
-    #suggested {
-      display: flex; flex-wrap: wrap; gap: 8px; padding: 10px;
-    }
-    .prompt-btn {
-      background: #F3F4F6; color: #4F46E5; border-radius: 8px; padding: 6px 10px;
-      cursor: pointer; font-size: 13px; transition: 0.2s;
-    }
-    .prompt-btn:hover { background: #E0E7FF; }
-    @keyframes fadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,42,0.06); }
+    .ghost-btn { background: transparent; border: 1px solid #e6e9f0; padding: .45rem .75rem; border-radius: 8px; }
+    #chatWindow { display:none; width:360px; max-width:calc(100vw - 40px); position:fixed; right:20px; bottom:90px; border-radius:12px; overflow:hidden; z-index:60; box-shadow:0 10px 30px rgba(2,6,23,.15); background:white; }
+    #chatHeader{background:#4F46E5;color:white;padding:10px 12px;font-weight:700}
+    .chat-bubble{padding:8px 12px;border-radius:14px;max-width:80%}
+    .chat-ai{background:#F3F4F6;color:#111827}
+    .chat-user{background:#4F46E5;color:white; margin-left:auto;}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.45);display:flex;align-items:center;justify-content:center;z-index:70}
+    @media (max-width:900px){ .desktop-only{display:none} }
+    .pill { padding: 6px 10px; border-radius:999px; font-size:12px; }
+    /* subtle scrollbar for chat messages */
+    #chatMessages { max-height: 320px; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:8px; }
   </style>
 </head>
-<body class="bg-gray-50 overflow-x-hidden">
+<body class="bg-gray-50 text-gray-800">
 
-  <!-- Navigation -->
-  <nav class="bg-white shadow-md fixed w-full z-20 backdrop-blur-md bg-white/90">
-    <div class="max-w-7xl mx-auto px-6">
-      <div class="flex justify-between h-16 items-center">
+  <!-- NAV -->
+  <header class="bg-white border-b sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="https://i.ibb.co/XfRLzWwy/Logo.png" alt="Lumion" class="h-10 w-auto"/>
         <div>
-          <img src="static/Logo.png" alt="Lumion Logo" class="h-10 w-auto">
-        </div>
-        <div class="hidden md:flex space-x-8 text-gray-700 font-medium">
-          <a href="#" class="hover:text-indigo-600">Home</a>
-          <a href="Onboarding.html" class="hover:text-indigo-600">Onboarding</a>
-          <a href="Leave-attendace.html" class="hover:text-indigo-600">Leave & Attendance</a>
-          <a href="payroll-dashboard.html" class="hover:text-indigo-600">Payroll</a>
-        </div>
-        <div class="flex space-x-4">
-          <a href="#" class="text-gray-700 hover:text-indigo-600">Log in</a>
-          <a href="#" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-white shadow">
-            Sign up
-          </a>
+          <div class="text-lg font-semibold">Lumion HR</div>
+          <div class="text-xs text-gray-500">AI-powered HR & People Ops</div>
         </div>
       </div>
+      <nav class="flex items-center gap-6 text-sm">
+        <a class="text-indigo-600 font-semibold" href="hris-dashboard-admin.html">Overview</a>
+        <a class="text-gray-600 hover:text-indigo-600" href="employees.html">Employees</a>
+        <a class="text-gray-600 hover:text-indigo-600" href="payroll-dashboard.html">Payroll</a>
+        <a class="text-gray-600 hover:text-indigo-600" href="jobs.html">Jobs</a>
+        <a class="text-gray-600 hover:text-indigo-600" href="onboarding.html">Onboarding</a>
+        <a class="text-gray-600 hover:text-indigo-600" href="leave-attendance.html">Leave & Attendance</a>
+        <a class="text-gray-600 hover:text-indigo-600" href="analytics.html">Analytics</a>
+        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Invite Team</button>
+      </nav>
     </div>
-  </nav>
+  </header>
 
-  <!-- Hero Section -->
-  <section class="relative flex items-center justify-center min-h-screen text-center bg-black text-white">
-    <canvas id="aiBackground" class="hero-canvas"></canvas>
-    <div class="relative z-10 px-6 pt-20">
-      <h1 class="text-5xl md:text-7xl font-extrabold leading-tight">
-        Africa’s Premier <br>
-        <span class="ai-typing text-indigo-400"></span>
-      </h1>
-      <p class="mt-6 text-lg md:text-2xl text-gray-300 max-w-2xl mx-auto">
-        Connecting employers with top talent through <span class="text-indigo-400">AI-powered matching</span> and predictive analytics.
-      </p>
-      <div class="mt-8 flex flex-wrap gap-4 justify-center">
-        <a href="employees.html" class="px-8 py-4 text-lg font-semibold rounded-md bg-indigo-600 hover:bg-indigo-700 shadow-lg transition">Find Talent</a>
-        <a href="dashboard.html" class="px-8 py-4 text-lg font-semibold rounded-md bg-white text-indigo-600 hover:bg-gray-200 shadow-lg transition">Explore Platform</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- Features -->
-  <section class="py-20 bg-white relative">
-    <div class="max-w-6xl mx-auto text-center">
-      <h2 class="text-indigo-600 font-semibold uppercase tracking-wide">Features</h2>
-      <p class="text-4xl font-extrabold mt-2 text-gray-900">AI-Driven Solutions for HR</p>
-    </div>
-    <div class="mt-12 grid md:grid-cols-2 gap-10 max-w-6xl mx-auto px-6">
-      <div class="p-6 bg-gray-50 rounded-xl shadow hover:shadow-xl transition" data-aos="fade-up">
-        <img src="static/Logo__mark.png" class="h-10 mb-4" alt="icon">
-        <h3 class="text-xl font-bold text-gray-900">AI-Powered Matching</h3>
-        <p class="text-gray-600 mt-2">Smart algorithms connect companies and candidates based on skill fit, culture, and potential.</p>
-      </div>
-      <div class="p-6 bg-gray-50 rounded-xl shadow hover:shadow-xl transition" data-aos="fade-up" data-aos-delay="100">
-        <img src="static/Logo__mark.png" class="h-10 mb-4" alt="icon">
-        <h3 class="text-xl font-bold text-gray-900">Predictive HR Analytics</h3>
-        <p class="text-gray-600 mt-2">Forecast turnover, engagement, and performance metrics to stay ahead of workforce trends.</p>
-      </div>
-      <div class="p-6 bg-gray-50 rounded-xl shadow hover:shadow-xl transition" data-aos="fade-up" data-aos-delay="200">
-        <img src="static/Logo__mark.png" class="h-10 mb-4" alt="icon">
-        <h3 class="text-xl font-bold text-gray-900">Automated Payroll & Leave</h3>
-        <p class="text-gray-600 mt-2">Generate payslips, track time, and manage compliance automatically with AI validation.</p>
-      </div>
-      <div class="p-6 bg-gray-50 rounded-xl shadow hover:shadow-xl transition" data-aos="fade-up" data-aos-delay="300">
-        <img src="static/Logo__mark.png" class="h-10 mb-4" alt="icon">
-        <h3 class="text-xl font-bold text-gray-900">Conversational HR Assistant</h3>
-        <p class="text-gray-600 mt-2">Chat directly with Lumion AI for real-time insights, onboarding help, and talent search.</p>
-      </div>
-    </div>
-  </section>
-
-  <!-- ✅ AI Chatbot -->
-  <div id="chatbot">
-    <button onclick="toggleChat()" class="p-4 bg-indigo-600 rounded-full text-white shadow-lg hover:scale-110 transition">💬</button>
-  </div>
-
-  <div id="chatWindow" class="flex">
-    <div id="chatHeader">Lumion Assistant</div>
-    <div id="chatMessages" class="flex flex-col"></div>
-    <div id="suggested">
-      <div class="prompt-btn" onclick="sendPrompt('Show me jobs')">Show me jobs</div>
-      <div class="prompt-btn" onclick="sendPrompt('How do I hire?')">How do I hire?</div>
-      <div class="prompt-btn" onclick="sendPrompt('Payroll automation demo')">Payroll automation demo</div>
-    </div>
-    <div id="chatInput">
-      <input type="text" id="userInput" placeholder="Type a message...">
-      <button onclick="sendMessage()">Send</button>
-    </div>
-  </div>
-
-  <!-- Stats -->
-  <section class="relative py-20 bg-indigo-50 text-black text-center">
-    <img src="static/Logo__mark.png" class="ai-watermark" alt="watermark">
-    <h2 class="text-4xl font-extrabold">Trusted Across Africa</h2>
-    <p class="mt-2 text-lg text-gray-600">Transforming how talent and opportunity connect.</p>
-    <div class="mt-10 grid sm:grid-cols-3 gap-8 max-w-4xl mx-auto">
-      <div><div class="text-5xl font-extrabold text-indigo-600 counter" data-count="10000">0</div><p>Active Users</p></div>
-      <div><div class="text-5xl font-extrabold text-indigo-600 counter" data-count="5000">0</div><p>Jobs Posted</p></div>
-      <div><div class="text-5xl font-extrabold text-indigo-600 counter" data-count="3000">0</div><p>Matches Made</p></div>
-    </div>
-  </section>
-
-  <!-- Footer -->
-  <footer class="bg-white py-12 text-gray-600 border-t">
-    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between">
-      <div>
-        <img src="static/Logo.png" alt="Lumion Logo" class="h-8 mb-4">
-        <p class="text-gray-500">Africa's premier HRTech marketplace and career accelerator.</p>
-      </div>
-      <div class="grid grid-cols-2 gap-8 mt-8 md:mt-0">
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- OVERVIEW -->
+    <section id="overview" class="mb-6">
+      <div class="flex justify-between items-center">
         <div>
-          <h3 class="font-semibold text-gray-900">For Employers</h3>
-          <ul class="mt-2 space-y-2">
-            <li><a href="#" class="hover:text-indigo-600">Post a Job</a></li>
-            <li><a href="#" class="hover:text-indigo-600">Browse Talent</a></li>
+          <h1 class="text-2xl font-extrabold">Welcome, Admin</h1>
+          <p class="text-sm text-gray-500 mt-1">Manage employees, payroll, hiring pipelines, and people analytics.</p>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div class="text-right">
+            <div class="text-xs text-gray-500">Today</div>
+            <div class="text-sm font-medium" id="nowDate"></div>
+          </div>
+          <button id="exportFullCSV" class="px-3 py-2 border rounded-lg text-sm ghost-btn">Export All (CSV)</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- summary cards -->
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Employees</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryEmployees">0</div>
+        <div class="text-xs text-green-600 mt-1">update live</div>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Payroll (monthly est)</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryPayroll">₦0</div>
+        <div class="text-xs text-gray-500 mt-1">Gross payout</div>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Active Leaves</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryLeaves">0</div>
+        <div class="text-xs text-gray-500 mt-1">Pending & active</div>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Avg Match Score</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryMatch">—</div>
+        <div class="text-xs text-gray-500 mt-1">AI candidate match (sim)</div>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Employees -->
+      <section id="employees" class="lg:col-span-2">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold">Employees</h2>
+          <div class="flex gap-2">
+            <input id="searchInput" class="px-3 py-2 border rounded-lg text-sm" placeholder="Search name, department, role..." />
+            <button id="addEmployeeBtn" class="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">+ Add</button>
+          </div>
+        </div>
+
+        <div class="card p-4 overflow-x-auto">
+          <table class="w-full min-w-[900px] text-sm">
+            <thead class="text-left text-gray-500">
+              <tr>
+                <th class="py-2">Name</th>
+                <th class="py-2">Department</th>
+                <th class="py-2">Role</th>
+                <th class="py-2">Status</th>
+                <th class="py-2">Salary (₦)</th>
+                <th class="py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="employeesTbody" class="divide-y"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Payroll quick -->
+      <aside id="payroll" class="card p-5">
+        <h3 class="font-semibold mb-3">Payroll — Quick Payslip</h3>
+        <p class="text-sm text-gray-500 mb-4">Select an employee to calculate & generate a payslip (prototype PAYE & pension).</p>
+
+        <label class="block text-xs text-gray-600">Choose employee</label>
+        <select id="payrollEmployee" class="w-full p-2 mt-1 border rounded mb-3"></select>
+
+        <label class="block text-xs text-gray-600">Gross salary (₦)</label>
+        <input id="grossInput" type="number" class="w-full p-2 border rounded mb-3" placeholder="e.g., 250000" />
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="text-sm">
+            <div class="text-gray-500 text-xs">PAYE (tax)</div>
+            <div id="taxVal" class="text-lg font-medium">₦0</div>
+          </div>
+          <div class="text-sm">
+            <div class="text-gray-500 text-xs">Pension (8%)</div>
+            <div id="pensionVal" class="text-lg font-medium">₦0</div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="text-sm text-gray-500">Net pay</div>
+          <div id="netPay" class="text-2xl font-bold">₦0</div>
+        </div>
+
+        <div class="mt-6 flex gap-2">
+          <button id="calcBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Calculate</button>
+          <button id="generatePayslipBtn" class="px-4 py-2 border rounded-lg">Generate Payslip</button>
+        </div>
+
+        <hr class="my-4" />
+        <div>
+          <h4 class="text-sm font-semibold">Payroll Compliance</h4>
+          <ul class="text-xs text-gray-600 mt-2 space-y-1">
+            <li>• PAYE: prototype progressive model (adjust for local law).</li>
+            <li>• Pension: 8% employee. Employer contribution can be added.</li>
+            <li>• Payslips printable & exportable.</li>
           </ul>
         </div>
-        <div>
-          <h3 class="font-semibold text-gray-900">For Talent</h3>
-          <ul class="mt-2 space-y-2">
-            <li><a href="#" class="hover:text-indigo-600">Browse Jobs</a></li>
-            <li><a href="#" class="hover:text-indigo-600">GigPro</a></li>
-          </ul>
+      </aside>
+    </div>
+
+    <!-- JOBS + PIPELINE -->
+    <section id="jobs" class="mt-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Open Positions & Candidate Pipeline</h2>
+        <div class="flex gap-2">
+          <button id="autoMatchAll" class="px-3 py-2 bg-indigo-600 text-white rounded text-sm">Auto-match all (simulate)</button>
+          <button id="exportCandidatesCSV" class="px-3 py-2 border rounded text-sm ghost-btn">Export Candidates CSV</button>
         </div>
       </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- left: jobs list -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-3">Open Roles (<span id="jobsCount">0</span>)</h4>
+          <div id="jobsList" class="space-y-4"></div>
+        </div>
+
+        <!-- right: selected job detail -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-3" id="selectedJobTitle">Select a job to view candidates</h4>
+          <div id="selectedJobMeta" class="text-sm text-gray-500 mb-3"></div>
+          <div id="candidatesPanel" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Predictive Analytics -->
+    <section id="predictive" class="mt-8">
+      <div class="card p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">Predictive Analytics (simulated)</h3>
+          <div class="text-sm text-gray-500">AI estimates & trends</div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="p-4 bg-indigo-50 rounded">
+            <div class="text-xs text-gray-600">Predicted avg time-to-fill</div>
+            <div class="text-2xl font-bold" id="predTime">12 days</div>
+          </div>
+          <div class="p-4 bg-indigo-50 rounded">
+            <div class="text-xs text-gray-600">Top channel (sim)</div>
+            <div class="text-2xl font-bold" id="predChannel">LinkedIn</div>
+          </div>
+          <div class="p-4 bg-indigo-50 rounded">
+            <div class="text-xs text-gray-600">Avg match score</div>
+            <div class="text-2xl font-bold" id="predScore">86%</div>
+          </div>
+        </div>
+
+        <canvas id="predictiveChart" height="120"></canvas>
+      </div>
+    </section>
+
+    <!-- recent activity -->
+    <section class="mt-8">
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold">Recent Activity</h3>
+        <ul class="mt-3 text-sm text-gray-600 space-y-2" id="activityLog"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="mt-12 pb-12">
+    <div class="max-w-7xl mx-auto px-6 text-sm text-gray-500 text-center">
+      &copy; 2025 Lumion Technology — HRIS Prototype. All rights reserved.
     </div>
-    <p class="text-center mt-8 text-sm text-gray-500">&copy; 2025 Lumion Technologies. All rights reserved.</p>
   </footer>
 
-  <!-- Scripts -->
+  <!-- Chat widget -->
+  <div id="chatbot" style="position:fixed; right:20px; bottom:20px; z-index:80;">
+    <button onclick="toggleChat()" class="p-4 bg-indigo-600 rounded-full text-white shadow-lg">💬</button>
+  </div>
+  <div id="chatWindow" aria-hidden="true">
+    <div id="chatHeader">Lumion Assistant</div>
+    <div id="chatMessages">
+      <div class="chat-bubble chat-ai">Hi 👋 I'm Lumion Assistant. Ask me about employees, payroll, or hiring.</div>
+    </div>
+    <div style="padding:10px; border-top:1px solid #eee; display:flex; gap:8px; align-items:center;">
+      <input id="chatInput" placeholder="Ask Lumion..." class="flex-1 p-2 border rounded" />
+      <button id="chatSend" class="px-3 py-2 bg-indigo-600 text-white rounded">Send</button>
+    </div>
+  </div>
+
+  <div id="modalRoot"></div>
+
   <script>
-    // Typing animation
-    const text = ["HRTech Marketplace", "Career Accelerator", "AI Recruitment Hub"];
-    let i=0,j=0,isDeleting=false;
-    function type(){let cur=text[i];document.querySelector(".ai-typing").textContent=cur.substring(0,j)+(j<cur.length?"█":"");
-      if(!isDeleting&&j<cur.length){j++;setTimeout(type,120);}
-      else if(isDeleting&&j>0){j--;setTimeout(type,60);}
-      else if(!isDeleting&&j===cur.length){isDeleting=true;setTimeout(type,1000);}
-      else{isDeleting=false;i=(i+1)%text.length;setTimeout(type,200);}
-    } type();
+  /***********************
+   * Data & bootstrapping
+   ***********************/
+  document.addEventListener('DOMContentLoaded', () => {
+    // date
+    document.getElementById('nowDate').textContent = new Date().toLocaleDateString();
 
-    // Background animation
-    const canvas=document.getElementById('aiBackground'),ctx=canvas.getContext('2d');
-    let w,h;function resize(){w=canvas.width=window.innerWidth;h=canvas.height=window.innerHeight;}
-    window.addEventListener('resize',resize);resize();
-    const particles=Array.from({length:40},()=>({x:Math.random()*w,y:Math.random()*h,dx:(Math.random()-.5)*2,dy:(Math.random()-.5)*2}));
-    function draw(){ctx.fillStyle="rgba(10,10,30,0.3)";ctx.fillRect(0,0,w,h);ctx.fillStyle="#6366F1";particles.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fill();p.x+=p.dx;p.y+=p.dy;if(p.x<0||p.x>w)p.dx*=-1;if(p.y<0||p.y>h)p.dy*=-1;});requestAnimationFrame(draw);}draw();
+    // employees (20)
+    const employees = [
+      { id: "EMP001", name:"Ada Bello", dept:"Engineering", role:"Software Engineer", salary:220000, status:"Active", start:"2024-02-01" },
+      { id: "EMP002", name:"Chike Okoro", dept:"Sales", role:"Sales Lead", salary:200000, status:"Active", start:"2023-09-12" },
+      { id: "EMP003", name:"Ifeanyi N.", dept:"HR", role:"HRBP", salary:180000, status:"Active", start:"2022-04-17" },
+      { id: "EMP004", name:"Nkechi U.", dept:"Product", role:"Product Manager", salary:350000, status:"Active", start:"2021-11-03" },
+      { id: "EMP005", name:"James A.", dept:"Finance", role:"Finance Manager", salary:300000, status:"Active", start:"2020-06-25" },
+      { id: "EMP006", name:"Seyi O.", dept:"Design", role:"UI/UX Designer", salary:150000, status:"Active", start:"2024-01-11" },
+      { id: "EMP007", name:"Amaka P.", dept:"Customer Success", role:"CS Manager", salary:170000, status:"Active", start:"2023-02-14" },
+      { id: "EMP008", name:"Tunde R.", dept:"Engineering", role:"DevOps Engineer", salary:240000, status:"Active", start:"2022-08-01" },
+      { id: "EMP009", name:"Zainab K.", dept:"Sales", role:"Account Exec", salary:160000, status:"On Leave", start:"2021-07-09" },
+      { id: "EMP010", name:"Michael L.", dept:"HR", role:"Recruiter", salary:130000, status:"Active", start:"2023-12-01" },
+      { id: "EMP011", name:"Fatima U.", dept:"Engineering", role:"Backend Engineer", salary:210000, status:"Active", start:"2020-03-15" },
+      { id: "EMP012", name:"Peter N.", dept:"Product", role:"Data Analyst", salary:190000, status:"Active", start:"2024-06-20" },
+      { id: "EMP013", name:"Rose M.", dept:"Operations", role:"Ops Lead", salary:160000, status:"Active", start:"2019-10-30" },
+      { id: "EMP014", name:"David O.", dept:"Finance", role:"Payroll Exec", salary:140000, status:"Active", start:"2021-05-18" },
+      { id: "EMP015", name:"Sade A.", dept:"Marketing", role:"Social Manager", salary:120000, status:"Active", start:"2022-01-08" },
+      { id: "EMP016", name:"Bayo K.", dept:"Engineering", role:"Frontend Engineer", salary:200000, status:"Active", start:"2023-07-07" },
+      { id: "EMP017", name:"Ngozi C.", dept:"Customer Success", role:"Support", salary:100000, status:"Active", start:"2020-12-12" },
+      { id: "EMP018", name:"Umar B.", dept:"Legal", role:"Legal Counsel", salary:280000, status:"Active", start:"2018-09-21" },
+      { id: "EMP019", name:"Lilian T.", dept:"Design", role:"Motion Designer", salary:155000, status:"Active", start:"2024-04-02" },
+      { id: "EMP020", name:"Joel A.", dept:"Sales", role:"BD", salary:145000, status:"Active", start:"2023-03-03" }
+    ];
 
-    // Counter animation
-    document.querySelectorAll('.counter').forEach(el=>{
-      let count=0,target=+el.dataset.count;
-      function update(){count+=Math.ceil(target/100);if(count>target)count=target;el.textContent=count.toLocaleString();if(count<target)setTimeout(update,20);}
-      update();
+    // jobs (5)
+    const jobs = [
+      { id:"JOB001", title:"Frontend Engineer", team:"Engineering", location:"Lagos", salaryRange:"₦180k-₦300k", description:"React/Next, 3+ years", candidates:[] },
+      { id:"JOB002", title:"HR Manager", team:"HR", location:"Remote", salaryRange:"₦200k-₦350k", description:"HRIS, Talent mgmt", candidates:[] },
+      { id:"JOB003", title:"Product Manager", team:"Product", location:"VI, Lagos", salaryRange:"₦280k-₦450k", description:"Fintech product, 5+ yrs", candidates:[] },
+      { id:"JOB004", title:"Backend Engineer", team:"Engineering", location:"Lagos", salaryRange:"₦200k-₦350k", description:"Node/Python, APIs", candidates:[] },
+      { id:"JOB005", title:"Sales Executive", team:"Sales", location:"Remote", salaryRange:"₦100k-₦220k", description:"B2B sales, target-driven", candidates:[] }
+    ];
+
+    // sample candidate generator
+    const sampleNames = ["Tosin A.","Kemi O.","Ibrahim S.","Nkechi O.","David M.","Aisha L.","Chinedu E.","Ngozi R.","Samuel B.","Maryam H.","Adewale O.","Ruth I.","Emeka C.","Doris U.","Femi K."];
+    function randPick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function genCandidate(){
+      const name = randPick(sampleNames);
+      const years = Math.floor(Math.random()*8)+1;
+      const exp = `${years} yrs`;
+      const expected = Math.round((Math.random()*200 + 80) * 1000);
+      const match = Math.round(Math.random()*25 + 70); // 70-95
+      return { id: "CAND" + Math.floor(Math.random()*90000), name, exp, expected, match, status: "Applied", source: randPick(["LinkedIn","Indeed","Glassdoor","Lumion AI"]) };
+    }
+
+    // activity log
+    const activityLog = [];
+    function logActivity(txt){
+      activityLog.unshift({ t: new Date().toLocaleString(), txt });
+      const ul = document.getElementById('activityLog');
+      ul.innerHTML = activityLog.slice(0,8).map(a => `<li>• ${a.txt} <span class="text-xs text-gray-400">(${a.t})</span></li>`).join('');
+    }
+
+    /***********************
+     * render helpers
+     ***********************/
+    const tbody = document.getElementById("employeesTbody");
+    const payrollSelect = document.getElementById("payrollEmployee");
+    const searchInput = document.getElementById("searchInput");
+    const jobsListEl = document.getElementById("jobsList");
+    const candidatesPanel = document.getElementById("candidatesPanel");
+    const selectedJobTitle = document.getElementById("selectedJobTitle");
+    const selectedJobMeta = document.getElementById("selectedJobMeta");
+    const jobsCountEl = document.getElementById("jobsCount");
+
+    function formatN(amount){ return "₦" + Number(amount).toLocaleString(); }
+
+    function renderTable(list = employees){
+      tbody.innerHTML = "";
+      list.forEach(emp => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="py-3">
+            <div class="font-medium">${emp.name}</div>
+            <div class="text-xs text-gray-500">${emp.id}</div>
+          </td>
+          <td class="py-3">${emp.dept}</td>
+          <td class="py-3">${emp.role}</td>
+          <td class="py-3 text-sm">
+            <span class="${emp.status === 'Active' ? 'text-green-600' : 'text-yellow-600'}">${emp.status}</span>
+          </td>
+          <td class="py-3">${formatN(emp.salary)}</td>
+          <td class="py-3 text-right">
+            <button class="viewBtn px-3 py-1 mr-2 text-sm text-indigo-600">View</button>
+            <button class="editBtn px-3 py-1 mr-2 text-sm border rounded">Edit</button>
+            <button class="delBtn px-3 py-1 text-sm text-red-600">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+
+        // bind
+        tr.querySelector(".viewBtn").addEventListener("click", ()=> openView(emp));
+        tr.querySelector(".editBtn").addEventListener("click", ()=> openEdit(emp));
+        tr.querySelector(".delBtn").addEventListener("click", ()=> removeEmployee(emp.id));
+      });
+    }
+
+    function populatePayrollSelect(){
+      payrollSelect.innerHTML = "<option value=''>-- choose --</option>";
+      employees.forEach(e => {
+        const opt = document.createElement("option");
+        opt.value = e.id;
+        opt.textContent = `${e.name} — ${e.role}`;
+        payrollSelect.appendChild(opt);
+      });
+    }
+
+    // jobs list
+    function renderJobs(){
+      jobsListEl.innerHTML = "";
+      jobs.forEach(job => {
+        const div = document.createElement("div");
+        div.className = "p-3 border rounded flex justify-between items-start";
+        div.innerHTML = `
+          <div>
+            <div class="font-semibold">${job.title}</div>
+            <div class="text-xs text-gray-500">${job.team} • ${job.location} • ${job.salaryRange}</div>
+            <div class="text-sm mt-1 text-gray-600">${job.description}</div>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <div class="text-xs text-gray-500">${job.candidates.length} candidates</div>
+            <div class="flex gap-2">
+              <button class="autoMatchBtn px-3 py-1 bg-indigo-600 text-white rounded text-sm">Auto-match</button>
+              <button class="viewJobBtn px-3 py-1 border rounded text-sm">Open</button>
+            </div>
+          </div>
+        `;
+        jobsListEl.appendChild(div);
+
+        div.querySelector(".autoMatchBtn").addEventListener("click", ()=> autoMatchJob(job.id));
+        div.querySelector(".viewJobBtn").addEventListener("click", ()=> selectJob(job.id));
+      });
+      jobsCountEl.textContent = jobs.length;
+    }
+
+    function selectJob(jobId){
+      const job = jobs.find(j=>j.id===jobId);
+      if(!job) return;
+      selectedJobTitle.textContent = `${job.title} — Pipeline`;
+      selectedJobMeta.innerHTML = `<div class="text-sm text-gray-500">${job.team} • ${job.location} • ${job.salaryRange}</div>`;
+      renderCandidatesForJob(job);
+    }
+
+    function renderCandidatesForJob(job){
+      candidatesPanel.innerHTML = "";
+      if(job.candidates.length === 0){
+        candidatesPanel.innerHTML = `<div class="text-sm text-gray-500">No candidates yet. Click <strong>Auto-match</strong> to simulate candidates from LinkedIn/Indeed.</div>`;
+        return;
+      }
+      job.candidates.forEach(c => {
+        const card = document.createElement("div");
+        card.className = "p-3 border rounded flex justify-between items-center";
+        card.innerHTML = `
+          <div>
+            <div class="font-medium">${c.name}</div>
+            <div class="text-xs text-gray-500">${c.exp} • Expected ${formatN(c.expected)} • Source: ${c.source}</div>
+            <div class="text-xs text-gray-600 mt-1">Match: <span class="font-semibold">${c.match}%</span></div>
+          </div>
+          <div class="flex items-center gap-2">
+            <select class="candStatus border p-2 rounded text-sm">
+              <option ${c.status==='Applied'?'selected':''}>Applied</option>
+              <option ${c.status==='Interview'?'selected':''}>Interview</option>
+              <option ${c.status==='Offer'?'selected':''}>Offer</option>
+              <option ${c.status==='Hired'?'selected':''}>Hired</option>
+              <option ${c.status==='Rejected'?'selected':''}>Rejected</option>
+            </select>
+            <button class="messageBtn px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm">Message</button>
+          </div>
+        `;
+        candidatesPanel.appendChild(card);
+
+        // status change
+        card.querySelector(".candStatus").addEventListener("change", (ev)=>{
+          c.status = ev.target.value;
+          logActivity(`Candidate ${c.name} status set to ${c.status} for ${job.title}`);
+          updatePredictions();
+        });
+        // message
+        card.querySelector(".messageBtn").addEventListener("click", ()=> {
+          alert(`Open messaging with ${c.name} (placeholder).`);
+        });
+      });
+    }
+
+    // auto-match simulation (3-5 candidates)
+    function autoMatchJob(jobId){
+      const job = jobs.find(j=>j.id===jobId);
+      if(!job) return;
+      const count = Math.floor(Math.random()*3) + 3;
+      const newCands = Array.from({length:count}, () => genCandidate());
+      job.candidates = job.candidates.concat(newCands);
+      renderJobs();
+      if(document.getElementById('selectedJobTitle').textContent.includes(job.title)) renderCandidatesForJob(job);
+      logActivity(`Auto-matched ${newCands.length} candidates for ${job.title} (simulated).`);
+      updatePredictions();
+    }
+
+    document.getElementById('autoMatchAll').addEventListener('click', () => {
+      jobs.forEach(j => autoMatchJob(j.id));
     });
 
-    // Chatbot functionality
-    function toggleChat() {
-      const chat=document.getElementById('chatWindow');
-      chat.style.display=chat.style.display==='flex'?'none':'flex';
-    }
-    function appendMessage(text, sender='ai') {
-      const msg=document.createElement('div');
-      msg.classList.add('chat-bubble', sender==='ai'?'chat-ai':'chat-user');
-      msg.textContent=text;
-      document.getElementById('chatMessages').appendChild(msg);
-      msg.scrollIntoView({behavior:"smooth"});
-    }
-    function sendMessage(){
-      const input=document.getElementById('userInput');
-      const message=input.value.trim();
-      if(!message) return;
-      appendMessage(message,'user');
-      input.value='';
-      setTimeout(()=>aiReply(message),800);
-    }
-    function sendPrompt(msg){ appendMessage(msg,'user'); setTimeout(()=>aiReply(msg),800); }
-    function aiReply(msg){
-      const lower=msg.toLowerCase();
-      let reply="I'm not sure I understand that yet, but I’ll learn soon!";
-      if(lower.includes('job')) reply="Here are top roles hiring now across Africa 🌍 — Software Engineer, Product Manager, HR Analyst.";
-      else if(lower.includes('hire')) reply="To hire, create a Lumion Employer Account, post a role, and AI will shortlist candidates for you instantly.";
-      else if(lower.includes('payroll')) reply="Payroll automation in Lumion lets you generate payslips, calculate taxes, and handle compliance automatically 💰.";
-      appendMessage(reply);
+    /***********************
+     * CRUD & modals for employees
+     ***********************/
+    function openView(emp){
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[760px] max-w-[95%]">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="text-lg font-bold">${emp.name}</h3>
+              <div class="text-sm text-gray-600">${emp.role} — ${emp.dept}</div>
+              <div class="text-xs text-gray-500 mt-2">Start date: ${emp.start}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-medium">${formatN(emp.salary)}</div>
+              <div class="text-xs text-gray-500">Status: ${emp.status}</div>
+            </div>
+          </div>
+          <div class="mt-6 grid grid-cols-2 gap-4">
+            <div>
+              <h4 class="text-sm font-semibold">Contact</h4>
+              <p class="text-sm text-gray-600 mt-2">Email: ${emp.name.split(" ").join(".").toLowerCase()}@lumion.com</p>
+              <p class="text-sm text-gray-600">Phone: +234 800 ${Math.floor(100000 + Math.random()*899999)}</p>
+            </div>
+            <div>
+              <h4 class="text-sm font-semibold">Notes</h4>
+              <p class="text-sm text-gray-600 mt-2">Performance: Strong contributor. Eligible for promotion review.</p>
+            </div>
+          </div>
+          <div class="mt-6 text-right">
+            <button class="px-4 py-2 mr-2 border rounded" id="closeView">Close</button>
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" id="printProfile">Print</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("modalRoot").appendChild(modal);
+      modal.querySelector("#closeView").addEventListener("click", ()=> modal.remove());
+      modal.querySelector("#printProfile").addEventListener("click", () => {
+        const w = window.open("", "_blank");
+        w.document.write(`<h2>${emp.name}</h2><p>${emp.role} — ${emp.dept}</p><p>Salary: ${formatN(emp.salary)}</p>`);
+        w.print(); w.close();
+      });
     }
 
-    AOS.init({ duration: 800, easing: 'ease-in-out', once: true });
+    function openEdit(emp = null){
+      const isNew = !emp;
+      const data = emp ? {...emp} : { id: "EMP" + String(100 + Math.floor(Math.random()*900)), name:"", dept:"", role:"", salary:0, status:"Active", start:new Date().toISOString().slice(0,10) };
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[720px] max-w-[95%]">
+          <h3 class="text-lg font-bold">${isNew ? 'Add New Employee' : 'Edit Employee'}</h3>
+          <div class="grid grid-cols-2 gap-4 mt-4">
+            <div><label class="text-xs text-gray-600">Full name</label><input id="ed_name" class="w-full p-2 border rounded" value="${data.name}"></div>
+            <div><label class="text-xs text-gray-600">Department</label><input id="ed_dept" class="w-full p-2 border rounded" value="${data.dept}"></div>
+            <div><label class="text-xs text-gray-600">Role</label><input id="ed_role" class="w-full p-2 border rounded" value="${data.role}"></div>
+            <div><label class="text-xs text-gray-600">Status</label>
+              <select id="ed_status" class="w-full p-2 border rounded">
+                <option ${data.status==='Active'?'selected':''}>Active</option>
+                <option ${data.status==='On Leave'?'selected':''}>On Leave</option>
+                <option ${data.status==='Suspended'?'selected':''}>Suspended</option>
+              </select>
+            </div>
+            <div><label class="text-xs text-gray-600">Salary (₦)</label><input id="ed_salary" type="number" class="w-full p-2 border rounded" value="${data.salary}"></div>
+            <div><label class="text-xs text-gray-600">Start date</label><input id="ed_start" type="date" class="w-full p-2 border rounded" value="${data.start}"></div>
+          </div>
+          <div class="mt-6 text-right">
+            <button class="px-4 py-2 mr-2 border rounded" id="cancelEdit">Cancel</button>
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" id="saveEdit">${isNew ? 'Create' : 'Save'}</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("modalRoot").appendChild(modal);
+      modal.querySelector("#cancelEdit").addEventListener("click", ()=> modal.remove());
+      modal.querySelector("#saveEdit").addEventListener("click", ()=>{
+        const name = modal.querySelector("#ed_name").value.trim();
+        const dept = modal.querySelector("#ed_dept").value.trim();
+        const role = modal.querySelector("#ed_role").value.trim();
+        const status = modal.querySelector("#ed_status").value;
+        const salary = Number(modal.querySelector("#ed_salary").value) || 0;
+        const start = modal.querySelector("#ed_start").value;
+        if(!name){ alert("Name required"); return; }
+        if(isNew){
+          employees.push({ id:data.id, name, dept, role, salary, status, start });
+        } else {
+          const idx = employees.findIndex(e => e.id === data.id);
+          if(idx>=0) employees[idx] = { ...employees[idx], name, dept, role, salary, status, start };
+        }
+        modal.remove(); renderTable(); populatePayrollSelect(); updateSummary();
+        logActivity(isNew ? `Employee ${name} added` : `Employee ${name} updated`);
+      });
+    }
+
+    function removeEmployee(id){
+      if(!confirm("Delete this employee? This action cannot be undone.")) return;
+      const idx = employees.findIndex(e=> e.id === id);
+      if(idx>=0) employees.splice(idx,1);
+      renderTable(); populatePayrollSelect(); updateSummary();
+      logActivity(`Employee ${id} removed`);
+    }
+
+    /***********************
+     * PAYROLL logic
+     ***********************/
+    function calculateTax(gross){
+      // prototype progressive tax model (simple). Replace with local rules when ready.
+      let tax = 0;
+      if(gross <= 30000) return 0;
+      if(gross > 30000){
+        const tier1 = Math.min(gross - 30000, 70000);
+        tax += tier1 * 0.10;
+      }
+      if(gross > 100000){
+        tax += (gross - 100000) * 0.20;
+      }
+      return Math.round(tax);
+    }
+
+    document.getElementById("calcBtn").addEventListener("click", ()=> {
+      const id = payrollSelect.value;
+      const gross = Number(document.getElementById("grossInput").value || 0);
+      if(!id){ alert("Choose an employee first"); return; }
+      if(gross <= 0){ alert("Enter gross salary"); return; }
+      const tax = calculateTax(gross);
+      const pension = Math.round(gross * 0.08);
+      const net = gross - tax - pension;
+      document.getElementById("taxVal").textContent = formatN(tax);
+      document.getElementById("pensionVal").textContent = formatN(pension);
+      document.getElementById("netPay").textContent = formatN(net);
+    });
+
+    payrollSelect.addEventListener("change", ()=> {
+      const id = payrollSelect.value;
+      if(!id) return;
+      const emp = employees.find(e => e.id === id);
+      if(emp) document.getElementById("grossInput").value = emp.salary;
+    });
+
+    document.getElementById("generatePayslipBtn").addEventListener("click", ()=>{
+      const id = payrollSelect.value;
+      const gross = Number(document.getElementById("grossInput").value || 0);
+      if(!id || gross <= 0){ alert("Select employee and valid gross salary first"); return; }
+      const emp = employees.find(e => e.id === id);
+      const tax = calculateTax(gross);
+      const pension = Math.round(gross * 0.08);
+      const net = gross - tax - pension;
+      const payDate = new Date().toLocaleDateString();
+      const html = `
+        <html><head><title>Payslip — ${emp.name}</title>
+        <style>body{font-family:Inter,Arial;padding:24px;color:#111} .header{display:flex;justify-content:space-between;align-items:center} .box{border:1px solid #eee;padding:12px;border-radius:8px;margin-top:12px}</style></head>
+        <body>
+          <div class="header">
+            <div><img src="https://i.ibb.co/XfRLzWwy/Logo.png" style="height:36px"></div>
+            <div><strong>Payslip</strong><div style="font-size:12px;color:#666">Date: ${payDate}</div></div>
+          </div>
+          <h2>${emp.name}</h2><div style="color:#666">${emp.role} — ${emp.dept}</div>
+          <div class="box">
+            <div><strong>Gross salary:</strong> ${formatN(gross)}</div>
+            <div><strong>Tax (PAYE):</strong> ${formatN(tax)}</div>
+            <div><strong>Pension (8%):</strong> ${formatN(pension)}</div>
+            <div style="margin-top:8px;font-size:18px"><strong>Net Pay:</strong> ${formatN(net)}</div>
+          </div>
+          <div style="margin-top:18px;font-size:12px;color:#666">System-generated payslip (prototype).</div>
+        </body></html>
+      `;
+      const w = window.open("", "_blank");
+      w.document.write(html);
+      w.document.close();
+      w.print();
+      logActivity(`Payslip generated for ${emp.name}`);
+    });
+
+    /***********************
+     * CSV exports
+     ***********************/
+    function exportEmployeesCSV(){
+      const rows = [["id","name","department","role","salary","status","start"]].concat(
+        employees.map(e => [e.id,e.name,e.dept,e.role,e.salary,e.status,e.start])
+      );
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "lumion_employees.csv"; a.click(); URL.revokeObjectURL(url);
+      logActivity("Exported employees CSV");
+    }
+    document.getElementById('exportFullCSV').addEventListener('click', exportEmployeesCSV);
+
+    function exportCandidatesCSV(){
+      const all = jobs.flatMap(j => j.candidates.map(c => [j.id,j.title,c.id,c.name,c.exp,c.expected,c.match,c.status,c.source]));
+      const rows = [["jobId","jobTitle","candId","name","experience","expectedSalary","match","status","source"],].concat(all);
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "lumion_candidates.csv"; a.click(); URL.revokeObjectURL(url);
+      logActivity("Exported candidates CSV");
+    }
+    document.getElementById('exportCandidatesCSV').addEventListener('click', exportCandidatesCSV);
+
+    /***********************
+     * Predictive chart (Chart.js)
+     ***********************/
+    const ctx = document.getElementById('predictiveChart').getContext('2d');
+    const predictiveChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6'],
+        datasets: [{
+          label: 'Avg Match Score (%)',
+          data: [82,84,86,85,87,88],
+          borderColor: '#4F46E5',
+          backgroundColor: 'rgba(79,70,229,0.08)',
+          tension: 0.3,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend:{ display:false }},
+        scales: { y: { beginAtZero:false, min:60, max:100 } }
+      }
+    });
+
+    function updatePredictions(){
+      const allMatches = jobs.flatMap(j => j.candidates.map(c => c.match));
+      const avgMatch = allMatches.length ? Math.round(allMatches.reduce((a,b)=>a+b,0)/allMatches.length) : 0;
+      document.getElementById('summaryMatch').textContent = avgMatch ? avgMatch + '%' : '—';
+      document.getElementById('predScore').textContent = avgMatch ? avgMatch + '%' : '—';
+      const predDays = avgMatch ? Math.max(6, Math.round(20 - (avgMatch-60)/3)) : 12;
+      document.getElementById('predTime').textContent = predDays + ' days';
+      const sources = jobs.flatMap(j => j.candidates.map(c => c.source));
+      const counts = {}; sources.forEach(s => counts[s] = (counts[s]||0)+1);
+      const top = Object.keys(counts).length ? Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] : 'LinkedIn';
+      document.getElementById('predChannel').textContent = top;
+      predictiveChart.data.datasets[0].data.shift();
+      predictiveChart.data.datasets[0].data.push(avgMatch || 82);
+      predictiveChart.update();
+    }
+
+    /***********************
+     * UI wiring & boot
+     ***********************/
+    function updateSummary(){
+      document.getElementById("summaryEmployees").textContent = employees.length;
+      const totalPayroll = employees.reduce((s,e)=> s + Number(e.salary || 0), 0);
+      document.getElementById("summaryPayroll").textContent = formatN(totalPayroll);
+      document.getElementById("summaryLeaves").textContent = employees.filter(e => e.status === "On Leave").length;
+    }
+
+    // initial
+    renderTable();
+    populatePayrollSelect();
+    renderJobs();
+    updateSummary();
+
+    // search
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.trim().toLowerCase();
+      if(!q) { renderTable(); return; }
+      const filtered = employees.filter(e =>
+        e.name.toLowerCase().includes(q) ||
+        e.dept.toLowerCase().includes(q) ||
+        e.role.toLowerCase().includes(q)
+      );
+      renderTable(filtered);
+    });
+
+    document.getElementById("addEmployeeBtn").addEventListener("click", ()=> openEdit());
+
+    // select default job
+    selectJob(jobs[0].id);
+
+    // chat functionality
+    function toggleChat(){
+      const win = document.getElementById("chatWindow");
+      if(win.style.display === "block"){ win.style.display = "none"; }
+      else { win.style.display = "block"; document.getElementById("chatInput").focus(); }
+    }
+    window.toggleChat = toggleChat;
+    document.getElementById("chatSend").addEventListener("click", ()=> {
+      const text = document.getElementById("chatInput").value.trim();
+      if(!text) return;
+      const c = document.getElementById("chatMessages");
+      const user = document.createElement("div"); user.className = 'chat-bubble chat-user'; user.textContent = text;
+      c.appendChild(user);
+      document.getElementById("chatInput").value = "";
+      c.scrollTop = c.scrollHeight;
+      setTimeout(()=> {
+        const ai = document.createElement("div"); ai.className='chat-bubble chat-ai'; ai.textContent = "Lumion Assistant (prototype): Try 'show open roles' or 'who has the highest match score?'.";
+        c.appendChild(ai); c.scrollTop = c.scrollHeight;
+      }, 700);
+    });
+
+    logActivity("Dashboard initialized");
+  }); // domContentLoaded end
   </script>
 </body>
 </html>
