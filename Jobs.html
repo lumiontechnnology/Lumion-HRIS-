@@ -1,3 +1,8 @@
+<script>
+  if (localStorage.getItem("isLoggedIn") !== "true") {
+    window.location.href = "index.html";
+  }
+</script>
 <!doctype html>
 <html lang="en">
 <head>
@@ -537,4 +542,5 @@ document.getElementById('candidateModal').addEventListener('click', (e)=>{
 });
 </script>
 </body>
+
 </html>
