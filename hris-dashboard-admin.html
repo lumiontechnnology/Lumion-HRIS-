@@ -52,6 +52,16 @@
         <a class="text-gray-600 hover:text-indigo-600" href="leave-attendance.html">Leave & Attendance</a>
         <a class="text-gray-600 hover:text-indigo-600" href="analytics.html">Analytics</a>
         <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Invite Team</button>
+        <button onclick="logout()" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
+  Logout
+</button>
+
+<script>
+  function logout() {
+    localStorage.removeItem("isLoggedIn");
+    window.location.href = "index.html";
+  }
+</script>
       </nav>
     </div>
   </header>
@@ -762,4 +772,5 @@
   </script>
 </body>
 </html>
+
 
