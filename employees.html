@@ -1,1 +1,409 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion HR — Employees</title>
+  <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(2,6,23,0.06); }
+    .small { font-size:0.9rem }
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.45);display:flex;align-items:center;justify-content:center;z-index:70}
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
 
+  <!-- Header / Nav -->
+  <header class="bg-white border-b sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="https://i.ibb.co/XfRLzWwy/Logo.png" alt="Lumion" class="h-10" />
+        <div>
+          <div class="text-lg font-semibold">Lumion HR — Employees</div>
+          <div class="text-xs text-gray-500">Employee management & personnel files (local prototype)</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <a class="text-indigo-600 font-semibold" href="hris-dashboard-admin.html">Back to dashboard</a>
+        <button id="exportCSV" class="px-3 py-2 bg-gray-800 text-white rounded">Export CSV</button>
+        <button id="addEmpBtn" class="px-3 py-2 bg-indigo-600 text-white rounded">+ Add Employee</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- controls -->
+    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex gap-3 items-center">
+        <input id="searchInput" placeholder="Search name, id, dept, role..." class="p-2 border rounded w-72" />
+        <select id="deptFilter" class="p-2 border rounded">
+          <option value="">All Departments</option>
+        </select>
+        <select id="statusFilter" class="p-2 border rounded">
+          <option value="">All Status</option>
+          <option>Active</option><option>On Leave</option><option>Suspended</option><option>Exited</option>
+        </select>
+      </div>
+      <div class="text-sm text-gray-500">Showing <span id="visibleCount">0</span> employees</div>
+    </div>
+
+    <!-- table -->
+    <div class="card p-4 overflow-x-auto">
+      <table class="w-full min-w-[1000px] text-sm">
+        <thead class="text-left text-gray-500">
+          <tr>
+            <th class="py-2">Name</th>
+            <th class="py-2">ID</th>
+            <th class="py-2">Department</th>
+            <th class="py-2">Role</th>
+            <th class="py-2">Line Manager</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Salary (₦)</th>
+            <th class="py-2 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="employeesTbody" class="divide-y bg-white"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div id="modalRoot"></div>
+
+  <script>
+  /***************************
+   * Sample employees dataset
+   * Nigerian-style sample data + details
+   ***************************/
+  const employees = [
+    {
+      id:"EMP001", name:"Ada Bello", dept:"Engineering", role:"Software Engineer",
+      salary:220000, status:"Active", start:"2024-02-01", manager:"Bayo K.",
+      contact:{email:"ada.bello@lumion.com", phone:"+234801000001"},
+      files:["Employment_Letter.pdf","NYSC_Certificate.pdf","Degree.pdf","CV.pdf"],
+      history:{
+        resumption:"2024-02-01",
+        promotions:[{date:"2024-07-01", title:"Senior SWE"}],
+        transfers:[],
+        performance:[{date:"2024-08-01",rating:4,notes:"Solid contributor"}],
+        salaryReviews:[{date:"2024-07-01",old:180000,new:220000}],
+        warnings:[]
+      }
+    },
+    { id:"EMP002", name:"Chike Okoro", dept:"Sales", role:"Sales Lead", salary:200000, status:"Active", start:"2023-09-12", manager:"Joel A.",
+      contact:{email:"chike.okoro@lumion.com", phone:"+234801000002"},
+      files:["Employment_Letter.pdf","CV.pdf"], history:{ resumption:"2023-09-12", promotions:[], transfers:[], performance:[{date:"2024-05-10",rating:3,notes:"Meets expectations"}], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP003", name:"Ifeanyi N.", dept:"HR", role:"HRBP", salary:180000, status:"Active", start:"2022-04-17", manager:"Umar B.",
+      contact:{email:"ifeanyi.n@lumion.com", phone:"+234801000003"},
+      files:["Employment_Letter.pdf","Certificates.pdf"], history:{ resumption:"2022-04-17", promotions:[], transfers:[], performance:[{date:"2024-02-15",rating:4,notes:"Excellent stakeholder"}], salaryReviews:[{date:"2023-12-01",old:150000,new:180000}], warnings:[] }
+    },
+    { id:"EMP004", name:"Nkechi U.", dept:"Product", role:"Product Manager", salary:350000, status:"Active", start:"2021-11-03", manager:"Nkechi U.",
+      contact:{email:"nkechi.u@lumion.com", phone:"+234801000004"},
+      files:["Employment_Letter.pdf","CV.pdf"], history:{ resumption:"2021-11-03", promotions:[{date:"2023-07-01",title:"Lead PM"}], transfers:[], performance:[{date:"2024-06-01",rating:5,notes:"Outstanding"}], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP005", name:"James A.", dept:"Finance", role:"Finance Manager", salary:300000, status:"Active", start:"2020-06-25", manager:"Umar B.",
+      contact:{email:"james.a@lumion.com", phone:"+234801000005"},
+      files:["Employment_Letter.pdf","ACA.pdf"], history:{ resumption:"2020-06-25", promotions:[], transfers:[], performance:[{date:"2024-03-01",rating:4,notes:"Reliable"}], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP006", name:"Seyi O.", dept:"Design", role:"UI/UX Designer", salary:150000, status:"Active", start:"2024-01-11", manager:"Nkechi U.",
+      contact:{email:"seyi.o@lumion.com", phone:"+234801000006"},
+      files:["Employment_Letter.pdf","Portfolio.pdf"], history:{ resumption:"2024-01-11", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP007", name:"Amaka P.", dept:"Customer Success", role:"CS Manager", salary:170000, status:"Active", start:"2023-02-14", manager:"Peter N.",
+      contact:{email:"amaka.p@lumion.com", phone:"+234801000007"},
+      files:["Employment_Letter.pdf"], history:{ resumption:"2023-02-14", promotions:[], transfers:[], performance:[{date:"2024-07-01",rating:4,notes:"Consistent"}], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP008", name:"Tunde R.", dept:"Engineering", role:"DevOps Engineer", salary:240000, status:"Active", start:"2022-08-01", manager:"Bayo K.",
+      contact:{email:"tunde.r@lumion.com", phone:"+234801000008"},
+      files:["Employment_Letter.pdf","Certs.pdf"], history:{ resumption:"2022-08-01", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP009", name:"Zainab K.", dept:"Sales", role:"Account Exec", salary:160000, status:"On Leave", start:"2021-07-09", manager:"Chike Okoro",
+      contact:{email:"zainab.k@lumion.com", phone:"+234801000009"},
+      files:["Employment_Letter.pdf"], history:{ resumption:"2021-07-09", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP010", name:"Michael L.", dept:"HR", role:"Recruiter", salary:130000, status:"Active", start:"2023-12-01", manager:"Ifeanyi N.",
+      contact:{email:"michael.l@lumion.com", phone:"+234801000010"},
+      files:["Employment_Letter.pdf","CV.pdf"], history:{ resumption:"2023-12-01", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP011", name:"Fatima U.", dept:"Engineering", role:"Backend Engineer", salary:210000, status:"Active", start:"2020-03-15", manager:"Bayo K.",
+      contact:{email:"fatima.u@lumion.com", phone:"+234801000011"},
+      files:["Employment_Letter.pdf","Certs.pdf"], history:{ resumption:"2020-03-15", promotions:[{date:"2022-05-01",title:"Senior Backend"}], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP012", name:"Peter N.", dept:"Product", role:"Data Analyst", salary:190000, status:"Active", start:"2024-06-20", manager:"Nkechi U.",
+      contact:{email:"peter.n@lumion.com", phone:"+234801000012"},
+      files:["Employment_Letter.pdf","Degree.pdf"], history:{ resumption:"2024-06-20", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP013", name:"Rose M.", dept:"Operations", role:"Ops Lead", salary:160000, status:"Active", start:"2019-10-30", manager:"James A.",
+      contact:{email:"rose.m@lumion.com", phone:"+234801000013"},
+      files:["Employment_Letter.pdf"], history:{ resumption:"2019-10-30", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP014", name:"David O.", dept:"Finance", role:"Payroll Exec", salary:140000, status:"Active", start:"2021-05-18", manager:"James A.",
+      contact:{email:"david.o@lumion.com", phone:"+234801000014"},
+      files:["Employment_Letter.pdf"], history:{ resumption:"2021-05-18", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP015", name:"Sade A.", dept:"Marketing", role:"Social Manager", salary:120000, status:"Active", start:"2022-01-08", manager:"Amaka P.",
+      contact:{email:"sade.a@lumion.com", phone:"+234801000015"},
+      files:["Employment_Letter.pdf"], history:{ resumption:"2022-01-08", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP016", name:"Bayo K.", dept:"Engineering", role:"Frontend Engineer", salary:200000, status:"Active", start:"2023-07-07", manager:"Nkechi U.",
+      contact:{email:"bayo.k@lumion.com", phone:"+234801000016"},
+      files:["Employment_Letter.pdf"], history:{ resumption:"2023-07-07", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP017", name:"Ngozi C.", dept:"Customer Success", role:"Support", salary:100000, status:"Active", start:"2020-12-12", manager:"Amaka P.",
+      contact:{email:"ngozi.c@lumion.com", phone:"+234801000017"},
+      files:["Employment_Letter.pdf"], history:{ resumption:"2020-12-12", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP018", name:"Umar B.", dept:"Legal", role:"Legal Counsel", salary:280000, status:"Active", start:"2018-09-21", manager:"James A.",
+      contact:{email:"umar.b@lumion.com", phone:"+234801000018"},
+      files:["Employment_Letter.pdf","LawCert.pdf"], history:{ resumption:"2018-09-21", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP019", name:"Lilian T.", dept:"Design", role:"Motion Designer", salary:155000, status:"Active", start:"2024-04-02", manager:"Seyi O.",
+      contact:{email:"lilian.t@lumion.com", phone:"+234801000019"},
+      files:["Employment_Letter.pdf"], history:{ resumption:"2024-04-02", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    },
+    { id:"EMP020", name:"Joel A.", dept:"Sales", role:"BD", salary:145000, status:"Active", start:"2023-03-03", manager:"Chike Okoro",
+      contact:{email:"joel.a@lumion.com", phone:"+234801000020"},
+      files:["Employment_Letter.pdf","CV.pdf"], history:{ resumption:"2023-03-03", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    }
+  ];
+
+  // utility
+  function formatN(n){ return "₦" + Number(n).toLocaleString(); }
+
+  /***********************
+   * Render & UI helpers
+   ***********************/
+  const tbody = document.getElementById('employeesTbody');
+  const deptFilter = document.getElementById('deptFilter');
+  const statusFilter = document.getElementById('statusFilter');
+  const searchInput = document.getElementById('searchInput');
+  const visibleCount = document.getElementById('visibleCount');
+
+  function uniqueDepts(){
+    const s = new Set(employees.map(e=>e.dept));
+    return Array.from(s).sort();
+  }
+
+  function populateDeptFilter(){
+    const depts = uniqueDepts();
+    deptFilter.innerHTML = '<option value="">All Departments</option>' + depts.map(d=>`<option>${d}</option>`).join('');
+  }
+
+  function renderTable(list = employees){
+    tbody.innerHTML = '';
+    list.forEach(emp => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="py-3">
+          <div class="font-medium">${emp.name}</div>
+        </td>
+        <td class="py-3">${emp.id}</td>
+        <td class="py-3">${emp.dept}</td>
+        <td class="py-3">${emp.role}</td>
+        <td class="py-3">${emp.manager || '-'}</td>
+        <td class="py-3">${emp.status}</td>
+        <td class="py-3">${formatN(emp.salary)}</td>
+        <td class="py-3 text-right">
+          <button class="viewBtn px-3 py-1 mr-2 text-sm text-indigo-600">View</button>
+          <button class="editBtn px-3 py-1 mr-2 text-sm border rounded">Edit</button>
+          <button class="delBtn px-3 py-1 text-sm text-red-600">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+
+      tr.querySelector('.viewBtn').addEventListener('click', ()=> openView(emp));
+      tr.querySelector('.editBtn').addEventListener('click', ()=> openEdit(emp));
+      tr.querySelector('.delBtn').addEventListener('click', ()=> removeEmployee(emp.id));
+    });
+    visibleCount.textContent = list.length;
+  }
+
+  function filterAndRender(){
+    const q = searchInput.value.trim().toLowerCase();
+    const d = deptFilter.value;
+    const s = statusFilter.value;
+    let filtered = employees.filter(e => {
+      return (!d || e.dept === d) && (!s || e.status === s) &&
+        ( !q || e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q) || e.role.toLowerCase().includes(q) || e.dept.toLowerCase().includes(q) );
+    });
+    renderTable(filtered);
+  }
+
+  /***********************
+   * Modals (View / Edit / Add)
+   ***********************/
+  function openView(emp){
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+    // compute simulated attrition risk & engagement for profile
+    const risk = Math.random() > 0.85 ? 'High' : Math.random() > 0.7 ? 'Medium' : 'Low';
+    const eng = Math.round(60 + Math.random()*35);
+    modal.innerHTML = `
+      <div class="bg-white p-6 rounded-lg w-[900px] max-w-[95%]">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="text-lg font-bold">${emp.name} <span class="text-xs text-gray-500">(${emp.id})</span></h3>
+            <div class="text-sm text-gray-600">${emp.role} — ${emp.dept}</div>
+            <div class="text-xs text-gray-500 mt-2">Start date: ${emp.start}</div>
+            <div class="mt-2 text-xs text-gray-500">Line Manager: ${emp.manager || '-'}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm font-medium">${formatN(emp.salary)}</div>
+            <div class="text-xs text-gray-500">Status: ${emp.status}</div>
+            <div class="mt-3 text-sm">Attrition risk: <span class="${risk==='High'?'text-red-600':risk==='Medium'?'text-yellow-600':'text-green-600'} font-semibold">${risk}</span></div>
+            <div class="text-sm mt-1">Engagement: <span class="font-semibold">${eng}%</span></div>
+          </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h4 class="text-sm font-semibold">Contact</h4>
+            <p class="text-sm text-gray-600 mt-2">Email: ${emp.contact?.email || '-'}<br/>Phone: ${emp.contact?.phone || '-'}</p>
+
+            <h4 class="text-sm font-semibold mt-4">Employment History</h4>
+            <div class="text-sm text-gray-600 mt-2">
+              <div><strong>Resumption:</strong> ${emp.history?.resumption || emp.start || '-'}</div>
+              <div class="mt-2"><strong>Promotions:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.promotions || []).map(p=>`<li>${p.date} — ${p.title}</li>`).join('') || '<li>None</li>'}</ul>
+              </div>
+              <div class="mt-2"><strong>Transfers:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.transfers || []).map(t=>`<li>${t.date} — ${t.note}</li>`).join('') || '<li>None</li>'}</ul>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-semibold">Performance & Warnings</h4>
+            <div class="text-sm text-gray-600 mt-2">
+              <div><strong>Performance history:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.performance || []).map(p=>`<li>${p.date} — Rating: ${p.rating} — ${p.notes || ''}</li>`).join('') || '<li>No records</li>'}</ul>
+              </div>
+              <div class="mt-2"><strong>Salary reviews:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.salaryReviews || []).map(s=>`<li>${s.date} — ${formatN(s.old)} → ${formatN(s.new)}</li>`).join('') || '<li>No reviews</li>'}</ul>
+              </div>
+              <div class="mt-2"><strong>Warning letters:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.warnings || []).map(w=>`<li>${w.date} — ${w.reason}</li>`).join('') || '<li>None</li>'}</ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <h4 class="text-sm font-semibold">Documents</h4>
+          <div class="flex flex-wrap gap-2 mt-2">
+            ${(emp.files||[]).map(f => `<a href="#" class="px-3 py-1 border rounded text-xs text-indigo-600" onclick="window.open('about:blank','_blank')">${f}</a>`).join('') || '<div class="text-sm text-gray-500">No documents</div>'}
+          </div>
+        </div>
+
+        <div class="mt-6 text-right">
+          <button id="printProfile" class="px-4 py-2 mr-2 border rounded">Print Profile</button>
+          <button id="closeView" class="px-4 py-2 bg-indigo-600 text-white rounded">Close</button>
+        </div>
+      </div>
+    </div>
+    `;
+    document.getElementById('modalRoot').appendChild(modal);
+    modal.querySelector('#closeView').addEventListener('click', ()=> modal.remove());
+    modal.querySelector('#printProfile').addEventListener('click', ()=>{
+      const win = window.open('','_blank','width=800,height=900');
+      win.document.write(`<h2>${emp.name} (${emp.id})</h2><p>${emp.role} — ${emp.dept}</p><p>Manager: ${emp.manager || '-'}</p><p>Contact: ${emp.contact?.email || '-'} / ${emp.contact?.phone || '-'}</p><hr><h3>History</h3><pre>${JSON.stringify(emp.history,null,2)}</pre>`);
+      win.document.close();
+      win.print();
+    });
+  }
+
+  function openEdit(emp=null){
+    const isNew = !emp;
+    const data = emp ? {...emp} : {
+      id: "EMP" + String(100 + Math.floor(Math.random()*900)),
+      name:"", dept:"", role:"", salary:0, status:"Active", start:new Date().toISOString().slice(0,10), manager:"", contact:{email:"",phone:""}, files:[], history:{ resumption:"", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
+    };
+
+    const modal = document.createElement('div'); modal.className='modal-backdrop';
+    modal.innerHTML = `
+      <div class="bg-white p-6 rounded-lg w-[760px] max-w-[95%]">
+        <h3 class="text-lg font-bold">${isNew ? 'Add Employee' : 'Edit Employee'}</h3>
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          <div><label class="text-xs text-gray-600">Full name</label><input id="ed_name" class="w-full p-2 border rounded" value="${data.name}"></div>
+          <div><label class="text-xs text-gray-600">Employee ID</label><input id="ed_id" class="w-full p-2 border rounded" value="${data.id}"></div>
+          <div><label class="text-xs text-gray-600">Department</label><input id="ed_dept" class="w-full p-2 border rounded" value="${data.dept}"></div>
+          <div><label class="text-xs text-gray-600">Role</label><input id="ed_role" class="w-full p-2 border rounded" value="${data.role}"></div>
+          <div><label class="text-xs text-gray-600">Line Manager</label><input id="ed_manager" class="w-full p-2 border rounded" value="${data.manager || ''}"></div>
+          <div><label class="text-xs text-gray-600">Status</label><select id="ed_status" class="w-full p-2 border rounded"><option ${data.status==='Active'?'selected':''}>Active</option><option ${data.status==='On Leave'?'selected':''}>On Leave</option><option ${data.status==='Suspended'?'selected':''}>Suspended</option><option ${data.status==='Exited'?'selected':''}>Exited</option></select></div>
+          <div><label class="text-xs text-gray-600">Salary (₦)</label><input id="ed_salary" type="number" class="w-full p-2 border rounded" value="${data.salary}"></div>
+          <div><label class="text-xs text-gray-600">Start date</label><input id="ed_start" type="date" class="w-full p-2 border rounded" value="${data.start}"></div>
+          <div><label class="text-xs text-gray-600">Email</label><input id="ed_email" class="w-full p-2 border rounded" value="${data.contact?.email || ''}"></div>
+          <div><label class="text-xs text-gray-600">Phone</label><input id="ed_phone" class="w-full p-2 border rounded" value="${data.contact?.phone || ''}"></div>
+        </div>
+        <div class="mt-4 text-right">
+          <button id="cancelEdit" class="px-4 py-2 mr-2 border rounded">Cancel</button>
+          <button id="saveEdit" class="px-4 py-2 bg-indigo-600 text-white rounded">${isNew ? 'Create' : 'Save'}</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modalRoot').appendChild(modal);
+    modal.querySelector('#cancelEdit').addEventListener('click', ()=> modal.remove());
+    modal.querySelector('#saveEdit').addEventListener('click', ()=>{
+      const name = modal.querySelector('#ed_name').value.trim();
+      const idv = modal.querySelector('#ed_id').value.trim();
+      const dept = modal.querySelector('#ed_dept').value.trim();
+      const role = modal.querySelector('#ed_role').value.trim();
+      const manager = modal.querySelector('#ed_manager').value.trim();
+      const status = modal.querySelector('#ed_status').value;
+      const salary = Number(modal.querySelector('#ed_salary').value) || 0;
+      const start = modal.querySelector('#ed_start').value;
+      const email = modal.querySelector('#ed_email').value.trim();
+      const phone = modal.querySelector('#ed_phone').value.trim();
+      if(!name || !idv){ alert('Name and ID required'); return; }
+
+      if(isNew){
+        employees.push({ id:idv, name, dept, role, salary, status, start, manager, contact:{email,phone}, files:[], history:{ resumption:start, promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] } });
+      } else {
+        const idx = employees.findIndex(e=>e.id===data.id);
+        if(idx>=0) employees[idx] = { ...employees[idx], id:idv, name, dept, role, salary, status, start, manager, contact:{email,phone} };
+      }
+      modal.remove();
+      populateDeptFilter();
+      filterAndRender();
+    });
+  }
+
+  function removeEmployee(id){
+    if(!confirm('Delete employee and personnel file?')) return;
+    const idx = employees.findIndex(e=>e.id===id);
+    if(idx>=0) employees.splice(idx,1);
+    populateDeptFilter();
+    filterAndRender();
+  }
+
+  /***********************
+   * Export CSV
+   ***********************/
+  function exportEmployeesCSV(){
+    const rows = [["id","name","department","role","manager","salary","status","start"]];
+    employees.forEach(e => rows.push([e.id,e.name,e.dept,e.role,e.manager || '', e.salary, e.status, e.start]));
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'lumion_employees.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  /***********************
+   * Init wiring
+   ***********************/
+  document.getElementById('addEmpBtn').addEventListener('click', ()=> openEdit(null));
+  document.getElementById('exportCSV').addEventListener('click', exportEmployeesCSV);
+  searchInput.addEventListener('input', filterAndRender);
+  deptFilter.addEventListener('change', filterAndRender);
+  statusFilter.addEventListener('change', filterAndRender);
+
+  // initial population
+  populateDeptFilter();
+  renderTable();
+  filterAndRender();
+
+  </script>
+</body>
+</html>
