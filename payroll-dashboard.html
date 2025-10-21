@@ -1,6 +1,9 @@
+<!-- payroll.html -->
 <script>
+  // simple guard: redirect to login if not set (keeps behavior you provided)
   if (localStorage.getItem("isLoggedIn") !== "true") {
-    window.location.href = "index.html";
+    // comment the following if you want to test locally without a login
+    // window.location.href = "index.html";
   }
 </script>
 <!doctype html>
@@ -17,7 +20,6 @@
     .glass{background:rgba(255,255,255,0.8);backdrop-filter: blur(6px);border:1px solid rgba(15,23,42,0.04)}
     .small-muted{font-size:.85rem;color:var(--muted)}
     .card {border-radius:12px;padding:16px;background:white;box-shadow:0 6px 24px rgba(15,23,42,0.06);border:1px solid rgba(15,23,42,0.03)}
-    /* responsive tweaks for demo */
     @media (min-width:1024px){ .hero-grid {grid-template-columns: 1fr 380px} }
   </style>
 </head>
@@ -34,7 +36,7 @@
         </div>
       </div>
       <div class="flex items-center gap-3">
-        <button id="btn-new-run" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700">Create Payroll Run</button>
+        <button id="btn-run-payroll" class="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm hover:bg-indigo-700">Run Payroll</button>
         <div class="w-40">
           <input id="search" placeholder="Search employee..." class="w-full px-3 py-2 border rounded-md" />
         </div>
@@ -46,7 +48,6 @@
 
   <!-- Main content -->
   <main class="max-w-7xl mx-auto px-6 py-8">
-    <!-- hero + right panel -->
     <div class="grid gap-6 hero-grid lg:grid-cols-2">
       <div class="card">
         <div class="flex items-start justify-between">
@@ -56,12 +57,12 @@
           </div>
           <div class="text-right">
             <div class="text-sm small-muted">Upcoming payment</div>
-            <div class="text-lg font-bold">₦ 6,200,000</div>
+            <div class="text-lg font-bold" id="upcoming-payment">₦ 6,200,000</div>
             <div class="small-muted">Due 2025-11-25</div>
           </div>
         </div>
 
-        <!-- summary cards -->
+        <!-- summary -->
         <div class="mt-6 grid gap-4 grid-cols-1 sm:grid-cols-3">
           <div class="p-4 rounded-lg border">
             <div class="small-muted">Employees</div>
@@ -80,7 +81,7 @@
           </div>
         </div>
 
-        <!-- compliance -->
+        <!-- compliance & errors -->
         <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="card">
             <div class="flex justify-between items-center">
@@ -89,7 +90,6 @@
                 <div class="font-semibold">Tax / Pension / Statutory</div>
               </div>
               <div>
-                <!-- toggle rates modal -->
                 <button id="btn-config" class="px-3 py-1 border rounded text-sm">Edit rates</button>
               </div>
             </div>
@@ -104,17 +104,21 @@
             </div>
           </div>
 
-          <div class="card">
-            <div class="small-muted">Upcoming Reminders</div>
-            <ul class="mt-3 space-y-3">
-              <li class="flex justify-between"><div>Run payroll for November</div><div class="text-sm small-muted">Due 2025-11-25</div></li>
-              <li class="flex justify-between"><div>Submit PAYE returns</div><div class="text-sm small-muted">Due 2025-12-05</div></li>
-              <li class="flex justify-between"><div>Pension remittance</div><div class="text-sm small-muted">Due 2025-11-28</div></li>
-            </ul>
+          <div class="card" id="errors-panel" style="display:none">
+            <div class="flex justify-between items-center">
+              <div>
+                <div class="small-muted">Validation Errors</div>
+                <div class="font-semibold text-red-600">Blocking issues found</div>
+              </div>
+              <div>
+                <button id="btn-revalidate" class="px-2 py-1 border rounded text-sm">Revalidate</button>
+              </div>
+            </div>
+            <div id="errors-list" class="mt-3 text-sm text-gray-700"></div>
           </div>
         </div>
 
-        <!-- payroll run history -->
+        <!-- payroll runs -->
         <div class="mt-6">
           <div class="flex items-center justify-between">
             <h3 class="font-semibold">Payroll Runs</h3>
@@ -124,7 +128,7 @@
         </div>
       </div>
 
-      <!-- right panel: employee list -->
+      <!-- right panel: employees list -->
       <aside class="card">
         <div class="flex items-center justify-between">
           <div>
@@ -144,7 +148,7 @@
                 <th class="p-2">Name</th>
                 <th class="p-2">Position</th>
                 <th class="p-2">Gross</th>
-                <th class="p-2">Net</th>
+                <th class="p2">Net</th>
                 <th class="p-2">Status</th>
               </tr>
             </thead>
@@ -154,7 +158,7 @@
       </aside>
     </div>
 
-    <!-- bottom section: payroll run detail -->
+    <!-- payroll detail + approval -->
     <section class="mt-8 card">
       <div class="flex items-center justify-between">
         <h3 class="font-semibold">Selected Payroll Run</h3>
@@ -165,12 +169,18 @@
       </div>
 
       <div id="run-detail" class="mt-4">
-        <div class="small-muted">No payroll run selected. Click "Create Payroll Run" to produce a run from current employee data.</div>
+        <div class="small-muted">No payroll run selected. Click "Run Payroll" to produce a run from current employee data.</div>
+      </div>
+
+      <!-- Approval vertical workflow -->
+      <div id="approval-workflow" class="mt-6">
+        <h4 class="font-semibold mb-2">Approval Workflow</h4>
+        <div id="workflow-steps" class="space-y-3"></div>
       </div>
     </section>
   </main>
 
-  <!-- Payslip modal (hidden initially) -->
+  <!-- Payslip modal -->
   <div id="payslip-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
     <div class="w-full max-w-2xl bg-white rounded-lg overflow-hidden">
       <div class="flex items-center justify-between p-4 border-b">
@@ -213,65 +223,85 @@
     </div>
   </div>
 
+  <!-- Edit employee (inline modal) for fixes -->
+  <div id="edit-employee-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="w-full max-w-md bg-white rounded-lg overflow-hidden">
+      <div class="p-4 border-b"><strong>Edit Employee (fix issue)</strong></div>
+      <div class="p-4 space-y-3">
+        <div>
+          <label class="small-muted">Name</label>
+          <input id="edit-name" class="w-full mt-1 p-2 border rounded" />
+        </div>
+        <div>
+          <label class="small-muted">Position</label>
+          <input id="edit-position" class="w-full mt-1 p-2 border rounded" />
+        </div>
+        <div>
+          <label class="small-muted">Gross salary</label>
+          <input id="edit-gross" type="number" class="w-full mt-1 p-2 border rounded" />
+        </div>
+        <div class="flex justify-end gap-2">
+          <button id="edit-cancel" class="px-3 py-2 border rounded">Cancel</button>
+          <button id="edit-save" class="px-3 py-2 bg-indigo-600 text-white rounded">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 <script>
 /* -------------------------
    Configurable demo settings
-   -------------------------
-   Update these to match your local labour rules.
 */
 const CONFIG = {
-  taxRate: 0.10,              // 10% flat income tax (demo only — replace with progressive logic)
-  pensionEmployee: 0.08,      // 8% employee pension
-  pensionEmployer: 0.10,      // 10% employer pension (shown for compliance)
-  otherDeduction: 0.02        // Other statutory deductions (2%)
+  taxRate: 0.10,
+  pensionEmployee: 0.08,
+  pensionEmployer: 0.10,
+  otherDeduction: 0.02
 };
 
 /* -------------------------
-   SAMPLE EMPLOYEES (20)
-   - name, id, position, monthlyGross (local currency)
-   - you can edit/add entries here
+   Sample employees (20)
 */
 let employees = [
-  {id:"E001", name:"Ada Bello", position:"Software Engineer", gross:350000},
-  {id:"E002", name:"Chike Okoro", position:"Sales Lead", gross:280000},
-  {id:"E003", name:"Sade Akin", position:"Product Manager", gross:420000},
-  {id:"E004", name:"Emeka Obi", position:"Data Scientist", gross:390000},
-  {id:"E005", name:"Lilian N.", position:"HR Manager", gross:300000},
-  {id:"E006", name:"Tunde K.", position:"Frontend Dev", gross:320000},
-  {id:"E007", name:"Aisha M.", position:"Backend Dev", gross:330000},
-  {id:"E008", name:"Ifeanyi U.", position:"QA Engineer", gross:210000},
-  {id:"E009", name:"Peter O.", position:"Design Lead", gross:260000},
-  {id:"E010", name:"Rashida I.", position:"Marketing Lead", gross:250000},
-  {id:"E011", name:"John P.", position:"Customer Success", gross:150000},
-  {id:"E012", name:"Grace S.", position:"Finance Officer", gross:220000},
-  {id:"E013", name:"Michael O.", position:"Ops Manager", gross:280000},
-  {id:"E014", name:"Yusuf A.", position:"Sys Admin", gross:200000},
-  {id:"E015", name:"Chinwe L.", position:"Recruiter", gross:180000},
-  {id:"E016", name:"Bola K.", position:"Analyst", gross:190000},
-  {id:"E017", name:"Tim J.", position:"DevOps", gross:360000},
-  {id:"E018", name:"Nkechi R.", position:"Content", gross:130000},
-  {id:"E019", name:"Samuel V.", position:"Sales Rep", gross:160000},
-  {id:"E020", name:"Olivia W.", position:"Executive Asst", gross:170000}
+  {id:"E001", name:"Ada Bello", position:"Software Engineer", gross:350000, manager:"Tunde K."},
+  {id:"E002", name:"Chike Okoro", position:"Sales Lead", gross:280000, manager:"Samuel V."},
+  {id:"E003", name:"Sade Akin", position:"Product Manager", gross:420000, manager:"Nkechi R."},
+  {id:"E004", name:"Emeka Obi", position:"Data Scientist", gross:390000, manager:"Ada Bello"},
+  {id:"E005", name:"Lilian N.", position:"HR Manager", gross:300000, manager:"MD"},
+  {id:"E006", name:"Tunde K.", position:"Frontend Dev", gross:320000, manager:"Nkechi R."},
+  {id:"E007", name:"Aisha M.", position:"Backend Dev", gross:330000, manager:"Tunde K."},
+  {id:"E008", name:"Ifeanyi U.", position:"QA Engineer", gross:210000, manager:"Aisha M."},
+  {id:"E009", name:"Peter O.", position:"Design Lead", gross:260000, manager:"Lilian N."},
+  {id:"E010", name:"Rashida I.", position:"Marketing Lead", gross:250000, manager:"MD"},
+  {id:"E011", name:"John P.", position:"Customer Success", gross:150000, manager:"Chike Okoro"},
+  {id:"E012", name:"Grace S.", position:"Finance Officer", gross:220000, manager:"MD"},
+  {id:"E013", name:"Michael O.", position:"Ops Manager", gross:280000, manager:"MD"},
+  {id:"E014", name:"Yusuf A.", position:"Sys Admin", gross:200000, manager:"Tunde K."},
+  {id:"E015", name:"Chinwe L.", position:"Recruiter", gross:180000, manager:"Lilian N."},
+  {id:"E016", name:"Bola K.", position:"Analyst", gross:190000, manager:"Michael O."},
+  {id:"E017", name:"Tim J.", position:"DevOps", gross:360000, manager:"Tunde K."},
+  {id:"E018", name:"Nkechi R.", position:"Content", gross:130000, manager:"Rashida I."},
+  {id:"E019", name:"Samuel V.", position:"Sales Rep", gross:160000, manager:"Chike Okoro"},
+  {id:"E020", name:"Olivia W.", position:"Executive Asst", gross:170000, manager:"MD"}
 ];
 
 /* -------------------------
-   Runtime state
+   Runtime state persisted to localStorage
 */
-let payrollRuns = [];   // saved runs
-let currentRun = null;  // active run object
+let payrollRuns = JSON.parse(localStorage.getItem('lumion_payrollRuns') || '[]');
+let currentRunId = localStorage.getItem('lumion_currentRun') || null;
 
-/* -------------------------
-   Helper utilities
-*/
-function fmt(n){ // format currency (Naira style for demo)
-  return "₦ " + n.toLocaleString();
+/* helpers */
+function saveState(){
+  localStorage.setItem('lumion_payrollRuns', JSON.stringify(payrollRuns));
+  localStorage.setItem('lumion_currentRun', currentRunId || '');
 }
+function fmt(n){ return "₦ " + Number(n).toLocaleString(); }
 function round(n){ return Math.round(n); }
 
-/* payroll calculation for an employee (returns breakdown) */
+/* payroll calculation */
 function calcEmployeePayroll(emp, cfg=CONFIG){
-  const gross = Number(emp.gross);
-  // Simple demo calculations:
+  const gross = Number(emp.gross || 0);
   const tax = round(gross * cfg.taxRate);
   const pensionEmp = round(gross * cfg.pensionEmployee);
   const other = round(gross * cfg.otherDeduction);
@@ -281,28 +311,25 @@ function calcEmployeePayroll(emp, cfg=CONFIG){
   return {gross, tax, pensionEmp, other, totalDeductions, net, employerPension};
 }
 
-/* -------------------------
-   Render functions
-*/
+/* render employees table */
 function renderEmployeesTable(list=employees){
   const tbody = document.getElementById('employees-table');
   tbody.innerHTML = '';
   list.forEach(emp=>{
-    const calc = calcEmployeePayroll(emp);
+    const c = calcEmployeePayroll(emp);
     const tr = document.createElement('tr');
     tr.className = 'hover:bg-gray-50 cursor-pointer';
     tr.innerHTML = `
-      <td class="p-2">${emp.name} <div class="small-muted text-xs">${emp.id}</div></td>
+      <td class="p-2">${emp.name} <div class="small-muted text-xs">${emp.id} • ${emp.manager ? 'Line manager: ' + emp.manager : ''}</div></td>
       <td class="p-2 small-muted">${emp.position}</td>
-      <td class="p-2 font-medium text-sm">${fmt(calc.gross)}</td>
-      <td class="p-2 font-semibold text-sm text-indigo-600">${fmt(calc.net)}</td>
+      <td class="p-2 font-medium text-sm">${fmt(c.gross)}</td>
+      <td class="p-2 font-semibold text-sm text-indigo-600">${fmt(c.net)}</td>
       <td class="p-2"><span class="px-2 py-1 text-xs rounded bg-green-50 text-green-700">Active</span></td>
     `;
     tr.onclick = ()=> openPayslip(emp);
     tbody.appendChild(tr);
   });
   document.getElementById('summary-employees').textContent = ''+list.length;
-  // update summary totals
   const totals = list.reduce((acc,e)=>{
     const c = calcEmployeePayroll(e);
     acc.gross += c.gross;
@@ -313,11 +340,11 @@ function renderEmployeesTable(list=employees){
   document.getElementById('summary-net').textContent = fmt(totals.net);
 }
 
-/* runs list */
+/* runs render */
 function renderRuns(){
   const container = document.getElementById('runs-list');
   container.innerHTML = '';
-  payrollRuns.slice().reverse().forEach((run,idx)=>{
+  payrollRuns.slice().reverse().forEach(run=>{
     const el = document.createElement('div');
     el.className = 'p-3 rounded border flex items-center justify-between';
     el.innerHTML = `
@@ -334,14 +361,16 @@ function renderRuns(){
   });
 }
 
-/* render selected run detail */
+/* run detail render */
 function renderRunDetail(){
   const container = document.getElementById('run-detail');
-  if(!currentRun){
-    container.innerHTML = `<div class="small-muted">No payroll run selected. Create a run to view details.</div>`;
+  const run = payrollRuns.find(r=>r.id===currentRunId);
+  if(!run){
+    container.innerHTML = `<div class="small-muted">No payroll run selected. Run payroll to generate a run.</div>`;
+    renderWorkflow(null);
     return;
   }
-  const totals = currentRun.employees.reduce((acc,e)=>{
+  const totals = run.employees.reduce((acc,e)=>{
     const c = calcEmployeePayroll(e);
     acc.gross += c.gross;
     acc.net += c.net;
@@ -353,8 +382,8 @@ function renderRunDetail(){
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div class="card">
         <div class="small-muted">Run</div>
-        <div class="text-lg font-semibold">${currentRun.name}</div>
-        <div class="small-muted">${currentRun.date}</div>
+        <div class="text-lg font-semibold">${run.name}</div>
+        <div class="small-muted">${run.date}</div>
       </div>
       <div class="card">
         <div class="small-muted">Totals</div>
@@ -374,7 +403,7 @@ function renderRunDetail(){
           <tr><th class="p-2">Name</th><th class="p-2">Gross</th><th class="p-2">Tax</th><th class="p-2">Pension</th><th class="p-2">Net</th><th class="p-2">Action</th></tr>
         </thead>
         <tbody>
-          ${currentRun.employees.map(emp=>{
+          ${run.employees.map(emp=>{
             const c = calcEmployeePayroll(emp);
             return `<tr class="border-t hover:bg-gray-50">
               <td class="p-2">${emp.name}</td>
@@ -389,37 +418,275 @@ function renderRunDetail(){
       </table>
     </div>
   `;
+  renderWorkflow(run);
 }
 
 /* -------------------------
-   Payroll run actions
+   Validation & run creation
 */
-function createPayrollRun(){
-  if(employees.length === 0){ alert("No employees available. Seed sample or add employees."); return; }
+function validateRunSnapshot(run){
+  const errors = [];
+  const seenIds = new Set();
+  run.employees.forEach((e, idx) => {
+    if(e.gross === undefined || e.gross === null || e.gross === '' || isNaN(e.gross)) {
+      errors.push({emp:e, type:'missing_gross', msg:`${e.name} (${e.id}) has no gross salary`});
+    } else if(Number(e.gross) < 0) {
+      errors.push({emp:e, type:'invalid_gross', msg:`${e.name} (${e.id}) has invalid gross: ${e.gross}`});
+    }
+    if(seenIds.has(e.id)){
+      errors.push({emp:e, type:'duplicate', msg:`Duplicate employee id ${e.id}`});
+    }
+    seenIds.add(e.id);
+  });
+  return errors;
+}
+
+/* Run payroll (snapshot + validate) */
+function runPayroll(){
+  if(employees.length === 0){ alert('No employees to run payroll for. Seed sample or add employees.'); return; }
   const id = 'run_' + Date.now();
   const run = {
     id,
     name: `Payroll ${new Date().toLocaleString()}`,
     date: new Date().toISOString().split('T')[0],
-    employees: JSON.parse(JSON.stringify(employees)) // snapshot
+    employees: JSON.parse(JSON.stringify(employees)), // snapshot copy
+    workflow: [ // vertical stages
+      { key:'HR', label:'HR', status:'Pending', actor:'HR', ts:null },
+      { key:'HeadHR', label:'Head of HR', status:'Locked', actor:'Head of HR', ts:null },
+      { key:'Audit', label:'Audit', status:'Locked', actor:'Audit', ts:null },
+      { key:'MD', label:'MD / CEO', status:'Locked', actor:'MD/CEO', ts:null },
+      { key:'Finance', label:'Finance', status:'Locked', actor:'Finance', ts:null }
+    ],
+    validation: { ok:false, errors: [] },
+    notes: []
   };
+
+  // validate
+  run.validation.errors = validateRunSnapshot(run);
+  run.validation.ok = run.validation.errors.length === 0;
+
   payrollRuns.push(run);
-  currentRun = run;
+  currentRunId = run.id;
+  saveState();
   renderRuns();
   renderRunDetail();
-  alert('Payroll run created: ' + run.name);
+  if(!run.validation.ok) {
+    showErrorsPanel(run.validation.errors);
+    alert('Payroll created but blocking validation errors were found. Fix them before approval.');
+  } else {
+    hideErrorsPanel();
+    alert('Payroll run created and validated — ready for approval (HR).');
+  }
 }
 
-/* open run by id */
-function openRun(id){
-  currentRun = payrollRuns.find(r=>r.id===id) || null;
+/* Fix handlers: open employee edit modal */
+let editTargetEmpId = null;
+function openEditEmployeeModal(emp){
+  editTargetEmpId = emp.id;
+  document.getElementById('edit-name').value = emp.name;
+  document.getElementById('edit-position').value = emp.position;
+  document.getElementById('edit-gross').value = emp.gross || '';
+  document.getElementById('edit-employee-modal').classList.remove('hidden');
+}
+document.getElementById('edit-cancel').addEventListener('click', ()=> {
+  editTargetEmpId = null;
+  document.getElementById('edit-employee-modal').classList.add('hidden');
+});
+document.getElementById('edit-save').addEventListener('click', ()=> {
+  const name = document.getElementById('edit-name').value.trim();
+  const pos = document.getElementById('edit-position').value.trim();
+  const gross = Number(document.getElementById('edit-gross').value || 0);
+  // update both master employees and current run snapshot (if present)
+  const master = employees.find(e=>e.id===editTargetEmpId);
+  if(master){ master.name = name; master.position = pos; master.gross = gross; }
+  // update current run snapshot
+  const run = payrollRuns.find(r=>r.id===currentRunId);
+  if(run){
+    const re = run.employees.find(e=>e.id===editTargetEmpId);
+    if(re){ re.name = name; re.position = pos; re.gross = gross; }
+    // revalidate
+    run.validation.errors = validateRunSnapshot(run);
+    run.validation.ok = run.validation.errors.length === 0;
+    if(run.validation.ok) hideErrorsPanel();
+  }
+  document.getElementById('edit-employee-modal').classList.add('hidden');
+  saveState();
+  renderEmployeesTable(employees);
+  renderRuns();
+  renderRunDetail();
+  editTargetEmpId = null;
+});
+
+/* Show errors panel */
+function showErrorsPanel(errors){
+  const panel = document.getElementById('errors-panel');
+  const list = document.getElementById('errors-list');
+  panel.style.display = 'block';
+  list.innerHTML = errors.map((err, i) => {
+    return `<div class="p-2 border rounded mb-2">
+      <div class="font-semibold text-sm text-red-600">${err.msg}</div>
+      <div class="text-xs text-gray-600 mt-1">Issue type: ${err.type}</div>
+      <div class="mt-2"><button class="px-2 py-1 text-sm border rounded" onclick='fixError("${err.emp.id}")'>Fix</button></div>
+    </div>`;
+  }).join('');
+}
+
+/* hide errors panel */
+function hideErrorsPanel(){
+  document.getElementById('errors-panel').style.display = 'none';
+  document.getElementById('errors-list').innerHTML = '';
+}
+
+/* Fix error by opening edit modal */
+function fixError(empId){
+  // find employee in current run or master list
+  const run = payrollRuns.find(r=>r.id===currentRunId);
+  let emp = employees.find(e=>e.id===empId);
+  if(run){
+    const re = run.employees.find(e=>e.id===empId);
+    if(re) emp = re;
+  }
+  if(emp) openEditEmployeeModal(emp);
+}
+
+/* Re-run validation on current run */
+document.getElementById('btn-revalidate').addEventListener('click', ()=>{
+  const run = payrollRuns.find(r=>r.id===currentRunId);
+  if(!run) return alert('No run selected');
+  run.validation.errors = validateRunSnapshot(run);
+  run.validation.ok = run.validation.errors.length === 0;
+  saveState();
+  renderRunDetail();
+  if(run.validation.ok) { hideErrorsPanel(); alert('No blocking errors found. Ready for approval.'); }
+  else showErrorsPanel(run.validation.errors);
+});
+
+/* -------------------------
+   Workflow (vertical)
+*/
+function renderWorkflow(run){
+  const wrap = document.getElementById('workflow-steps');
+  wrap.innerHTML = '';
+  if(!run){
+    wrap.innerHTML = '<div class="small-muted">No run selected.</div>';
+    return;
+  }
+  run.workflow.forEach((step, idx) => {
+    const stateColor = step.status === 'Approved' ? 'bg-green-100 text-green-800' :
+                       step.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                       step.status === 'Locked' ? 'bg-gray-100 text-gray-600' :
+                       'bg-yellow-50 text-yellow-800';
+    const html = document.createElement('div');
+    html.className = 'p-3 border rounded flex items-start justify-between';
+    html.innerHTML = `
+      <div>
+        <div class="font-semibold">${step.label}</div>
+        <div class="text-xs text-gray-500">${step.actor} • Status: <span class="${stateColor} px-2 py-0.5 rounded text-xs">${step.status}</span></div>
+        <div class="text-xs text-gray-400 mt-1">${step.ts ? 'At: ' + step.ts : ''}</div>
+      </div>
+      <div class="flex flex-col gap-2">
+        ${ (step.status === 'Pending') ? `<button class="px-3 py-1 bg-green-600 text-white rounded text-sm" onclick="approveStage('${run.id}','${step.key}')">Approve</button>
+                                         <button class="px-3 py-1 border rounded text-sm" onclick="rejectStage('${run.id}','${step.key}')">Reject</button>` : '' }
+        ${ (step.status === 'Locked' && idx===0 && run.validation.ok) ? `<button class="px-3 py-1 bg-green-600 text-white rounded text-sm" onclick="unlockFirst('${run.id}')">Start Approval</button>` : '' }
+        ${ (step.status === 'Locked' && idx>0) ? `<button class="px-3 py-1 border rounded text-sm" disabled>Locked</button>` : '' }
+        ${ (step.status === 'Approved' || step.status === 'Rejected') ? `<button class="px-3 py-1 border rounded text-sm" onclick="viewStage('${run.id}','${step.key}')">View</button>` : '' }
+      </div>
+    `;
+    wrap.appendChild(html);
+  });
+}
+
+/* Start approval (unlock HR if validated) */
+function unlockFirst(runId){
+  const run = payrollRuns.find(r=>r.id===runId);
+  if(!run) return;
+  if(!run.validation.ok){ alert('Run has blocking errors — fix before approval'); return; }
+  run.workflow[0].status = 'Pending';
+  run.workflow[0].ts = new Date().toLocaleString();
+  saveState();
   renderRunDetail();
 }
 
-/* download CSV for run */
+/* Approve a stage */
+function approveStage(runId, key){
+  const run = payrollRuns.find(r=>r.id===runId);
+  if(!run) return;
+  const idx = run.workflow.findIndex(s=>s.key===key);
+  if(idx===-1) return;
+  run.workflow[idx].status = 'Approved';
+  run.workflow[idx].ts = new Date().toLocaleString();
+  // unlock next stage if exists
+  if(run.workflow[idx+1]){
+    run.workflow[idx+1].status = 'Pending';
+    run.workflow[idx+1].ts = null;
+  } else {
+    // finished approvals -> mark run complete
+    run.completed = true;
+    run.completedAt = new Date().toLocaleString();
+    alert('Payroll fully approved. Move to disbursement.');
+  }
+  saveState();
+  renderRunDetail();
+}
+
+/* Reject a stage */
+function rejectStage(runId, key){
+  const run = payrollRuns.find(r=>r.id===runId);
+  if(!run) return;
+  const idx = run.workflow.findIndex(s=>s.key===key);
+  if(idx===-1) return;
+  run.workflow[idx].status = 'Rejected';
+  run.workflow[idx].ts = new Date().toLocaleString();
+  // mark run as needs fix
+  run.validation.ok = false;
+  run.notes.push({ by: run.workflow[idx].actor, at: new Date().toLocaleString(), note: 'Rejected at stage ' + run.workflow[idx].label });
+  saveState();
+  renderRunDetail();
+  showErrorsPanel([{emp:{id:'N/A',name:''}, type:'rejected', msg:`Run rejected by ${run.workflow[idx].actor}. Please review and fix.`}]);
+}
+
+/* view stage */
+function viewStage(runId, key){
+  const run = payrollRuns.find(r=>r.id===runId); if(!run) return;
+  const step = run.workflow.find(s=>s.key===key);
+  alert(`${step.label} — ${step.status}\nTime: ${step.ts || 'n/a'}`);
+}
+
+/* -------------------------
+   Run open/download/print
+*/
+function createDemoRunForUI(){
+  // convenience: create a pre-existing run with partial employees if none exist
+  if(payrollRuns.length === 0){
+    const id = 'run_demo';
+    const run = {
+      id, name: 'Payroll (Demo)', date: new Date().toISOString().split('T')[0],
+      employees: employees.slice(0,12),
+      workflow: [
+        { key:'HR', label:'HR', status:'Approved', actor:'HR', ts:new Date().toLocaleString() },
+        { key:'HeadHR', label:'Head of HR', status:'Approved', actor:'Head of HR', ts:new Date().toLocaleString() },
+        { key:'Audit', label:'Audit', status:'Pending', actor:'Audit', ts:null },
+        { key:'MD', label:'MD / CEO', status:'Locked', actor:'MD/CEO', ts:null },
+        { key:'Finance', label:'Finance', status:'Locked', actor:'Finance', ts:null }
+      ],
+      validation:{ ok:true, errors:[] }, notes: []
+    };
+    payrollRuns.push(run);
+    currentRunId = run.id;
+    saveState();
+  }
+}
+
+function openRun(id){
+  currentRunId = id;
+  saveState();
+  renderRunDetail();
+  renderRuns();
+}
+
 function downloadRunCSV(id){
   const run = payrollRuns.find(r=>r.id===id);
-  if(!run){ alert("Run not found"); return; }
+  if(!run){ alert('Run not found'); return; }
   const headers = ['id','name','position','gross','tax','pension_employee','other','net'];
   const rows = run.employees.map(e=>{
     const c = calcEmployeePayroll(e);
@@ -429,136 +696,65 @@ function downloadRunCSV(id){
   const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `${run.name.replace(/\s+/g,'_')}.csv`;
-  a.click(); URL.revokeObjectURL(url);
+  a.href = url; a.download = `${run.name.replace(/\s+/g,'_')}.csv`; a.click(); URL.revokeObjectURL(url);
 }
 
-/* download current run (selected) */
 function downloadSelectedCSV(){
-  if(!currentRun){ alert("No run selected"); return; }
-  downloadRunCSV(currentRun.id);
+  if(!currentRunId){ alert('No run selected'); return; }
+  downloadRunCSV(currentRunId);
 }
 
-/* print payslips for run (opens print window for each employee) */
 function printRunPayslips(){
-  if(!currentRun){ alert("Select a payroll run first"); return; }
-  currentRun.employees.forEach((e,i)=>{
+  if(!currentRunId){ alert('Select a payroll run first'); return; }
+  const run = payrollRuns.find(r=>r.id===currentRunId);
+  run.employees.forEach((e,i)=>{
     const c = calcEmployeePayroll(e);
-    const html = payslipHTML(e,c,currentRun);
+    const html = payslipHTML(e,c,run);
     const w = window.open('','_blank','width=800,height=600');
-    w.document.write(html);
-    w.document.close();
-    // print each (user can cancel). To avoid spamming print dialogs, only open first print automatically
+    w.document.write(html); w.document.close();
     if(i===0) setTimeout(()=>w.print(),500);
   });
 }
 
-/* -------------------------
-   Payslip UI
-*/
+/* payslip HTML */
 function payslipHTML(emp,calc,run){
   return `<!doctype html><html><head><meta charset="utf-8"><title>Payslip - ${emp.name}</title>
-    <style>
-      body{font-family:Inter,Arial,Helvetica,sans-serif;padding:28px;color:#111}
-      .header{display:flex;justify-content:space-between;align-items:center}
-      .box{border:1px solid #eee;padding:12px;border-radius:8px}
-      h2{color:${CONFIG.brand||'#111'}}
-    </style>
-    </head><body>
-    <div class="header">
-      <div>
-        <img src="https://i.ibb.co/XfRLzWwy/Logo.png" style="height:36px"/>
-        <div style="font-weight:600">Lumion HR</div>
-        <div style="font-size:12px;color:#666">Payslip for ${run.date}</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-weight:700">${emp.name}</div>
-        <div style="font-size:13px;color:#666">${emp.position} • ${emp.id}</div>
-      </div>
-    </div>
-    <hr style="margin:12px 0 18px 0;border:none;border-top:1px solid #eee"/>
+    <style>body{font-family:Inter,Arial;padding:24px;color:#111} .header{display:flex;justify-content:space-between;align-items:center} .box{border:1px solid #eee;padding:12px;border-radius:8px;margin-top:12px}</style></head><body>
+    <div class="header"><div><img src="https://i.ibb.co/XfRLzWwy/Logo.png" style="height:36px"><div style="font-weight:600">Lumion HR</div><div style="font-size:12px;color:#666">Payslip for ${run.date}</div></div>
+    <div style="text-align:right"><div style="font-weight:700">${emp.name}</div><div style="font-size:13px;color:#666">${emp.position} • ${emp.id}</div></div></div>
+    <hr style="margin:12px 0;border:none;border-top:1px solid #eee"/>
     <div style="display:flex;gap:18px">
-      <div style="flex:1">
-        <div class="box">
-          <div style="font-size:13px;color:#888">Earnings</div>
-          <div style="font-weight:700;font-size:18px">${fmt(calc.gross)}</div>
-        </div>
-      </div>
-      <div style="width:320px">
-        <div class="box">
-          <div style="font-size:13px;color:#888">Deductions</div>
-          <div style="margin-top:8px"><div>Tax: ${fmt(calc.tax)}</div><div>Pension: ${fmt(calc.pensionEmp)}</div><div>Other: ${fmt(calc.other)}</div></div>
-        </div>
-      </div>
-    </div>
-    <div style="margin-top:18px" class="box">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div style="font-weight:700">Net Pay</div>
-        <div style="font-size:20px;font-weight:800;color:#1f2937">${fmt(calc.net)}</div>
-      </div>
-    </div>
-    <div style="margin-top:20px;font-size:12px;color:#666">This is a system-generated payslip for payroll run ${run.name}.</div>
-    </body></html>`;
+      <div style="flex:1"><div class="box"><div style="font-size:13px;color:#888">Earnings</div><div style="font-weight:700;font-size:18px">${fmt(calc.gross)}</div></div></div>
+      <div style="width:320px"><div class="box"><div style="font-size:13px;color:#888">Deductions</div><div style="margin-top:8px"><div>Tax: ${fmt(calc.tax)}</div><div>Pension: ${fmt(calc.pensionEmp)}</div><div>Other: ${fmt(calc.other)}</div></div></div></div>
+    </div><div style="margin-top:18px" class="box"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:700">Net Pay</div><div style="font-size:20px;font-weight:800;color:#1f2937">${fmt(calc.net)}</div></div></div>
+    <div style="margin-top:20px;font-size:12px;color:#666">System-generated payslip for ${run.name}.</div></body></html>`;
 }
 
-/* open payslip modal for an employee */
+/* open payslip modal */
 function openPayslip(emp){
   const calc = calcEmployeePayroll(emp);
   document.getElementById('payslip-employee-name').textContent = emp.name + ' • ' + emp.position;
-  const content = document.getElementById('payslip-content');
-  content.innerHTML = payslipHTMLSnippet(emp,calc);
+  document.getElementById('payslip-content').innerHTML = payslipHTMLSnippet(emp,calc);
   document.getElementById('payslip-modal').classList.remove('hidden');
-  // attach print
   document.getElementById('payslip-download').onclick = ()=> {
-    const html = payslipHTML(emp,calc, currentRun || {name:'Ad-hoc run', date:new Date().toISOString().split('T')[0]});
+    const html = payslipHTML(emp,calc, payrollRuns.find(r=>r.id===currentRunId) || {name:'Ad-hoc', date:new Date().toISOString().split('T')[0]});
     const w = window.open('','_blank','width=800,height=600'); w.document.write(html); w.document.close(); w.print();
   };
 }
-
 function openPayslipById(id){
-  const emp = (currentRun ? currentRun.employees : employees).find(e=>e.id===id) || employees.find(e=>e.id===id);
+  const run = payrollRuns.find(r=>r.id===currentRunId);
+  const emp = (run ? run.employees.find(e=>e.id===id) : null) || employees.find(e=>e.id===id);
   if(emp) openPayslip(emp);
 }
 function payslipHTMLSnippet(emp,calc){
   return `
-    <div>
-      <div class="flex justify-between items-start">
-        <div>
-          <div class="small-muted">Employee</div>
-          <div class="font-semibold">${emp.name}</div>
-          <div class="small-muted">${emp.position} • ${emp.id}</div>
-        </div>
-        <div class="text-right">
-          <div class="small-muted">Pay Date</div>
-          <div class="font-semibold">${new Date().toISOString().split('T')[0]}</div>
-        </div>
-      </div>
-      <div class="mt-4 grid grid-cols-2 gap-4">
-        <div class="card">
-          <div class="small-muted">Gross Salary</div>
-          <div class="text-xl font-bold">${fmt(calc.gross)}</div>
-        </div>
-        <div class="card">
-          <div class="small-muted">Net Pay</div>
-          <div class="text-xl font-bold text-indigo-600">${fmt(calc.net)}</div>
-        </div>
-      </div>
-      <div class="mt-4 card">
-        <div class="small-muted">Deductions</div>
-        <div class="mt-2 grid grid-cols-2 gap-2">
-          <div>Tax: ${fmt(calc.tax)}</div>
-          <div>Pension: ${fmt(calc.pensionEmp)}</div>
-          <div>Other: ${fmt(calc.other)}</div>
-          <div>Employer Pension: ${fmt(calc.employerPension)}</div>
-        </div>
-      </div>
-    </div>
-  `;
+    <div><div class="flex justify-between items-start"><div><div class="small-muted">Employee</div><div class="font-semibold">${emp.name}</div><div class="small-muted">${emp.position} • ${emp.id}</div></div><div class="text-right"><div class="small-muted">Pay Date</div><div class="font-semibold">${new Date().toISOString().split('T')[0]}</div></div></div>
+    <div class="mt-4 grid grid-cols-2 gap-4"><div class="card"><div class="small-muted">Gross Salary</div><div class="text-xl font-bold">${fmt(calc.gross)}</div></div><div class="card"><div class="small-muted">Net Pay</div><div class="text-xl font-bold text-indigo-600">${fmt(calc.net)}</div></div></div>
+    <div class="mt-4 card"><div class="small-muted">Deductions</div><div class="mt-2 grid grid-cols-2 gap-2"><div>Tax: ${fmt(calc.tax)}</div><div>Pension: ${fmt(calc.pensionEmp)}</div><div>Other: ${fmt(calc.other)}</div><div>Employer Pension: ${fmt(calc.employerPension)}</div></div></div></div>`;
 }
 
 /* -------------------------
-   Search & utility handlers
+   Search, seed, exports, config
 */
 document.getElementById('search').addEventListener('input', e=>{
   const q = e.target.value.toLowerCase().trim();
@@ -568,13 +764,11 @@ document.getElementById('search').addEventListener('input', e=>{
   }));
 });
 
-/* seed sample button for manual trigger (useful if table is empty) */
 document.getElementById('fill-sample').addEventListener('click', ()=>{
   renderEmployeesTable(employees);
   alert('Sample employees loaded/updated.');
 });
 
-/* export all employees CSV */
 document.getElementById('export-all').addEventListener('click', ()=>{
   const headers = ['id','name','position','gross'];
   const rows = employees.map(e => [e.id,e.name,e.position,e.gross]);
@@ -583,18 +777,6 @@ document.getElementById('export-all').addEventListener('click', ()=>{
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href = url; a.download = 'employees.csv'; a.click(); URL.revokeObjectURL(url);
 });
-
-/* create payroll run btn */
-document.getElementById('btn-new-run').addEventListener('click', createPayrollRun);
-
-/* open/close payslip modal */
-document.getElementById('payslip-close').addEventListener('click', ()=> document.getElementById('payslip-modal').classList.add('hidden'));
-
-/* download selected run */
-document.getElementById('download-csv').addEventListener('click', downloadSelectedCSV);
-
-/* print run payslips */
-document.getElementById('print-run').addEventListener('click', printRunPayslips);
 
 /* config modal */
 document.getElementById('btn-config').addEventListener('click', ()=> {
@@ -610,47 +792,49 @@ document.getElementById('config-save').addEventListener('click', ()=> {
   CONFIG.pensionEmployee = Number(document.getElementById('input-pension').value)/100;
   CONFIG.pensionEmployer = Number(document.getElementById('input-pension-employer').value)/100;
   CONFIG.otherDeduction = Number(document.getElementById('input-other').value)/100;
-  // update UI
   document.getElementById('rate-tax').textContent = (CONFIG.taxRate*100).toFixed(1) + '%';
   document.getElementById('rate-pension').textContent = (CONFIG.pensionEmployee*100).toFixed(1) + '%';
   document.getElementById('rate-pension-employer').textContent = (CONFIG.pensionEmployer*100).toFixed(1) + '%';
   document.getElementById('rate-other').textContent = (CONFIG.otherDeduction*100).toFixed(1) + '%';
   document.getElementById('config-modal').classList.add('hidden');
-  // re-render
   renderEmployeesTable(employees);
-  if(currentRun) renderRunDetail();
+  if(currentRunId) renderRunDetail();
 });
 
-/* open payslip by id helper for run table */
-window.openPayslipById = openPayslipById;
+/* payslip modal close */
+document.getElementById('payslip-close').addEventListener('click', ()=> document.getElementById('payslip-modal').classList.add('hidden'));
 
-/* download run csv helper */
+/* run & exports handlers */
+document.getElementById('btn-run-payroll').addEventListener('click', runPayroll);
+document.getElementById('download-csv').addEventListener('click', downloadSelectedCSV);
+document.getElementById('print-run').addEventListener('click', printRunPayslips);
+
+/* window helpers (exposed) */
 window.downloadRunCSV = downloadRunCSV;
-
-/* open run helper */
 window.openRun = openRun;
+window.openPayslipById = openPayslipById;
+window.fixError = fixError;
 
 /* init */
 (function init(){
+  // restore stored runs if any
+  renderEmployeesTable(employees);
+  renderRuns();
+  if(payrollRuns.length){
+    if(!currentRunId) currentRunId = payrollRuns[0].id;
+    renderRunDetail();
+  } else {
+    // create small demo run to illustrate workflow (optional)
+    createDemoRunForUI();
+    renderRuns();
+    renderRunDetail();
+  }
+  // set rate labels
   document.getElementById('rate-tax').textContent = (CONFIG.taxRate*100) + '%';
   document.getElementById('rate-pension').textContent = (CONFIG.pensionEmployee*100) + '%';
   document.getElementById('rate-pension-employer').textContent = (CONFIG.pensionEmployer*100) + '%';
   document.getElementById('rate-other').textContent = (CONFIG.otherDeduction*100) + '%';
-  renderEmployeesTable(employees);
-
-  // small UX: seed a default payroll run to demo
-  payrollRuns.push({
-    id: 'run_demo',
-    name: 'Payroll (Demo)',
-    date: new Date().toISOString().split('T')[0],
-    employees: employees.slice(0,12) // partial payroll demo
-  });
-  currentRun = payrollRuns[0];
-  renderRuns();
-  renderRunDetail();
 })();
 </script>
-
 </body>
-
 </html>
