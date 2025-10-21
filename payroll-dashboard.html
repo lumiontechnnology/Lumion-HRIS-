@@ -1,3 +1,8 @@
+<script>
+  if (localStorage.getItem("isLoggedIn") !== "true") {
+    window.location.href = "index.html";
+  }
+</script>
 <!doctype html>
 <html lang="en">
 <head>
@@ -647,4 +652,5 @@ window.openRun = openRun;
 </script>
 
 </body>
+
 </html>
