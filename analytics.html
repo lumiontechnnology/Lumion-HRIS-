@@ -1,1 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion HR — Predictive Analytics</title>
+  <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 8px 30px rgba(2,6,23,0.06); }
+    .risk-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:8px }
+    .small { font-size:0.9rem }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
 
+  <header class="bg-white border-b sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="https://i.ibb.co/XfRLzWwy/Logo.png" alt="Lumion" class="h-10" />
+        <div>
+          <div class="text-lg font-semibold">Lumion HR — Analytics</div>
+          <div class="text-xs text-gray-500">Predictive & Conversation AI prototype</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <a class="text-indigo-600 font-semibold" href="hris-dashboard-admin.html">Back to dashboard</a>
+        <button id="runAudit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Run Deep Audit</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- KPIs -->
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Attrition (12-mo rolling)</div>
+        <div class="mt-2 text-3xl font-bold" id="kpi-attrition">—%</div>
+        <div class="text-xs text-gray-400 mt-2">Real-time risk & trend</div>
+      </div>
+
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Avg Time-to-hire</div>
+        <div class="mt-2 text-3xl font-bold" id="kpi-time">— days</div>
+        <div class="text-xs text-gray-400 mt-2">Recruitment velocity</div>
+      </div>
+
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Cost-per-hire</div>
+        <div class="mt-2 text-3xl font-bold" id="kpi-cost">—</div>
+        <div class="text-xs text-gray-400 mt-2">Recruiting spend estimate</div>
+      </div>
+
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Employee Engagement</div>
+        <div class="mt-2 text-3xl font-bold" id="kpi-engagement">—%</div>
+        <div class="text-xs text-gray-400 mt-2">Pulse & chat sentiment</div>
+      </div>
+    </section>
+
+    <!-- Charts row -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div class="card p-5 lg:col-span-2">
+        <div class="flex items-start justify-between">
+          <h3 class="font-semibold">Attrition & Engagement Trend</h3>
+          <div class="text-xs text-gray-500">Last 12 months</div>
+        </div>
+        <canvas id="attritionChart" height="120"></canvas>
+        <div class="flex gap-4 mt-4 small text-gray-600">
+          <div class="flex items-center gap-2"><span class="w-3 h-3 bg-red-400 rounded-full inline-block"></span> Attrition %</div>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 bg-indigo-500 rounded-full inline-block"></span> Engagement Index</div>
+        </div>
+      </div>
+
+      <div class="card p-5">
+        <h3 class="font-semibold">Diversity & Inclusion</h3>
+        <canvas id="diversityDonut" height="180"></canvas>
+        <div class="text-xs text-gray-500 mt-3">Gender split, underrepresented groups</div>
+      </div>
+    </section>
+
+    <!-- Recruitment metrics -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div class="card p-5">
+        <h4 class="font-semibold mb-2">Time-to-hire by team</h4>
+        <canvas id="ttHbar" height="140"></canvas>
+      </div>
+      <div class="card p-5">
+        <h4 class="font-semibold mb-2">Cost-per-hire by channel</h4>
+        <canvas id="costDonut" height="140"></canvas>
+      </div>
+      <div class="card p-5">
+        <h4 class="font-semibold mb-2">Recruitment success rate</h4>
+        <div class="text-3xl font-bold" id="kpi-success">—%</div>
+        <div class="text-xs text-gray-500 mt-2">Offer → accept conversion</div>
+      </div>
+    </section>
+
+    <!-- Performance & Absence -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="card p-5">
+        <h4 class="font-semibold mb-3">Employee performance distribution</h4>
+        <canvas id="perfRadar" height="220"></canvas>
+        <div class="text-xs text-gray-500 mt-3">Performance trends & training impact</div>
+      </div>
+      <div class="card p-5">
+        <h4 class="font-semibold mb-3">Absenteeism heatmap (weekdays)</h4>
+        <div id="heatMap" class="grid grid-cols-7 gap-2 text-xs"></div>
+        <div class="text-xs text-gray-500 mt-3">Click any cell to view flagged reasons</div>
+      </div>
+    </section>
+
+    <!-- AI Insights + Conversation simulation -->
+    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      <div class="card p-5 lg:col-span-2">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold">AI Insights & Risk Analysis</h3>
+          <div class="text-xs text-gray-500">Explainable suggestions</div>
+        </div>
+
+        <div id="aiInsights" class="space-y-3 small text-gray-700">
+          <!-- filled in by JS -->
+        </div>
+
+        <div class="mt-4 border-t pt-4 text-sm text-gray-500">
+          <strong>Recommended actions:</strong>
+          <ul class="list-disc ml-6 mt-2" id="aiActions"></ul>
+        </div>
+      </div>
+
+      <aside class="card p-5">
+        <h4 class="font-semibold mb-2">Conversation AI — Quick analyzer</h4>
+        <textarea id="sampleMsg" placeholder="Paste a sample employee text / 1:1 note or exit interview snippet" rows="6"
+          class="w-full p-3 border rounded mb-3"></textarea>
+        <button id="analyzeBtn" class="w-full px-4 py-2 bg-indigo-600 text-white rounded mb-3">Analyze</button>
+
+        <div class="text-sm">
+          <div class="font-semibold">Sentiment</div>
+          <div id="sentimentLabel" class="mt-2">—</div>
+        </div>
+        <div class="mt-3 text-sm">
+          <div class="font-semibold">Bias flags</div>
+          <div id="biasLabel" class="mt-2">—</div>
+        </div>
+        <div class="mt-3 text-sm">
+          <div class="font-semibold">Confidential notes</div>
+          <div id="confidentialSummary" class="mt-2 text-xs text-gray-600">Use the anonymized channel for venting. (simulated)</div>
+        </div>
+      </aside>
+    </section>
+
+    <!-- Export / admin actions -->
+    <section class="flex gap-3 items-center">
+      <button id="exportCSV" class="px-4 py-2 bg-gray-800 text-white rounded">Export report (CSV)</button>
+      <button id="downloadPDF" class="px-4 py-2 border rounded">Download snapshot (PNG)</button>
+      <div class="text-xs text-gray-500 ml-auto">Data simulated for prototype. Connect to real database for production.</div>
+    </section>
+
+    <footer class="mt-10 text-xs text-gray-500">
+      Lumion HR Prototype — predictive analytics demo • Confidential prototype.
+    </footer>
+  </main>
+
+  <!-- Scripts: simulated data & charts -->
+  <script>
+  // --- sample simulated dataset
+  const months = ["Nov","Dec","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct"];
+  // monthly attrition % + engagement index (0-100)
+  let monthlyAttrition = [2.1,2.3,2.0,2.7,3.2,2.9,2.5,2.2,1.9,1.8,1.7,1.5];
+  let monthlyEngagement = [78,77,79,75,72,74,76,78,80,82,83,84];
+
+  // team times-to-hire (days)
+  const teams = ["Engineering","Product","Sales","Finance","HR","Design"];
+  const tth = [18,25,19,22,17,20];
+
+  // channels cost-per-hire
+  const channels = ["LinkedIn","Indeed","Agency","Referral","Lumion AI"];
+  const cph = [350000, 120000, 600000, 45000, 25000];
+
+  // diversity example (gender)
+  const diversity = { male: 62, female: 36, nonbinary: 2};
+
+  // performance radar categories (avg)
+  const perfLabels = ["Deliverables","Communication","Collaboration","Impact","Growth"];
+  const perfVals = [78,82,75,80,68];
+
+  // absenteeism heat mock (7 days x 4 weeks)
+  const heat = Array.from({length:28}, ()=> Math.floor(Math.random()*5)); // 0-4 absences in cell
+
+  // compute headline KPIs
+  function computeKPIs(){
+    const attrAvg = (monthlyAttrition.reduce((a,b)=>a+b,0)/monthlyAttrition.length).toFixed(1);
+    const avgTTH = Math.round(tth.reduce((a,b)=>a+b,0)/tth.length);
+    const avgCost = Math.round(cph.reduce((a,b)=>a+b,0)/cph.length);
+    const avgEng = Math.round(monthlyEngagement.reduce((a,b)=>a+b,0)/monthlyEngagement.length);
+    document.getElementById('kpi-attrition').innerText = attrAvg + '%';
+    document.getElementById('kpi-time').innerText = avgTTH + ' days';
+    document.getElementById('kpi-cost').innerText = '₦' + avgCost.toLocaleString();
+    document.getElementById('kpi-engagement').innerText = avgEng + '%';
+    document.getElementById('kpi-success').innerText = Math.round((Math.random()*10)+70) + '%';
+  }
+
+  // --- charts
+  const attrCtx = document.getElementById('attritionChart').getContext('2d');
+  const attrChart = new Chart(attrCtx, {
+    type:'line',
+    data:{
+      labels: months,
+      datasets:[
+        { label:'Attrition %', data: monthlyAttrition, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,0.06)', yAxisID:'A', tension:0.3, fill:true },
+        { label:'Engagement index', data: monthlyEngagement, borderColor:'#4f46e5', backgroundColor:'rgba(79,70,229,0.06)', yAxisID:'B', tension:0.3, fill:true }
+      ]
+    },
+    options:{
+      interaction:{mode:'index', intersect:false},
+      scales:{
+        A:{ position:'left', min:0, max:6, ticks:{stepSize:1}, title:{display:true, text:'%'} },
+        B:{ position:'right', min:50, max:100, grid:{display:false}, title:{display:true, text:'engagement index'} }
+      }
+    }
+  });
+
+  const divCtx = document.getElementById('diversityDonut').getContext('2d');
+  const divChart = new Chart(divCtx, {
+    type:'doughnut',
+    data:{
+      labels: Object.keys(diversity),
+      datasets:[{ data: Object.values(diversity), backgroundColor:['#3b82f6','#f472b6','#a78bfa'] }]
+    },
+    options:{ plugins:{legend:{position:'bottom'}} }
+  });
+
+  const tthCtx = document.getElementById('ttHbar').getContext('2d');
+  const tthChart = new Chart(tthCtx, {
+    type:'bar',
+    data:{ labels: teams, datasets:[{ data:tth, backgroundColor:'#60a5fa' }] },
+    options:{ scales:{ y:{ beginAtZero:true } } }
+  });
+
+  const costCtx = document.getElementById('costDonut').getContext('2d');
+  const costChart = new Chart(costCtx, {
+    type:'doughnut',
+    data:{ labels: channels, datasets:[{ data:cph, backgroundColor:['#4f46e5','#06b6d4','#fb923c','#34d399','#f97316'] }] },
+    options:{ plugins:{legend:{position:'bottom'}} }
+  });
+
+  const perfCtx = document.getElementById('perfRadar').getContext('2d');
+  const perfChart = new Chart(perfCtx, {
+    type:'radar',
+    data:{ labels: perfLabels, datasets:[{ label:'Avg score', data: perfVals, backgroundColor:'rgba(99,102,241,0.12)', borderColor:'#6366f1' }] },
+    options:{ scales:{ r:{ min:0, max:100 } } }
+  });
+
+  // heatmap render
+  function renderHeatmap(){
+    const el = document.getElementById('heatMap');
+    el.innerHTML = '';
+    for(let i=0;i<28;i++){
+      const val = heat[i];
+      const bg = val >=4 ? 'bg-red-300' : val>=3 ? 'bg-orange-200' : val>=1 ? 'bg-yellow-100' : 'bg-gray-100';
+      const cell = document.createElement('div');
+      cell.className = `p-3 ${bg} rounded text-center small cursor-pointer`;
+      cell.innerHTML = `<div>${val}</div><div class="text-xs text-gray-500 mt-1">Day ${i+1}</div>`;
+      cell.onclick = ()=> {
+        showModal(`Absences on Day ${i+1}`, `Recorded ${val} absence(s). Common reasons: ${ val>=3 ? 'Sickness, transportation, burnout' : 'Sickness, personal' }`);
+      };
+      el.appendChild(cell);
+    }
+  }
+
+  // --- AI Insights engine (simulated explainable rules)
+  function produceAIInsights(){
+    const insights = [];
+    // 1. Attrition risk pockets from engagement & absences
+    const recentAttr = monthlyAttrition.slice(-3);
+    if(recentAttr.some(a=>a>3)){
+      insights.push({ level:'High', title:'Rising attrition in Sales & Engineering', detail:'Attrition increased >3% in last months; engagement dips and rising absences detected. Suggest 1:1 check-ins and manager training.' });
+    } else {
+      insights.push({ level:'Normal', title:'Stable attrition', detail:'No major spikes detected. Maintain pulse cadence.' });
+    }
+    // 2. Time-to-hire friction
+    const slowTeams = teams.filter((t,i)=>tth[i] > 21);
+    if(slowTeams.length){
+      insights.push({ level:'Medium', title:`Slow hiring: ${slowTeams.join(', ')}`, detail:'Consider targeted sourcing & referral boost for these teams.'});
+    }
+    // 3. Diversity highlight
+    if(diversity.female < 40){
+      insights.push({ level:'Medium', title:'Gender imbalance', detail:'Female representation under 40%. Run targeted outreach & mentoring programs.'});
+    }
+    // 4. Onboarding friction (simulate)
+    const onboardingFriction = Math.random() > 0.7;
+    if(onboardingFriction){
+      insights.push({ level:'High', title:'Onboarding friction detected', detail:'New hires report slower ramp in first 30 days — add mandatory 1:1 coaching sessions and clear task lists.'});
+    }
+    // 5. Mental stress signal from conversation analysis (simulated)
+    const stressScore = Math.floor(Math.random()*40) + 60; // 60-100 scale
+    if(stressScore > 80){
+      insights.push({ level:'High', title:'Elevated mental stress signals', detail:`Combined signals (chat sentiment & pulse) show stress score ${stressScore}. Recommend confidential well-being outreach.`});
+    } else {
+      insights.push({ level:'Info', title:'Wellbeing stable', detail:`Average stress score ${stressScore}. Continue wellness programs.`});
+    }
+
+    // render insights
+    const container = document.getElementById('aiInsights');
+    container.innerHTML = insights.map(i => `
+      <div class="p-3 border rounded flex justify-between items-start">
+        <div>
+          <div class="text-sm font-semibold">${i.title}</div>
+          <div class="text-xs text-gray-500 mt-1">${i.detail}</div>
+        </div>
+        <div class="text-sm text-right">
+          <div class="font-semibold ${ i.level==='High' ? 'text-red-600' : i.level==='Medium' ? 'text-yellow-600' : 'text-green-600'}">${i.level}</div>
+          <div class="text-xs text-gray-400 mt-1">Confidence: ${(Math.random()*15 + 80).toFixed(0)}%</div>
+        </div>
+      </div>
+    `).join('');
+
+    // recommended actions
+    const actions = [
+      'Run manager 1:1s for teams with high risk (Sales, Eng).',
+      'Launch targeted hiring campaigns for slow teams and referral bonuses.',
+      'Set up confidential well-being check-ins via the AI-coach channel.',
+      'Automate onboarding checklists and require short welcome videos from HODs.'
+    ];
+    document.getElementById('aiActions').innerHTML = actions.map(a=>`<li>${a}</li>`).join('');
+  }
+
+  // --- Conversation analyzer (client-side, simulated rules)
+  function analyzeText(text){
+    const lower = text.toLowerCase();
+    // sentiment simple rules
+    const negativeWords = ['unhappy','stress','burnout','quit','leave','angry','depressed','overworked'];
+    const positiveWords = ['happy','engaged','love','excited','enjoy','grateful','satisfied'];
+    let score = 50;
+    negativeWords.forEach(w=>{ if(lower.includes(w)) score -= 8; });
+    positiveWords.forEach(w=>{ if(lower.includes(w)) score += 6; });
+    // length & punctuation
+    if(lower.split(' ').length > 60) score -= 4; // long venting posts lower score
+    // clamp
+    score = Math.max(0, Math.min(100, score));
+    // bias detection (super naive)
+    const biasFlags = [];
+    const biasTerms = ['young','old','lady','boys','mature','kid'];
+    biasTerms.forEach(w=>{ if(lower.includes(w)) biasFlags.push(`possible term: "${w}"`); });
+    // recommended next steps (simulated)
+    const recs = [];
+    if(score < 45) recs.push('Flag for confidential outreach (HRBP).');
+    if(biasFlags.length) recs.push('Review manager notes for biased language; coach manager.');
+    if(lower.includes('visa') || lower.includes('permit')) recs.push('Review immigration status & policy advising.');
+
+    return {
+      sentimentScore: score,
+      sentimentLabel: score > 70 ? 'Positive' : score > 45 ? 'Neutral' : 'Negative',
+      biasFlags,
+      recs
+    };
+  }
+
+  // modal helper
+  function showModal(title, body){
+    const root = document.createElement('div');
+    root.className = 'fixed inset-0 bg-black/40 flex items-center justify-center z-50';
+    root.innerHTML = `
+      <div class="bg-white p-6 rounded-lg w-[90%] max-w-2xl">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="text-lg font-bold">${title}</h3>
+            <div class="text-sm text-gray-600 mt-2">${body}</div>
+          </div>
+          <button id="closeModal" class="text-gray-400">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(root);
+    root.querySelector('#closeModal').onclick = () => root.remove();
+  }
+
+  // export CSV snapshot (simple)
+  function exportSnapshotCSV(){
+    const rows = [
+      ['metric','value'],
+      ['attritionAvg', monthlyAttrition.reduce((a,b)=>a+b,0)/monthlyAttrition.length],
+      ['engagementAvg', monthlyEngagement.reduce((a,b)=>a+b,0)/monthlyEngagement.length],
+      ['timeToHireAvg', Math.round(tth.reduce((a,b)=>a+b,0)/tth.length)],
+      ['costPerHireAvg', Math.round(cph.reduce((a,b)=>a+b,0)/cph.length)]
+    ];
+    const csv = rows.map(r => r.map(c => `"${String(c)}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'lumion_analytics_snapshot.csv'; a.click(); URL.revokeObjectURL(url);
+  }
+
+  // snapshot -> simple PNG (chart capture)
+  async function snapshotPage(){
+    alert('Snapshot functionality requires html2canvas or server-side rendering — for prototype we will open print preview.');
+    window.print();
+  }
+
+  // --- wiring & boot
+  document.getElementById('analyzeBtn').addEventListener('click', ()=>{
+    const txt = document.getElementById('sampleMsg').value.trim();
+    if(!txt){ alert('Paste a sample message (e.g., an exit interview or 1:1 note) to analyze.'); return; }
+    const res = analyzeText(txt);
+    document.getElementById('sentimentLabel').innerHTML = `<div class="font-semibold">${res.sentimentLabel}</div><div class="text-xs text-gray-500">score ${res.sentimentScore}</div>`;
+    document.getElementById('biasLabel').innerHTML = res.biasFlags.length ? res.biasFlags.join(', ') : 'No obvious bias terms detected (prototype)';
+    document.getElementById('confidentialSummary').innerText = res.recs.join(' • ') || 'No immediate action recommended.';
+    // log to insights panel also
+    const insightsPanel = document.getElementById('aiInsights');
+    insightsPanel.insertAdjacentHTML('afterbegin', `<div class="p-3 border rounded bg-gray-50 small"><strong>Conversation AI:</strong> Detected ${res.sentimentLabel} sentiment (score ${res.sentimentScore}) — ${res.biasFlags.length ? 'Bias flags present' : 'No bias flagged'}.</div>`);
+  });
+
+  document.getElementById('exportCSV').addEventListener('click', exportSnapshotCSV);
+  document.getElementById('downloadPDF').addEventListener('click', snapshotPage);
+
+  document.getElementById('runAudit').addEventListener('click', ()=> {
+    produceAIInsights();
+    showModal('Deep Audit Complete', 'AI audit ran and produced prioritized insights & recommended actions. See Insights panel.');
+  });
+
+  // init
+  computeKPIs();
+  renderHeatmap();
+  produceAIInsights();
+
+  </script>
+</body>
+</html>
