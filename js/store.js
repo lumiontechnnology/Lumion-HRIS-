@@ -6,6 +6,10 @@ const STORE_KEY = 'lumionHR_store_v3';
 const SESSION_KEY = 'lumionHR_current_user_id';
 
 const defaultState = {
+  // UI/feature preferences and dismissals per user
+  preferences: {
+    // userId: { dismissedNudges: { key: 'YYYY-MM-DD' }, featureFlags: {} }
+  },
   users: [
     { id: 'u-admin', email: 'admin@lumion.com', password: 'admin123', role: 'admin', name: 'Admin User' },
     { id: 'u-stan', email: 'stanford.george@lumion.com', password: 'user123', role: 'user', name: 'Stanford George', managerId: 'u-admin' },
@@ -168,6 +172,8 @@ function loadState() {
     base.kpiTemplates = { ...defaultState.kpiTemplates, ...(parsed.kpiTemplates || {}) };
     base.userKpis = { ...(parsed.userKpis || {}) };
     base.appraisals = [ ...(parsed.appraisals || []) ];
+    // Ensure preferences container
+    base.preferences = { ...(parsed.preferences || {}) };
     return base;
   } catch {
     return { ...defaultState };
@@ -197,6 +203,15 @@ export const Store = {
     return u;
   },
   logout() { localStorage.removeItem(SESSION_KEY); },
+
+  // Preferences and dismissals
+  getUserPrefs(userId){ const s = loadState(); s.preferences = s.preferences || {}; return s.preferences[userId] || {}; },
+  setUserPref(userId, key, value){ const s = loadState(); s.preferences = s.preferences || {}; s.preferences[userId] = s.preferences[userId] || {}; s.preferences[userId][key] = value; saveState(s); return s.preferences[userId]; },
+  dismissNudge(userId, nudgeKey, untilDate){
+    const s = loadState(); s.preferences = s.preferences || {}; s.preferences[userId] = s.preferences[userId] || {}; const prefs = s.preferences[userId];
+    prefs.dismissedNudges = prefs.dismissedNudges || {}; prefs.dismissedNudges[nudgeKey] = untilDate; saveState(s); return true;
+  },
+  isNudgeDismissed(userId, nudgeKey, onDate){ const s = loadState(); const prefs = (s.preferences||{})[userId] || {}; const map = prefs.dismissedNudges || {}; const until = map[nudgeKey]; if(!until) return false; const d = (onDate||Store.todayStr()); return d <= until; },
 
   // Users / Employees
   addUser(user) {

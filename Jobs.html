@@ -10,8 +10,17 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Lumion — Employer Jobs Dashboard (Prototype)</title>
   <link rel="icon" href="static/Logo__mark.png">
-  <!-- Tailwind via CDN (for prototyping) -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tailwind (optional). In offline mode, this silently skips to avoid console errors. -->
+  <script>
+    (function(){
+      try{
+        var s=document.createElement('script');
+        s.src='https://cdn.tailwindcss.com/3.4.17';
+        s.onerror=function(){ console.warn('Tailwind CDN unavailable; continuing without it.'); };
+        document.head.appendChild(s);
+      }catch(e){ /* noop */ }
+    })();
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
@@ -478,26 +487,108 @@ function simulateSource(sourceName){
    ------------------------- */
 function sourceFromUrl(url){
   if(!url || typeof url !== 'string') return [];
-  const u = url.toLowerCase();
+  let parsed = null; try { parsed = new URL(url); } catch { parsed = null; }
+  const href = String(url);
+  const lower = href.toLowerCase();
   let channel = 'web';
-  if(u.includes('linkedin')) channel = 'linkedin';
-  else if(u.includes('indeed')) channel = 'indeed';
-  else if(u.includes('glassdoor')) channel = 'glassdoor';
+  if(lower.includes('linkedin')) channel = 'linkedin';
+  else if(lower.includes('indeed')) channel = 'indeed';
+  else if(lower.includes('glassdoor')) channel = 'glassdoor';
 
-  // Extract crude keywords from URL path/query
-  const kw = (u.split(/[\/?&=#._-]+/).filter(s=> s && s.length>2 && !s.startsWith('www'))).slice(0,4);
+  // Helpers
+  const decode = (s)=> decodeURIComponent(s||'').replace(/\+/g,' ');
+  const cleanTokens = (arr)=> Array.from(new Set(arr.filter(Boolean).map(x=>x.replace(/[\d_]+/g,' ').replace(/\s{2,}/g,' ').trim())));
+
+  // Extract richer details
+  let type = 'search';
+  let name = '';
+  let title = '';
+  let location = '';
+  let keywords = [];
+
+  if(channel==='linkedin'){
+    const path = (parsed?.pathname||'').toLowerCase();
+    if(path.includes('/in/') || path.includes('/pub/')){
+      type = 'profile';
+      const slug = path.split('/').filter(Boolean).slice(-1)[0] || '';
+      const parts = slug.split('-').filter(Boolean);
+      // Guess name from first two parts
+      if(parts.length){
+        const guessName = parts.slice(0,2).map(p=> p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
+        name = guessName;
+      }
+      // Try headline from query or slug extras
+      title = decode(parsed?.searchParams?.get('title') || '') || parts.slice(2,5).join(' ');
+      keywords = cleanTokens(parts.concat([title]));
+    } else if(path.includes('/jobs/')){
+      type = 'search';
+      const kw = decode(parsed?.searchParams?.get('keywords') || parsed?.searchParams?.get('title') || '');
+      const geo = decode(parsed?.searchParams?.get('location') || parsed?.searchParams?.get('geo') || '');
+      title = kw; location = geo; keywords = cleanTokens(kw.split(/[\s,]+/));
+    } else {
+      const tokens = cleanTokens((parsed?.pathname||'').split(/[\/-]+/));
+      keywords = tokens.slice(0,6);
+    }
+  }
+
+  if(channel==='indeed'){
+    const q = decode(parsed?.searchParams?.get('q') || '');
+    const l = decode(parsed?.searchParams?.get('l') || '');
+    if(q){ type='search'; title = q; location = l; keywords = cleanTokens(q.split(/[\s,]+/)); }
+    else {
+      const tokens = cleanTokens((parsed?.pathname||'').split(/[\/-]+/));
+      keywords = tokens.slice(0,6);
+    }
+  }
+
+  if(channel==='glassdoor'){
+    const p = (parsed?.pathname||'');
+    // e.g., /Job/lagos-software-engineer-jobs-SRCH_IL.0,5_IC..._KO6,23.htm
+    const tokens = cleanTokens(p.split(/[\/-_.]+/));
+    const pos = tokens.indexOf('jobs');
+    if(pos>0){ title = tokens.slice(0,pos).join(' '); }
+    keywords = tokens.slice(0,6);
+  }
+
+  // Fallback generic tokens
+  if(!keywords.length){
+    const fromPath = (parsed ? (parsed.pathname||'') : href).split(/[\/?&=#._-]+/);
+    keywords = cleanTokens(fromPath).slice(0,6);
+  }
+
   const pool = [];
-  for(let i=0;i<Math.max(2, Math.min(5, kw.length || 3)); i++){
-    const base = state.pool[Math.floor(Math.random()*state.pool.length)] || sampleCandidates[i % sampleCandidates.length];
-    const clone = {...base};
-    clone.id = uid('url');
-    clone.name = base.name;
-    clone.company = `${channel.toUpperCase()} via URL`;
-    clone.skills = Array.from(new Set([...(base.skills||[]), ...kw.slice(0,3).map(s=>s.replace(/\d+/g,''))])).slice(0,6);
-    clone.notes = `Imported from ${channel} URL: ${url}`;
-    clone.match = Math.min(98, Math.max(60, base.match + Math.floor((Math.random()-0.5)*15)));
-    clone.status = 'Applied';
-    pool.push(clone);
+  if(type==='profile'){
+    // Create a single, more detailed profile
+    const base = state.pool[Math.floor(Math.random()*state.pool.length)] || sampleCandidates[0];
+    const c = {...base};
+    c.id = uid('urlp');
+    c.name = name || base.name;
+    c.title = title || base.title;
+    c.company = `${channel.toUpperCase()} profile`;
+    c.skills = Array.from(new Set([...(base.skills||[]), ...keywords.slice(0,6)])).slice(0,8);
+    c.notes = `Imported from ${channel} profile URL: ${href}`;
+    c.match = Math.min(98, Math.max(60, base.match + Math.floor((Math.random()-0.5)*10)));
+    c.status = 'Applied';
+    pool.push(c);
+  } else {
+    // Create 3-5 candidates seeded by keywords
+    const count = Math.max(3, Math.min(5, keywords.length || 4));
+    for(let i=0;i<count;i++){
+      const base = state.pool[Math.floor(Math.random()*state.pool.length)] || sampleCandidates[i % sampleCandidates.length];
+      const clone = {...base};
+      clone.id = uid('urls');
+      if(title) clone.title = title;
+      if(location) clone.notes = (clone.notes||'') + (location ? ` • Location: ${location}` : '');
+      clone.company = `${channel.toUpperCase()} via URL`;
+      const kwSlice = keywords.slice(i, i+3);
+      clone.skills = Array.from(new Set([...(base.skills||[]), ...kwSlice])).slice(0,8);
+      clone.notes = `Imported from ${channel} search URL: ${href}`;
+      clone.match = Math.min(98, Math.max(60, base.match + Math.floor((Math.random()-0.5)*15)));
+      clone.status = 'Applied';
+      // Sweeten name from tokens if looks like a name
+      if(!clone.name && keywords.length>=2){ clone.name = keywords.slice(0,2).map(w=> w.charAt(0).toUpperCase()+w.slice(1)).join(' '); }
+      pool.push(clone);
+    }
   }
   return pool;
 }

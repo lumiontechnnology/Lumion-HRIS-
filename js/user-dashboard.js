@@ -477,7 +477,57 @@ function renderPulseUI(){
       const agg2 = Store.computeEngagementFromPulses(user.id, 7);
       const avgEl2 = document.getElementById('pulse-avg-7d'); if (avgEl2) avgEl2.textContent = agg2 ? `Last 7d engagement: ${agg2.avg}% (${agg2.count} entries)` : 'Last 7d engagement: —';
     } catch {}
+    // After save, hide/snooze nudge for the rest of today
+    try { Store.dismissNudge(user.id, 'highWorkloadStreak', Store.todayStr()); } catch {}
+    const nc = document.getElementById('nudge-card'); if (nc) nc.style.display = 'none';
   });
+
+  // Compute contextual nudge: high workload 3 consecutive days
+  try {
+    const s = Store.getState();
+    const all = (s.pulses||[]).filter(p=> p.userId===user.id);
+    const byDate = new Map(all.map(p=> [p.date, p]));
+    const today = new Date();
+    const todayStr = Store.todayStr();
+    let streak = 0;
+    for(let i=0;i<7;i++){
+      const d = new Date(today); d.setDate(today.getDate()-i); d.setHours(0,0,0,0);
+      const ds = d.toISOString().slice(0,10);
+      const p = byDate.get(ds);
+      if(p && (p.workload||0) >= 4){ streak++; }
+      else { if(i===0 && !p){ // allow missing today to continue checking previous days
+          continue;
+        } else { break; }
+      }
+      if(streak>=3) break;
+    }
+    const dismissed = Store.isNudgeDismissed(user.id, 'highWorkloadStreak', todayStr);
+    const todayPulse = Store.getPulse(user.id, todayStr);
+    if(streak>=3 && !dismissed){
+      const nudgeCard = document.getElementById('nudge-card');
+      const nudgeText = document.getElementById('pulse-nudge');
+      if(nudgeCard && nudgeText){
+        nudgeText.textContent = todayPulse
+          ? 'You’ve reported high workload recently. Consider sharing a brief note for context.'
+          : 'Noticing high workload 3 days in a row. Quick check-in can help us support you.';
+        nudgeCard.style.display = '';
+        const btnDismiss = document.getElementById('nudge-dismiss');
+        const btnOpen = document.getElementById('nudge-open');
+        if(btnDismiss) btnDismiss.onclick = ()=>{
+          // Snooze for 7 days
+          const until = new Date(); until.setDate(until.getDate()+7);
+          const untilStr = until.toISOString().slice(0,10);
+          try { Store.dismissNudge(user.id, 'highWorkloadStreak', untilStr); } catch {}
+          nudgeCard.style.display='none';
+        };
+        if(btnOpen) btnOpen.onclick = ()=>{
+          const card = document.getElementById('checkin-card');
+          if(card){ card.scrollIntoView({behavior:'smooth', block:'center'}); }
+          const txt = document.getElementById('pulse-note'); if(txt) txt.focus();
+        };
+      }
+    }
+  } catch {}
 }
 
 // Defer attendance init until DOM is ready

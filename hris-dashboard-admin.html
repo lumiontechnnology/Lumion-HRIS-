@@ -11,7 +11,11 @@
   <title>Lumion HR — Admin Dashboard</title>
   <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png">
   <!-- Tailwind CDN for quick prototyping -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    (function(){
+      try{ var s=document.createElement('script'); s.src='https://cdn.tailwindcss.com/3.4.17'; s.onerror=function(){ console.warn('Tailwind CDN unavailable; continuing without it.'); }; document.head.appendChild(s);}catch(e){}
+    })();
+  </script>
   <!-- Chart.js for predictive chart -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 

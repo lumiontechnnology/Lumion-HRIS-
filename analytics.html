@@ -81,6 +81,22 @@
       </div>
     </section>
 
+    <!-- Engagement breakdowns from real pulses -->
+    <section class="grid" style="grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px;">
+      <div class="card">
+        <div class="flex-between">
+          <h3 style="margin:0">Engagement Trend (last 8 weeks)</h3>
+          <div class="text-xs muted">Derived from pulse check-ins</div>
+        </div>
+        <canvas id="engTrendChart" width="800" height="260" style="display:block;margin-top:12px;"></canvas>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 8px 0">Engagement by Department</h3>
+        <canvas id="deptEngagementChart" width="400" height="220"></canvas>
+        <div class="text-xs muted" style="margin-top:8px">Top departments by average engagement</div>
+      </div>
+    </section>
+
     <!-- Charts row -->
     <section class="grid" style="grid-template-columns:2fr 1fr; gap:16px; margin-bottom:16px;">
       <div class="card">
