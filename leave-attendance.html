@@ -172,6 +172,12 @@
           <h4 class="font-semibold mb-2">Lumion Insight</h4>
           <div id="insightBox" class="text-sm text-gray-700 tiny">No insights yet — run simulation or add requests.</div>
         </div>
+
+        <!-- Notifications (from Store) -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-2">Notifications</h4>
+          <div id="notifList" class="tiny text-gray-700 space-y-2">No notifications.</div>
+        </div>
       </aside>
     </div>
 
@@ -655,6 +661,25 @@ document.addEventListener('DOMContentLoaded', ()=> {
     id:3, employeeId:11, type:'annual', start: addDays(7), end: addDays(10), days:4, status:'pending', reason:'Family', createdAt: new Date().toISOString()
   });
   updateAfterChange();
+
+  // Populate notifications from Store if available
+  try {
+    if (window.Store && typeof window.Store.getNotifications === 'function'){
+      const notifs = window.Store.getNotifications();
+      const box = document.getElementById('notifList');
+      if (box){
+        if (!notifs.length){ box.innerHTML = 'No notifications.'; }
+        else {
+          box.innerHTML = notifs.slice(0,20).map(n => `
+            <div class="border-b pb-2">
+              <div class="font-semibold">${n.type.replace(/_/g,' ')}</div>
+              <div class="text-gray-600">${n.message || ''}</div>
+              <div class="text-gray-500">${n.date || ''} • ${new Date(n.ts||Date.now()).toLocaleString()}</div>
+            </div>`).join('');
+        }
+      }
+    }
+  } catch {}
 });
 
 /* tiny helpers for demo */

@@ -71,12 +71,17 @@
 
   <div id="modalRoot"></div>
 
-  <script>
+  <script type="module">
+  import { Store } from './js/store.js';
+  import { requireAuth, renderUserMenu } from './js/auth.js';
+  requireAuth('admin');
+  renderUserMenu();
   /***************************
    * Sample employees dataset
    * Nigerian-style sample data + details
    ***************************/
-  const employees = [
+  // Initialize employees from Store, seed on first load
+  const initialEmployees = [
     {
       id:"EMP001", name:"Ada Bello", dept:"Engineering", role:"Software Engineer",
       salary:220000, status:"Active", start:"2024-02-01", manager:"Bayo K.",
@@ -168,6 +173,11 @@
       files:["Employment_Letter.pdf","CV.pdf"], history:{ resumption:"2023-03-03", promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] }
     }
   ];
+  let employees = Store.getEmployees();
+  if (!employees || employees.length === 0) {
+    initialEmployees.forEach(e => Store.addEmployee(e));
+    employees = Store.getEmployees();
+  }
 
   // utility
   function formatN(n){ return "₦" + Number(n).toLocaleString(); }
@@ -207,6 +217,7 @@
         <td class="py-3">${formatN(emp.salary)}</td>
         <td class="py-3 text-right">
           <button class="viewBtn px-3 py-1 mr-2 text-sm text-indigo-600">View</button>
+          <button class="perfBtn px-3 py-1 mr-2 text-sm bg-indigo-50 text-indigo-700 border rounded">Performance</button>
           <button class="editBtn px-3 py-1 mr-2 text-sm border rounded">Edit</button>
           <button class="delBtn px-3 py-1 text-sm text-red-600">Delete</button>
         </td>
@@ -214,6 +225,7 @@
       tbody.appendChild(tr);
 
       tr.querySelector('.viewBtn').addEventListener('click', ()=> openView(emp));
+      tr.querySelector('.perfBtn').addEventListener('click', ()=> openPerformance(emp));
       tr.querySelector('.editBtn').addEventListener('click', ()=> openEdit(emp));
       tr.querySelector('.delBtn').addEventListener('click', ()=> removeEmployee(emp.id));
     });
@@ -314,6 +326,71 @@
     });
   }
 
+  // Performance modal
+  function openPerformance(emp){
+    const modal = document.createElement('div');
+    modal.className = 'modal-backdrop';
+    // Try link to a user account by email
+    const state = Store.getState();
+    const user = state.users.find(u => u.email === (emp.contact?.email || '')) || null;
+    const appraisals = user ? Store.getAppraisals(user.id) : [];
+    const headerBadge = user ? `<span class="ml-2 text-xs text-gray-500">Linked user: ${user.name}</span>` : `<span class="ml-2 text-xs text-gray-500">No linked user account</span>`;
+    const openLink = user ? `<a href="performance-dashboard.html?userId=${user.id}#appraisal" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm" target="_blank">Open Full Performance Page</a>` : `<button class="px-3 py-1 bg-gray-200 text-gray-600 rounded text-sm" disabled>Open Full Performance Page</button>`;
+    const rows = [];
+    if(appraisals.length>0){
+      appraisals.forEach(ap => {
+        const sum = Store.computeAndSaveAppraisalSummary(user.id, ap.period);
+        rows.push(`<div class="p-3 border rounded flex justify-between items-center">
+          <div>
+            <div class="font-semibold">${ap.period} <span class="text-xs pill">${ap.status}</span></div>
+            <div class="text-xs text-gray-500">Manager notes: ${ap.manager?.comments || '—'}</div>
+          </div>
+          <div class="flex gap-2">
+            <div class="pill">Overall: ${sum?.overall ?? '—'}%</div>
+            <div class="pill">KPI: ${sum?.kpiScore ?? '—'}%</div>
+            <div class="pill">Self: ${sum?.selfScore ?? '—'}%</div>
+            <div class="pill">Mgr: ${sum?.managerScore ?? '—'}%</div>
+          </div>
+        </div>`);
+      });
+    } else {
+      const hist = emp.history?.performance || [];
+      if(hist.length>0){
+        hist.forEach(h => {
+          rows.push(`<div class="p-3 border rounded flex justify-between items-center">
+            <div>
+              <div class="font-semibold">${h.period || 'Past Period'} <span class="text-xs pill">${h.status || 'Closed'}</span></div>
+              <div class="text-xs text-gray-500">Manager notes: ${h.managerComments || '—'}</div>
+            </div>
+            <div class="flex gap-2">
+              <div class="pill">Overall: ${h.overall ?? '—'}%</div>
+              <div class="pill">KPI: ${h.kpiScore ?? '—'}%</div>
+            </div>
+          </div>`);
+        });
+      }
+    }
+    const emptyState = rows.length===0 ? '<div class="text-sm text-gray-600">No performance records found.</div>' : '';
+    modal.innerHTML = `
+      <div class="bg-white p-6 rounded-lg w-[900px] max-w-[95%]">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="text-lg font-bold">${emp.name} <span class="text-xs text-gray-500">(${emp.id})</span></h3>
+            <div class="text-sm text-gray-600">${emp.role} — ${emp.dept}</div>
+            ${headerBadge}
+          </div>
+          <div class="flex items-center gap-2">${openLink}<button id="closePerf" class="px-3 py-1 border rounded text-sm">Close</button></div>
+        </div>
+        <div class="mt-4">
+          <h4 class="font-semibold mb-2">Appraisal History</h4>
+          <div class="flex flex-col gap-2">${rows.join('') || emptyState}</div>
+        </div>
+      </div>
+    `;
+    document.getElementById('modalRoot').appendChild(modal);
+    modal.querySelector('#closePerf').addEventListener('click', ()=> modal.remove());
+  }
+
   function openEdit(emp=null){
     const isNew = !emp;
     const data = emp ? {...emp} : {
@@ -359,11 +436,11 @@
       if(!name || !idv){ alert('Name and ID required'); return; }
 
       if(isNew){
-        employees.push({ id:idv, name, dept, role, salary, status, start, manager, contact:{email,phone}, files:[], history:{ resumption:start, promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] } });
+        Store.addEmployee({ id:idv, name, dept, role, salary, status, start, manager, contact:{email,phone}, files:[], history:{ resumption:start, promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] } });
       } else {
-        const idx = employees.findIndex(e=>e.id===data.id);
-        if(idx>=0) employees[idx] = { ...employees[idx], id:idv, name, dept, role, salary, status, start, manager, contact:{email,phone} };
+        Store.updateEmployee(data.id, { id:idv, name, dept, role, salary, status, start, manager, contact:{email,phone} });
       }
+      employees = Store.getEmployees();
       modal.remove();
       populateDeptFilter();
       filterAndRender();
@@ -372,8 +449,8 @@
 
   function removeEmployee(id){
     if(!confirm('Delete employee and personnel file?')) return;
-    const idx = employees.findIndex(e=>e.id===id);
-    if(idx>=0) employees.splice(idx,1);
+    Store.removeEmployee(id);
+    employees = Store.getEmployees();
     populateDeptFilter();
     filterAndRender();
   }
@@ -398,6 +475,51 @@
   searchInput.addEventListener('input', filterAndRender);
   deptFilter.addEventListener('change', filterAndRender);
   statusFilter.addEventListener('change', filterAndRender);
+
+  // normalize employees from Store if schema differs and ensure minimum count
+  function normalizeAndSeed(){
+    employees = Store.getEmployees() || [];
+    employees = employees.map(e => ({
+      id: e.id || (e.empId || ("EMP" + Math.floor(100+Math.random()*900))),
+      name: e.name || e.fullName || 'Unnamed',
+      dept: e.dept || e.department || 'Admin',
+      role: e.role || 'Staff',
+      salary: e.salary || 0,
+      status: e.status || 'Active',
+      start: e.start || new Date().toISOString().slice(0,10),
+      manager: e.manager || '',
+      contact: e.contact || { email: e.email || '', phone: e.phone || '' },
+      files: e.files || [],
+      history: e.history || { resumption: e.start || '', promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+    }));
+    const need = 50 - employees.length;
+    if (need > 0) {
+      const depts = ['Engineering','Sales','Admin','HR','Finance','Marketing'];
+      const rolesByDept = {
+        Engineering: ['Software Engineer','Backend Engineer','Frontend Engineer','DevOps Engineer'],
+        Sales: ['Account Exec','Sales Lead'],
+        Admin: ['Payroll Exec','Office Admin'],
+        HR: ['HRBP','Recruiter'],
+        Finance: ['Finance Manager','Accountant'],
+        Marketing: ['Social Manager','Content Lead']
+      };
+      for(let i=0;i<need;i++){
+        const d = depts[Math.floor(Math.random()*depts.length)];
+        const rlist = rolesByDept[d];
+        const r = rlist[Math.floor(Math.random()*rlist.length)];
+        const id = "EMP" + String(200 + employees.length + i).padStart(3,'0');
+        const first = ['Ayo','Bola','Chika','Dapo','Emeka','Fola','Grace','Hassan','Ife','Jide','Kemi','Lola','Musa','Nkechi','Ola','Pius','Queen','Rashid','Sade','Tomi'][Math.floor(Math.random()*20)];
+        const last = ['A.','B.','C.','D.','E.','F.','G.','H.','I.','J.','K.','L.','M.','N.','O.','P.','Q.','R.','S.','T.'][Math.floor(Math.random()*20)];
+        const name = `${first} ${last}`;
+        const email = `${first.toLowerCase()}.${String(Math.floor(Math.random()*900)+100)}@lumion.com`;
+        const emp = { id, name, dept: d, role: r, salary: 120000 + Math.floor(Math.random()*180000), status: 'Active', start: '2023-02-01', manager: '', contact: { email, phone: '' }, files: [], history: { resumption: '2023-02-01', promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] } };
+        Store.addEmployee(emp);
+        employees.push(emp);
+      }
+    }
+  }
+
+  normalizeAndSeed();
 
   // initial population
   populateDeptFilter();

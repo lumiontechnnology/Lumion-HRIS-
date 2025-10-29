@@ -64,30 +64,46 @@
           <a href="leave-attendance.html" class="p-4 bg-gray-50 hover:bg-indigo-50 rounded-xl shadow text-gray-700 font-medium">Leave & Attendance</a>
           <a href="Onboarding.html" class="p-4 bg-gray-50 hover:bg-indigo-50 rounded-xl shadow text-gray-700 font-medium">Onboarding</a>
           <a href="payroll-dashboard.html" class="p-4 bg-gray-50 hover:bg-indigo-50 rounded-xl shadow text-gray-700 font-medium">Payroll</a>
+          <a href="performance-dashboard.html" class="p-4 bg-indigo-50 hover:bg-indigo-100 rounded-xl shadow text-indigo-700 font-semibold">Performance & 360 Appraisal</a>
+          <a href="hr-performance.html" class="p-4 bg-gray-50 hover:bg-indigo-50 rounded-xl shadow text-gray-700 font-medium">HR Performance</a>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- JS Logic -->
-  <script>
-    // Simple login simulation
-    document.getElementById("loginForm").addEventListener("submit", function(e) {
-      e.preventDefault();
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+  <!-- JS Logic: unify with shared Store/auth (keeps existing UI) -->
+  <script type="module">
+    import { Store } from './js/store.js';
 
-      if (email === "admin@lumion.com" && password === "12345") {
-        localStorage.setItem("isLoggedIn", "true");
-        window.location.href = "hris-dashboard-admin.html"; // Redirect to dashboard
-      } else {
-        alert("Invalid login credentials. Try admin@lumion.com / 12345");
+    const form = document.getElementById('loginForm');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email').value.trim();
+      let password = document.getElementById('password').value.trim();
+
+      // Backward-compat: accept old demo password for admin
+      if (email === 'admin@lumion.com' && password === '12345') {
+        password = 'admin123';
       }
+
+      const u = Store.login(email, password);
+      if (!u) {
+        alert('Invalid login. Demo users: admin@lumion.com/admin123, stanford.george@lumion.com/user123, ada.bello@lumion.com/user123, chike.okoro@lumion.com/user123');
+        return;
+      }
+      // Set legacy flag for pages still checking it
+      localStorage.setItem('isLoggedIn', 'true');
+      // Role-based redirect
+      if (u.role === 'admin') window.location.href = 'hris-dashboard-admin.html';
+      else window.location.href = 'user-dashboard.html';
     });
 
-    // If already logged in, go straight to dashboard
-    if (localStorage.getItem("isLoggedIn") === "true") {
-      window.location.href = "hris-dashboard-admin.html";
+    // If already logged in via legacy flag, keep redirect to admin for now
+    if (localStorage.getItem('isLoggedIn') === 'true') {
+      // Try to route based on current user, default to admin dashboard
+      const u = Store.currentUser();
+      if (u && u.role === 'user') window.location.href = 'user-dashboard.html';
+      else window.location.href = 'hris-dashboard-admin.html';
     }
   </script>
 

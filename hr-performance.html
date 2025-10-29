@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion — HR Performance Dashboard</title>
+  <script>
+    if (localStorage.getItem("isLoggedIn") !== "true") {
+      // Keep parity with other pages
+      window.location.href = "index.html";
+    }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
+    .tiny { font-size: 0.82rem; }
+    .pill { border-radius: 999px; padding: 2px 10px; background:#eef2ff; color:#3730a3; font-weight:600; }
+  </style>
+  <script type="module" src="./js/hr-performance.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="mb-5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-md bg-indigo-600 text-white flex items-center justify-center font-bold">L</div>
+        <div>
+          <div class="text-lg font-extrabold">HR Performance Dashboard</div>
+          <div class="tiny text-gray-500">Leaves analytics with interactive filters</div>
+        </div>
+      </div>
+      <nav class="flex gap-2 text-sm">
+        <a href="#summary" id="tab-summary" class="pill">Summary</a>
+        <a href="#leaves" id="tab-leaves" class="pill bg-white border text-gray-700">Leaves</a>
+      </nav>
+    </header>
+
+    <!-- Filters -->
+    <section class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-5">
+      <div class="card p-3">
+        <div class="tiny text-gray-500">Start date</div>
+        <input id="f-start" type="date" class="w-full border rounded p-2">
+      </div>
+      <div class="card p-3">
+        <div class="tiny text-gray-500">End date</div>
+        <input id="f-end" type="date" class="w-full border rounded p-2">
+      </div>
+      <div class="card p-3">
+        <div class="tiny text-gray-500">Department</div>
+        <select id="f-dept" class="w-full border rounded p-2"></select>
+      </div>
+      <div class="card p-3">
+        <div class="tiny text-gray-500">Job Role</div>
+        <select id="f-role" class="w-full border rounded p-2"></select>
+      </div>
+      <div class="card p-3">
+        <div class="tiny text-gray-500">Location</div>
+        <select id="f-loc" class="w-full border rounded p-2"></select>
+      </div>
+    </section>
+
+    <!-- Summary section -->
+    <div id="summary-section" class="mb-8">
+      <!-- Focus filter -->
+      <section class="card p-4 mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div class="font-semibold tiny text-gray-700">Focus</div>
+            <div class="tiny text-gray-500">Switch KPIs between performance areas</div>
+          </div>
+          <div class="flex gap-2 text-sm flex-wrap">
+            <button id="foc-perf" class="pill bg-white border text-gray-700" type="button">Performance & Productivity</button>
+            <button id="foc-eng" class="pill bg-white border text-gray-700" type="button">Engagement & Retention</button>
+            <button id="foc-rec" class="pill bg-white border text-gray-700" type="button">Recruitment & Pipeline</button>
+            <button id="foc-comp" class="pill bg-white border text-gray-700" type="button">Compliance & Policy</button>
+            <button id="foc-cost" class="pill bg-white border text-gray-700" type="button">HR Cost & Workforce</button>
+          </div>
+        </div>
+      </section>
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4"><div id="ov-k1-label" class="text-sm text-gray-500">Leaves Taken (Total Days)</div><div id="ov-k1" class="text-2xl font-bold">—</div><div id="ov-k1-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div id="ov-k2-label" class="text-sm text-gray-500">Avg Leaves per Employee</div><div id="ov-k2" class="text-2xl font-bold">—</div><div id="ov-k2-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div id="ov-k3-label" class="text-sm text-gray-500">Absenteeism Rate</div><div id="ov-k3" class="text-2xl font-bold">—</div><div id="ov-k3-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div id="ov-k4-label" class="text-sm text-gray-500">Top Department (Avg Leaves)</div><div id="ov-k4" class="text-2xl font-bold">—</div><div id="ov-k4-sub" class="tiny text-gray-500"></div></div>
+      </section>
+      <section class="card p-4">
+        <h3 class="font-semibold tiny mb-2">Quick Insights</h3>
+        <ul id="ov-insights" class="list-disc pl-6 text-sm text-gray-700"></ul>
+      </section>
+
+      <!-- Demographics -->
+      <section class="card p-4 mt-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold tiny">Employee Demographics (Scoped)</h3>
+          <div class="tiny text-gray-500">Updates with filters</div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <div class="tiny text-gray-500 mb-1">Gender split</div>
+            <canvas id="c-demo-gender" height="120"></canvas>
+          </div>
+          <div>
+            <div class="tiny text-gray-500 mb-1">Department headcount</div>
+            <canvas id="c-demo-dept" height="120"></canvas>
+          </div>
+          <div>
+            <div class="tiny text-gray-500 mb-1">Location headcount</div>
+            <canvas id="c-demo-loc" height="120"></canvas>
+          </div>
+          <div>
+            <div class="tiny text-gray-500 mb-1">Tenure distribution</div>
+            <canvas id="c-demo-tenure" height="120"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- Focus charts -->
+      <section class="card p-4 mt-6">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold tiny">Focus Charts</h3>
+          <div id="focus-charts-sub" class="tiny text-gray-500"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div>
+            <div id="c-focus-a-label" class="tiny text-gray-500 mb-1">—</div>
+            <canvas id="c-focus-a" height="140"></canvas>
+          </div>
+          <div>
+            <div id="c-focus-b-label" class="tiny text-gray-500 mb-1">—</div>
+            <canvas id="c-focus-b" height="140"></canvas>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Leaves section -->
+    <div id="leaves-section" class="mb-8 hidden">
+      <!-- KPI cards left rail -->
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4"><div class="text-sm text-gray-500">Total Number of Leaves Taken</div><div id="k-total" class="text-2xl font-bold">—</div><div id="k-total-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Total Number of Sick Leaves</div><div id="k-sick" class="text-2xl font-bold">—</div><div id="k-sick-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Total Number of Casual Leaves</div><div id="k-casual" class="text-2xl font-bold">—</div><div id="k-casual-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Total Number of Earned Leaves</div><div id="k-earned" class="text-2xl font-bold">—</div><div id="k-earned-sub" class="tiny text-gray-500"></div></div>
+      </section>
+
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4"><div class="text-sm text-gray-500">Total Number of Unpaid Leaves</div><div id="k-unpaid" class="text-2xl font-bold">—</div><div id="k-unpaid-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Absenteeism without leave</div><div id="k-absent" class="text-2xl font-bold">—</div><div id="k-absent-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Leaves offered</div><div id="k-offered" class="text-2xl font-bold">—</div><div id="k-offered-sub" class="tiny text-gray-500"></div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Employees in scope</div><div id="k-emp" class="text-2xl font-bold">—</div><div id="k-emp-sub" class="tiny text-gray-500"></div></div>
+      </section>
+
+      <!-- Charts -->
+      <section class="grid grid-cols-1 gap-5 mb-6">
+        <div class="card p-4">
+          <h3 class="font-semibold mb-2 tiny">Leaves Mix</h3>
+          <canvas id="c-mix" height="70"></canvas>
+        </div>
+      </section>
+
+      <section class="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
+        <div class="card p-4">
+          <h3 class="font-semibold mb-2 tiny">Average Leaves by Department</h3>
+          <canvas id="c-dept"></canvas>
+        </div>
+        <div class="card p-4">
+          <h3 class="font-semibold mb-2 tiny">Average number of leaves</h3>
+          <canvas id="c-gender"></canvas>
+        </div>
+        <div class="card p-4">
+          <h3 class="font-semibold mb-2 tiny">Leaves by Weekday</h3>
+          <canvas id="c-weekday"></canvas>
+        </div>
+      </section>
+
+      <section class="card p-4 mb-20">
+        <h3 class="font-semibold mb-2 tiny">Trend of leaves</h3>
+        <canvas id="c-trend" height="120"></canvas>
+      </section>
+    </div>
+
+  </div>
+</body>
+</html>

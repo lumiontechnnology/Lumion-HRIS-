@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>User Dashboard – Lumion HRIS</title>
+    <style>
+      :root{
+        --bg:#f6f7fb; --card:#fff; --ink:#111827; --muted:#6b7280; --brand:#2563eb; --teal:#0ea5e9; --green:#10b981;
+      }
+      *{box-sizing:border-box}
+      body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+      header{display:flex;align-items:center;justify-content:space-between;background:#111827;color:#fff;padding:12px 18px}
+      header h2{margin:0;font-size:16px;letter-spacing:.3px}
+      .container{max-width:1150px;margin:20px auto;padding:0 16px}
+      .hero{position:relative;background:linear-gradient(120deg,#0b4a6f,#0d78b0);border-radius:16px;color:#fff;padding:22px 22px 28px 22px;overflow:hidden}
+      .hero-inner{display:flex;gap:18px;align-items:flex-start}
+      .avatar{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px}
+      .hero-name{font-size:18px;margin:2px 0 6px 0}
+      .empid{opacity:.9;font-size:12px;letter-spacing:.3px}
+      .kpi{margin-left:auto;background:rgba(255,255,255,.1);padding:10px 12px;border-radius:10px;text-align:left}
+      .kpi .percent{font-weight:700}
+      .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;margin-top:14px}
+      .card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:14px}
+      .col-3{grid-column:span 3}
+      .col-4{grid-column:span 4}
+      .col-5{grid-column:span 5}
+      .col-6{grid-column:span 6}
+      .muted{color:var(--muted)}
+      .small{font-size:12px}
+      .title{font-weight:700;margin-bottom:8px}
+      .tile{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #eef0f4;border-radius:12px}
+      .tile .icon{width:30px;height:30px;border-radius:8px;background:#eef6ff;display:flex;align-items:center;justify-content:center;color:#2563eb;font-weight:700}
+      .tile .label{font-size:12px;color:var(--muted)}
+      .tile .value{font-weight:600}
+      .actions{display:flex;gap:8px;flex-wrap:wrap}
+      .btn{background:var(--brand);color:#fff;border:none;padding:10px 12px;border-radius:10px;cursor:pointer}
+      .btn.alt{background:#0ea5e9}
+      .btn.ghost{background:#eef2ff;color:#1f2a5a}
+      .leave-row{display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:10px;margin:6px 0}
+      .leave-row .bar{height:8px;background:#eef2ff;border-radius:999px;overflow:hidden}
+      .leave-row .bar span{display:block;height:8px;background:#3b82f6}
+      .person{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed #eef0f4}
+      .person .avatar{width:36px;height:36px;font-size:13px;background:#e9f2ff;color:#1f2a5a}
+      .pay{display:flex;gap:16px}
+      .pay .stat{background:#f8fafc;border-radius:12px;padding:10px 12px}
+      /* modal */
+      .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center}
+      .modal.open{display:flex}
+      .modal .panel{width:min(520px,90vw);background:#fff;border-radius:14px;padding:16px}
+      .modal .panel h3{margin-top:0}
+      .modal .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      .modal input,.modal select,.modal textarea{width:100%;padding:10px;border:1px solid #d1d5db;border-radius:10px}
+      .modal .actions{display:flex;justify-content:flex-end;margin-top:10px}
+      .linkbar{font-size:12px;margin-top:8px}
+      .linkbar a{color:#2563eb;text-decoration:none;margin-right:8px}
+      /* attendance */
+      .pillbar{display:inline-flex;background:#eef2ff;border-radius:999px;overflow:hidden}
+      .pillbar a{padding:6px 10px;font-size:12px;text-decoration:none;color:#1f2a5a}
+      .pillbar a.active{background:#2563eb;color:#fff}
+      .att-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+      .att-note{font-size:12px;color:var(--muted)}
+      .att-table{width:100%;border-collapse:collapse}
+      .att-table th,.att-table td{padding:8px;border-bottom:1px dashed #eef0f4;text-align:left;font-size:13px}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h2>Employee Dashboard</h2>
+      <div id="user-menu"></div>
+    </header>
+    <div class="container">
+      <section class="hero">
+        <div class="hero-inner">
+          <div class="avatar" id="hero-initials">U</div>
+          <div>
+            <div class="muted small">WELCOME</div>
+            <div class="hero-name" id="hero-name">—</div>
+            <div class="empid">Your ID <span id="hero-empid">—</span></div>
+          </div>
+          <div class="kpi">
+            <div class="small muted">PROFILE COMPLETENESS</div>
+            <div class="percent">0%</div>
+            <div><a href="#" id="edit-profile-link" class="small" style="color:#fff;text-decoration:underline">Edit profile now</a></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid">
+        <div class="col-3">
+          <div class="tile" id="tile-dept"><div class="icon">D</div><div><div class="label">DEPARTMENT</div><div class="value">—</div></div></div>
+          <div class="tile" id="tile-location" style="margin-top:10px"><div class="icon">L</div><div><div class="label">LOCATION</div><div class="value">—</div></div></div>
+          <div class="tile" id="tile-supervisor" style="margin-top:10px"><div class="icon">S</div><div><div class="label">SUPERVISOR</div><div class="value">—</div></div></div>
+          <div class="tile" id="tile-anniversary" style="margin-top:10px"><div class="icon">A</div><div><div class="label">WORK ANNIVERSARY</div><div class="value">—</div></div></div>
+        </div>
+
+        <div class="card col-5">
+          <div class="title">Available leave days</div>
+          <div id="leave-bars"></div>
+          <div class="linkbar"><a href="#" id="link-view-leaves">View all</a></div>
+        </div>
+
+        <div class="card col-4">
+          <div class="title">View employee(s) on leave in your Department</div>
+          <div id="dept-on-leave"></div>
+          <div class="linkbar"><a href="#" data-range="today" class="range-link active">Today</a> · <a href="#" data-range="week" class="range-link">This week</a> · <a href="#" data-range="month" class="range-link">This month</a></div>
+        </div>
+      </section>
+
+      <section style="margin-top:12px" class="actions">
+        <button class="btn" id="act-request-leave">Request Leave</button>
+        <button class="btn alt" id="act-set-kpi">Set KPI Goals</button>
+        <button class="btn alt" id="act-take-appraisal">Take Appraisal</button>
+        <button class="btn ghost" id="act-view-payslip">View Payslip</button>
+        <button class="btn ghost" id="act-my-req">My Requisition</button>
+      </section>
+
+      <section class="card" style="margin-top:12px">
+        <div class="title">Payslip Summary</div>
+        <div class="pay">
+          <div class="stat"><div class="small muted">Period</div><div id="payslip-period">—</div></div>
+          <div class="stat"><div class="small muted">Gross</div><div id="payslip-gross">—</div></div>
+          <div class="stat"><div class="small muted">Net</div><div id="payslip-net">—</div></div>
+        </div>
+      </section>
+
+      <!-- Attendance -->
+      <section class="card" style="margin-top:12px" id="attendance-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div>
+            <div class="title">Attendance</div>
+            <div class="att-note" id="att-status-text">—</div>
+          </div>
+          <div class="pillbar">
+            <a href="#" id="att-tab-clock" class="active">Clock In/Out</a>
+            <a href="#" id="att-tab-history">History</a>
+          </div>
+        </div>
+        <div id="att-clock-pane" style="margin-top:10px">
+          <div class="att-row">
+            <div class="small muted">Mode</div>
+            <label class="small"><input type="radio" name="att-mode" value="office" checked /> In office (use location)</label>
+            <label class="small"><input type="radio" name="att-mode" value="remote" /> Remote (use computer login)</label>
+          </div>
+          <div class="att-note" id="att-location-note" style="margin-top:6px">Select a mode to proceed.</div>
+          <div class="actions" style="margin-top:8px">
+            <button class="btn" id="btn-clock-in">Clock In</button>
+            <button class="btn ghost" id="btn-clock-out">Clock Out</button>
+          </div>
+          <div class="att-note" style="margin-top:8px">Today: <span id="att-today-date">—</span> · In: <span id="att-today-in">—</span> · Out: <span id="att-today-out">—</span> · Status: <span id="att-today-status">—</span></div>
+        </div>
+        <div id="att-history-pane" style="display:none;margin-top:8px;max-height:40vh;overflow:auto">
+          <div class="actions" style="justify-content:flex-end;margin-bottom:6px">
+            <button class="btn ghost" id="att-export-csv">Export CSV</button>
+          </div>
+          <table class="att-table">
+            <thead><tr><th>Date</th><th>Status</th><th>In</th><th>Out</th><th>Mode</th><th>Location</th></tr></thead>
+            <tbody id="att-history-rows"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Leave Modal -->
+    <div class="modal" id="leave-modal">
+      <div class="panel">
+        <h3>Request Leave</h3>
+        <form id="leave-form">
+          <div class="row">
+            <select name="type" required>
+              <option value="annual">Annual Leave</option>
+              <option value="sick">Sick Leave</option>
+              <option value="exam">Exam Leave</option>
+              <option value="compassionate">Compassionate Leave</option>
+            </select>
+            <input type="text" name="reason" placeholder="Reason (optional)" />
+            <input type="date" name="start" required />
+            <input type="date" name="end" required />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn ghost close">Cancel</button>
+            <button type="submit" class="btn">Submit</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Payslip Modal -->
+    <div class="modal" id="payslip-modal">
+      <div class="panel">
+        <h3>Payslip Details</h3>
+        <div class="small muted">Period: <span id="paydet-period">—</span></div>
+        <div style="margin-top:10px">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr><th style="text-align:left">Item</th><th style="text-align:right">Amount</th></tr></thead>
+            <tbody id="paydet-items"></tbody>
+          </table>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn ghost close-pay">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leave History Modal -->
+    <div class="modal" id="leaves-modal">
+      <div class="panel">
+        <h3>My Leaves</h3>
+        <div style="max-height:50vh;overflow:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr><th style="text-align:left">Type</th><th style="text-align:left">Dates</th><th style="text-align:left">Status</th></tr></thead>
+            <tbody id="leaves-history"></tbody>
+          </table>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn ghost close-leaves">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div class="modal" id="profile-modal">
+      <div class="panel">
+        <h3>Edit Profile</h3>
+        <form id="profile-form">
+          <div class="row">
+            <input type="text" name="name" placeholder="Full name" required />
+            <input type="text" name="location" placeholder="Location" />
+            <input type="text" name="department" placeholder="Department" />
+            <input type="text" name="manager" placeholder="Supervisor" />
+          </div>
+          <div class="actions">
+            <button type="button" class="btn ghost close-prof">Cancel</button>
+            <button type="submit" class="btn">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <script type="module" src="./js/user-dashboard.js"></script>
+  </body>
+</html>

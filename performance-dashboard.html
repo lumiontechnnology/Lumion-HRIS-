@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Performance Appraisal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background:#f8fafc; color:#0f172a; }
+    header { background:#ffffff; border-bottom:1px solid #e5e7eb; position:sticky; top:0; z-index:10; }
+    header .bar { max-width:1080px; margin:0 auto; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand img { height:40px; }
+    .brand .title { font-weight:700; }
+    .container { max-width: 1080px; margin: 24px auto; padding: 0 16px; }
+    .tabs { display: flex; gap: 12px; margin-bottom: 16px; }
+    .tab { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; }
+    .tab.active { background: #0ea5e9; color: #fff; border-color: #0ea5e9; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(2,6,23,0.04); }
+    .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+    .col-12 { grid-column: span 12; }
+    .col-6 { grid-column: span 6; }
+    .muted { color: #666; font-size: 0.92rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: left; }
+    input[type="number"], input[type="text"], select, textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+    .actions { display: flex; gap: 8px; }
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; background: #0ea5e9; color: #fff; border: none; border-radius: 6px; cursor: pointer; }
+    .btn.secondary { background: #64748b; }
+    .btn.ghost { background: transparent; color: #0ea5e9; border: 1px solid #0ea5e9; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #f1f5f9; color: #334155; font-size: 0.8rem; }
+    .section-title { margin: 0 0 8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="bar">
+      <div class="brand">
+        <img src="Logo.png" alt="Lumion"/>
+        <div>
+          <div class="title">Lumion HR — Performance</div>
+          <div class="muted" style="font-size:12px;">KPI Setup & 360 Appraisal</div>
+        </div>
+      </div>
+      <div>
+        <a href="user-dashboard.html" style="color:#2563eb; text-decoration:none;">Back to User Dashboard</a>
+      </div>
+    </div>
+  </header>
+  <div class="container">
+    <h2>Performance & 360 Appraisal</h2>
+    <p class="muted" id="perf-user-subtitle"></p>
+
+    <div class="tabs">
+      <button class="tab" id="tab-kpi">KPI Setup</button>
+      <button class="tab" id="tab-appraisal">360 Appraisal</button>
+    </div>
+
+    <section id="section-kpi" class="card">
+      <h3 class="section-title">KPIs for Current Period</h3>
+      <div class="muted" id="kpi-dept-tip"></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>KRA</th>
+              <th>Unit</th>
+              <th>Weight</th>
+              <th>Target</th>
+              <th>Actual</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="kpi-rows"></tbody>
+        </table>
+      </div>
+      <div class="actions" style="margin-top:12px;">
+        <button class="btn" id="kpi-save-all">Save All</button>
+        <button class="btn ghost" id="kpi-add">Add KPI</button>
+      </div>
+    </section>
+
+    <section id="section-appraisal" class="card" style="display:none;">
+      <div class="grid">
+        <div class="col-6">
+          <h3 class="section-title">Self Review</h3>
+          <div class="muted">Appraise each KPI and add your comments</div>
+          <div style="margin:8px 0;">Period: 
+            <select id="ap-period">
+              <option value="Q1-2025">Q1-2025</option>
+              <option value="Q2-2025">Q2-2025</option>
+              <option value="Q3-2025">Q3-2025</option>
+              <option value="Q4-2025" selected>Q4-2025</option>
+            </select>
+          </div>
+          <div id="self-kpi-list"></div>
+          <div style="margin-top:8px;">
+            <label>Overall comments</label>
+            <textarea id="self-comments" rows="3" placeholder="Summary of your performance"></textarea>
+          </div>
+          <div class="actions" style="margin-top:12px;">
+            <button class="btn" id="self-submit">Submit Self Review</button>
+          </div>
+        </div>
+        <div class="col-6">
+          <h3 class="section-title">Peer Feedback</h3>
+          <div class="muted">Invite peers to rate you and leave comments</div>
+          <div id="peer-list" style="margin-top:8px;"></div>
+          <div class="card" style="margin-top:8px;">
+            <h4 style="margin:0 0 8px;">Add Peer Feedback</h4>
+            <div class="grid">
+              <div class="col-6"><input id="peer-name" type="text" placeholder="Peer name" /></div>
+              <div class="col-6"><input id="peer-email" type="text" placeholder="Peer email" /></div>
+              <div class="col-6">
+                <select id="peer-rating">
+                  <option value="">Rating (1-5)</option>
+                  <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+                </select>
+              </div>
+              <div class="col-12"><textarea id="peer-comment" rows="2" placeholder="Comment"></textarea></div>
+            </div>
+            <div class="actions" style="margin-top:8px;">
+              <button class="btn" id="peer-add">Add Feedback</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="card">
+            <h3 class="section-title">Line Manager Feedback</h3>
+            <div class="muted" id="mgr-meta">Reviewer: <span id="mgr-name">—</span></div>
+            <div class="grid" style="margin-top:8px;">
+              <div class="col-6">
+                <label>Manager rating (overall)</label>
+                <select id="mgr-overall">
+                  <option value="">Rating (1-5)</option>
+                  <option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label>Manager comments</label>
+                <textarea id="mgr-comments" rows="3" placeholder="Manager notes"></textarea>
+              </div>
+            </div>
+            <div class="actions" style="margin-top:8px;">
+              <button class="btn" id="mgr-save">Save Manager Feedback</button>
+              <button class="btn secondary" id="ap-finalize">Finalize Appraisal</button>
+            </div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="card">
+            <h3 class="section-title">Selected Period Summary</h3>
+            <div class="muted">Weighted KPI score blended with self and manager ratings</div>
+            <div id="ap-summary" style="margin-top:8px; display:flex; gap:12px; flex-wrap:wrap;"></div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="card">
+            <h3 class="section-title">Appraisal History</h3>
+            <div class="muted">Previous cycles with scores and manager notes</div>
+            <div id="ap-history" style="margin-top:8px;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script type="module" src="./js/performance.js?v=2"></script>
+</body>
+</html>
