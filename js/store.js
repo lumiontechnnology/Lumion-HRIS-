@@ -51,6 +51,10 @@ const defaultState = {
   notifications: [
     // { id, type, userId, date, message, ts }
   ],
+  // Daily pulse check-ins for engagement and wellbeing
+  pulses: [
+    // { id, userId, date: 'YYYY-MM-DD', mood: -2..2, stress: 1..5, workload: 1..5, note }
+  ],
   allowances: {
     'u-stan': { annual: 20, sick: 3, exam: 3, compassionate: 3 },
     'u-ada': { annual: 20, sick: 3, exam: 3, compassionate: 3 },
@@ -323,6 +327,52 @@ export const Store = {
     if (filter.userId) list = list.filter(n => n.userId === filter.userId);
     if (filter.type) list = list.filter(n => n.type === filter.type);
     return list.sort((a,b) => (b.ts||'').localeCompare(a.ts||''));
+  },
+
+  // Pulses (Daily check-ins)
+  addOrUpdatePulse({ userId, date, mood, stress, workload, note }) {
+    const s = loadState();
+    const day = date || Store.todayStr();
+    s.pulses = s.pulses || [];
+    const idx = s.pulses.findIndex(p => p.userId === userId && p.date === day);
+    const entry = { id: `pulse:${userId}:${day}`, userId, date: day, mood, stress, workload, note: (note||'') };
+    if (idx >= 0) s.pulses[idx] = { ...s.pulses[idx], ...entry };
+    else s.pulses.push(entry);
+    saveState(s);
+    return entry.id;
+  },
+  getPulse(userId, date) {
+    const s = loadState();
+    const day = date || Store.todayStr();
+    return (s.pulses || []).find(p => p.userId === userId && p.date === day) || null;
+  },
+  getPulses(userId, { startDate, endDate, lastNDays } = {}) {
+    const s = loadState();
+    let list = (s.pulses || []).filter(p => p.userId === userId);
+    if (lastNDays && lastNDays > 0){
+      const end = new Date();
+      const start = new Date(); start.setDate(end.getDate() - (lastNDays-1));
+      const sstr = start.toISOString().slice(0,10);
+      const estr = end.toISOString().slice(0,10);
+      list = list.filter(p => p.date >= sstr && p.date <= estr);
+    }
+    if (startDate) list = list.filter(p => p.date >= startDate);
+    if (endDate) list = list.filter(p => p.date <= endDate);
+    return list.sort((a,b)=> a.date.localeCompare(b.date));
+  },
+  computeEngagementFromPulses(userId, days = 30){
+    // Map mood (-2..+2), stress (1..5), workload (1..5) into 0..100 index
+    const pulses = Store.getPulses(userId, { lastNDays: days });
+    if (!pulses.length) return null;
+    const norm = pulses.map(p => {
+      const moodPct = ((p.mood ?? 0) + 2) / 4; // 0..1
+      const stressPct = 1 - (((p.stress ?? 3) - 1) / 4); // invert; 1=best, 5=worst
+      const workloadPct = 1 - (((p.workload ?? 3) - 1) / 4); // invert
+      // Weighted average: mood 50%, stress 30%, workload 20%
+      return (moodPct*0.5 + stressPct*0.3 + workloadPct*0.2) * 100;
+    });
+    const avg = Math.round(norm.reduce((a,b)=>a+b,0)/norm.length);
+    return { avg, count: pulses.length };
   },
 
   // Leaves

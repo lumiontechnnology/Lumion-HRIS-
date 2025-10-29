@@ -78,6 +78,23 @@
             <span class="text-sm">Auto-apply sourced candidates to currently selected job</span>
           </label>
         </div>
+
+        <!-- URL-based sourcing -->
+        <div class="mt-4">
+          <label for="sourceUrl" class="text-sm text-gray-700">Paste LinkedIn/Indeed URL</label>
+          <div class="mt-1 flex gap-2">
+            <input id="sourceUrl" type="url" placeholder="https://www.linkedin.com/in/... or https://ng.indeed.com/..." class="flex-1 px-3 py-2 border rounded" />
+            <button id="importFromUrl" class="px-3 py-2 border rounded">Import from URL</button>
+          </div>
+          <div class="tiny text-gray-500 mt-1">Prototype parses keywords and simulates candidate profiles from the URL.</div>
+        </div>
+
+        <!-- CSV import -->
+        <div class="mt-4">
+          <input id="csvFile" type="file" accept=".csv" class="hidden" />
+          <button id="importCsvBtn" class="px-3 py-2 border rounded">Import Candidates CSV</button>
+          <div class="tiny text-gray-500 mt-1">Expected headers: name,title,company,years,skills,certs,match,status,notes</div>
+        </div>
       </div>
     </section>
 
@@ -171,7 +188,7 @@
   <!-- Toast -->
   <div id="toast" class="fixed right-6 bottom-6 hidden bg-gray-900 text-white px-4 py-2 rounded shadow">Saved</div>
 
-<script>
+  <script>
 /* -------------------------
    Prototype Data & Helpers
    ------------------------- */
@@ -455,6 +472,116 @@ function simulateSource(sourceName){
     showToast(`${pool.length} candidates added to Lumion DB (no job selected)`);
   }
 }
+
+/* -------------------------
+   URL-based sourcing (prototype)
+   ------------------------- */
+function sourceFromUrl(url){
+  if(!url || typeof url !== 'string') return [];
+  const u = url.toLowerCase();
+  let channel = 'web';
+  if(u.includes('linkedin')) channel = 'linkedin';
+  else if(u.includes('indeed')) channel = 'indeed';
+  else if(u.includes('glassdoor')) channel = 'glassdoor';
+
+  // Extract crude keywords from URL path/query
+  const kw = (u.split(/[\/?&=#._-]+/).filter(s=> s && s.length>2 && !s.startsWith('www'))).slice(0,4);
+  const pool = [];
+  for(let i=0;i<Math.max(2, Math.min(5, kw.length || 3)); i++){
+    const base = state.pool[Math.floor(Math.random()*state.pool.length)] || sampleCandidates[i % sampleCandidates.length];
+    const clone = {...base};
+    clone.id = uid('url');
+    clone.name = base.name;
+    clone.company = `${channel.toUpperCase()} via URL`;
+    clone.skills = Array.from(new Set([...(base.skills||[]), ...kw.slice(0,3).map(s=>s.replace(/\d+/g,''))])).slice(0,6);
+    clone.notes = `Imported from ${channel} URL: ${url}`;
+    clone.match = Math.min(98, Math.max(60, base.match + Math.floor((Math.random()-0.5)*15)));
+    clone.status = 'Applied';
+    pool.push(clone);
+  }
+  return pool;
+}
+
+document.getElementById('importFromUrl').onclick = () => {
+  const input = document.getElementById('sourceUrl');
+  const url = (input.value||'').trim();
+  if(!url){ alert('Paste a LinkedIn/Indeed URL first'); return; }
+  const created = sourceFromUrl(url);
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  const autoApply = document.getElementById('autoApplyToggle').checked;
+  if(job && autoApply){
+    job.candidates.push(...created);
+    showToast(`Imported ${created.length} candidates from URL to ${job.title}`);
+    saveState(state); renderJobDetail();
+  } else {
+    state.pool.push(...created);
+    showToast(`Imported ${created.length} candidates to Lumion DB`);
+    saveState(state);
+  }
+  input.value='';
+};
+
+/* -------------------------
+   CSV import
+   ------------------------- */
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length>0);
+  if(lines.length===0) return { headers:[], rows:[] };
+  const parseLine = (line)=>{
+    const out = []; let cur=''; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){
+        if(inQ && line[i+1]==='"'){ cur+='"'; i++; } else { inQ=!inQ; }
+      } else if(ch===',' && !inQ){ out.push(cur); cur=''; }
+      else { cur+=ch; }
+    }
+    out.push(cur);
+    return out.map(s=>s.trim());
+  };
+  const headers = parseLine(lines[0]).map(h=>h.toLowerCase());
+  const rows = lines.slice(1).map(parseLine).filter(r=>r.some(x=>x && x.length));
+  return { headers, rows };
+}
+
+function rowToCandidate(headers, row){
+  const idx = (name)=> headers.indexOf(name);
+  const val = (name)=> idx(name) >= 0 ? row[idx(name)] : '';
+  const skills = (val('skills')||'').split(/;|,|\|/).map(s=>s.trim()).filter(Boolean);
+  const certs = (val('certs')||'').split(/;|,|\|/).map(s=>s.trim()).filter(Boolean);
+  const match = Number(val('match')||'65') || 65;
+  return {
+    id: uid('csv'),
+    name: val('name') || 'Unnamed',
+    title: val('title') || 'Unknown',
+    company: val('company') || 'N/A',
+    years: Number(val('years')||0) || 0,
+    skills, certs, match,
+    status: val('status') || 'Applied',
+    notes: val('notes') || 'Imported via CSV',
+    cv: '#'
+  };
+}
+
+document.getElementById('importCsvBtn').onclick = ()=> document.getElementById('csvFile').click();
+document.getElementById('csvFile').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try {
+      const { headers, rows } = parseCSV(String(reader.result||''));
+      if(headers.length===0 || rows.length===0){ alert('CSV seems empty'); return; }
+      const cands = rows.map(r=> rowToCandidate(headers, r));
+      const job = state.jobs.find(j=>j.id===state.selectedJobId);
+      const autoApply = document.getElementById('autoApplyToggle').checked;
+      if(job && autoApply){ job.candidates.push(...cands); saveState(state); renderJobDetail(); showToast(`Imported ${cands.length} from CSV to ${job.title}`); }
+      else { state.pool.push(...cands); saveState(state); showToast(`Imported ${cands.length} candidates to Lumion DB`); }
+    } catch(err){ console.error(err); alert('Failed to parse CSV'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
 
 /* -------------------------
    Job / Candidate CRUD

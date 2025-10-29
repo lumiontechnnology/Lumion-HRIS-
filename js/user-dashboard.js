@@ -435,5 +435,51 @@ function initAttendanceUI(){
   });
 }
 
+// ===== Daily Check-in (Pulse) =====
+function renderPulseUI(){
+  const stress = document.getElementById('pulse-stress');
+  const stressVal = document.getElementById('pulse-stress-val');
+  const workload = document.getElementById('pulse-workload');
+  const workloadVal = document.getElementById('pulse-workload-val');
+  if (stress && stressVal){ stress.addEventListener('input', ()=> stressVal.textContent = String(stress.value)); stressVal.textContent = String(stress.value); }
+  if (workload && workloadVal){ workload.addEventListener('input', ()=> workloadVal.textContent = String(workload.value)); workloadVal.textContent = String(workload.value); }
+
+  // Load existing pulse for today
+  try {
+    const todayPulse = Store.getPulse(user.id, Store.todayStr());
+    if (todayPulse){
+      const setRadio = (name, val)=>{ const r = document.querySelector(`input[name="${name}"][value="${val}"]`); if (r) r.checked = true; };
+      setRadio('pulse-mood', String(todayPulse.mood ?? 0));
+      if (stress){ stress.value = String(todayPulse.stress ?? 3); if (stressVal) stressVal.textContent = String(stress.value); }
+      if (workload){ workload.value = String(todayPulse.workload ?? 3); if (workloadVal) workloadVal.textContent = String(workload.value); }
+      const note = document.getElementById('pulse-note'); if (note) note.value = todayPulse.note || '';
+      const status = document.getElementById('pulse-status-text'); if (status) status.textContent = 'Saved for today. You can update it.';
+    }
+  } catch {}
+
+  // Show last 7-day engagement
+  try {
+    const agg = Store.computeEngagementFromPulses(user.id, 7);
+    const avgEl = document.getElementById('pulse-avg-7d');
+    if (avgEl){ avgEl.textContent = agg ? `Last 7d engagement: ${agg.avg}% (${agg.count} entry${agg.count===1?'':'ies'})` : 'Last 7d engagement: —'; }
+  } catch {}
+
+  const btn = document.getElementById('pulse-save');
+  if (btn) btn.addEventListener('click', ()=>{
+    const moodRadio = document.querySelector('input[name="pulse-mood"]:checked');
+    const mood = Number(moodRadio ? moodRadio.value : 0);
+    const stressN = Number((document.getElementById('pulse-stress')||{ value:3}).value);
+    const workloadN = Number((document.getElementById('pulse-workload')||{ value:3}).value);
+    const note = (document.getElementById('pulse-note')||{ value:''}).value.trim();
+    Store.addOrUpdatePulse({ userId: user.id, date: Store.todayStr(), mood, stress: stressN, workload: workloadN, note });
+    const status = document.getElementById('pulse-status-text'); if (status) status.textContent = 'Saved ✓';
+    try {
+      const agg2 = Store.computeEngagementFromPulses(user.id, 7);
+      const avgEl2 = document.getElementById('pulse-avg-7d'); if (avgEl2) avgEl2.textContent = agg2 ? `Last 7d engagement: ${agg2.avg}% (${agg2.count} entries)` : 'Last 7d engagement: —';
+    } catch {}
+  });
+}
+
 // Defer attendance init until DOM is ready
 document.addEventListener('DOMContentLoaded', initAttendanceUI);
+document.addEventListener('DOMContentLoaded', ()=>{ try { renderPulseUI(); } catch {} });

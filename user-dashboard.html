@@ -124,6 +124,45 @@
         </div>
       </section>
 
+      <!-- Daily Check-in -->
+      <section class="card" style="margin-top:12px" id="checkin-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+          <div>
+            <div class="title">Daily Check-in</div>
+            <div class="att-note" id="pulse-status-text">Share mood, stress, and workload for today.</div>
+          </div>
+          <div class="small muted" id="pulse-avg-7d">Last 7d engagement: —</div>
+        </div>
+        <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:center">
+          <div>
+            <div class="small muted" style="margin-bottom:6px">Mood</div>
+            <div style="display:flex;gap:6px">
+              <label class="small"><input type="radio" name="pulse-mood" value="-2"> 😟</label>
+              <label class="small"><input type="radio" name="pulse-mood" value="-1"> 🙁</label>
+              <label class="small"><input type="radio" name="pulse-mood" value="0" checked> 😐</label>
+              <label class="small"><input type="radio" name="pulse-mood" value="1"> 🙂</label>
+              <label class="small"><input type="radio" name="pulse-mood" value="2"> 😄</label>
+            </div>
+          </div>
+          <div>
+            <div class="small muted" style="margin-bottom:6px">Stress</div>
+            <input id="pulse-stress" type="range" min="1" max="5" step="1" value="3" />
+            <div class="small muted">Level: <span id="pulse-stress-val">3</span>/5</div>
+          </div>
+          <div>
+            <div class="small muted" style="margin-bottom:6px">Workload</div>
+            <input id="pulse-workload" type="range" min="1" max="5" step="1" value="3" />
+            <div class="small muted">Level: <span id="pulse-workload-val">3</span>/5</div>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <textarea id="pulse-note" placeholder="Optional note (visible to HR in aggregate only)" style="width:100%;min-height:60px;border:1px solid #d1d5db;border-radius:10px;padding:8px"></textarea>
+        </div>
+        <div class="actions" style="margin-top:8px;justify-content:flex-end">
+          <button class="btn" id="pulse-save">Save Check-in</button>
+        </div>
+      </section>
+
       <!-- Attendance -->
       <section class="card" style="margin-top:12px" id="attendance-card">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
