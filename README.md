@@ -43,6 +43,34 @@ Then open:
 - `Onboarding.html` — onboarding flows (prototype)
 - `analytics.html` — people analytics (prototype)
 
+## Recruiting — Sourcing
+
+On `Jobs.html`, HR managers can simulate and import candidates into jobs or the Lumion pool:
+- Auto-source (simulate): Use the LinkedIn, Indeed, Glassdoor, or Lumion DB buttons. Toggle `Auto-apply` to attach sourced profiles directly to the selected job.
+- Import from URL: Paste a LinkedIn/Indeed profile or search URL. The prototype extracts coarse keywords and simulates 2–5 relevant profiles. With `Auto-apply`, candidates are added to the current job; otherwise, they go to the Lumion pool.
+- CSV Import: Click `Import Candidates CSV` to upload a CSV.
+  - Expected headers: `name,title,company,years,skills,certs,match,status,notes`
+  - Multiple values in `skills`/`certs` can be separated by `;` or `,`.
+
+Example CSV:
+
+```
+name,title,company,years,skills,certs,match,status,notes
+Ada Oke,Frontend Engineer,Flutterwave,4,React;TypeScript;Tailwind,,82,Applied,Portfolio looks strong
+John Doe,Data Scientist,Andela,3,Python;ML;Pandas,DataX,77,Interview,Focus on feature engineering
+```
+
+Notes
+- URL import is a prototype that extracts keywords from the URL for simulation. No external credentials are required.
+- CSV import is client-side only; data never leaves the browser in this prototype.
+
+## Engagement & Check-ins
+
+- Daily Check-in: On `user-dashboard.html`, employees record mood (1–5), stress (1–5), workload (1–5), and optional notes. Entries store in `Store.pulses` (localStorage).
+- 7-day Engagement: The user dashboard shows the rolling 7-day engagement index.
+- Organization Engagement: `analytics.html` aggregates engagement across users and updates the Engagement KPI when pulse data exists.
+- Store helpers: See `js/store.js` for `addOrUpdatePulse`, `getPulse`, `getPulses`, and `computeEngagementFromPulses`.
+
 ## Attendance — Features
 
 Implemented in `js/user-dashboard.js` (UI wiring) and `js/store.js` (persistence):
