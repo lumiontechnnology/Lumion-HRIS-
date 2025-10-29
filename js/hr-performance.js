@@ -181,6 +181,7 @@ let CHART_DEMO_GENDER=null, CHART_DEMO_DEPT=null, CHART_DEMO_LOC=null, CHART_DEM
 let CHART_FOCUS_A=null, CHART_FOCUS_B=null;
 
 function renderCharts(){
+  if (typeof window.Chart === 'undefined') { console.warn('Chart.js not available; skipping renderCharts.'); return; }
   const totals = aggTotals();
   const mixLabels = ['All'];
   const datasets = LeaveLabels.map(l => ({
@@ -412,6 +413,7 @@ function demoTenure(){
 }
 
 function renderDemographics(){
+  if (typeof window.Chart === 'undefined') { console.warn('Chart.js not available; skipping renderDemographics.'); return; }
   try {
     const g = demoGender();
     if (CHART_DEMO_GENDER) CHART_DEMO_GENDER.destroy();
@@ -433,6 +435,7 @@ function renderDemographics(){
 
 // Focus charts
 function renderFocusCharts(){
+  if (typeof window.Chart === 'undefined') { console.warn('Chart.js not available; skipping renderFocusCharts.'); return; }
   const setLabel = (id, text)=>{ const el=document.getElementById(id); if (el) el.innerText=text; };
   const sub = { perf:'Performance & Productivity', eng:'Engagement & Retention', rec:'Recruitment & Pipeline', comp:'Compliance & Policy', cost:'HR Cost & Workforce' }[state.focus] || '';
   setLabel('focus-charts-sub', sub);

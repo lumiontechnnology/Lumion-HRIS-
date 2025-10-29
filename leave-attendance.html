@@ -16,8 +16,17 @@
       try{ var s=document.createElement('script'); s.src='https://cdn.tailwindcss.com/3.4.17'; s.onerror=function(){ console.warn('Tailwind CDN unavailable; continuing without it.'); }; document.head.appendChild(s);}catch(e){}
     })();
   </script>
-  <!-- Chart.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Chart.js CDN (guarded) -->
+  <script>
+    (function(){
+      try{
+        var s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/chart.js';
+        s.onerror=function(){ console.warn('Chart.js CDN unavailable; attendance chart disabled.'); };
+        document.head.appendChild(s);
+      }catch(e){}
+    })();
+  </script>
 
   <style>
     /* small custom tweaks */
@@ -575,6 +584,7 @@ function computeInsight(){
 /* Attendance trend chart (monthly) */
 let attendanceChart=null;
 function renderAttendanceChart(data){
+  if (typeof window.Chart === 'undefined') { console.warn('Chart.js not available; skipping attendance chart render.'); return; }
   const ctx = document.getElementById('attendanceChart').getContext('2d');
   if(attendanceChart) attendanceChart.destroy();
   attendanceChart = new Chart(ctx, {
