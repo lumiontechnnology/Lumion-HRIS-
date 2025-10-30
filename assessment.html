@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lumion — Interview Tests</title>
+  <link rel="icon" href="Logo__mark.png">
+  <link rel="stylesheet" href="assets/tailwind.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .prose h1, .prose h2 { font-weight: 700; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
+  </style>
+  <script>
+    // Redirect alias for common mis-typed slugs -> canonical assessment.html
+    (function(){
+      try {
+        var href = String(location.href);
+        var fixed = href.replace(/interview[_-]test(s)?\.html/i, 'assessment.html');
+        if (fixed !== href) location.replace(fixed);
+      } catch (e) {}
+    })();
+  </script>
+  <!-- No icons; clean, professional UI -->
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- NAV -->
+  <nav class="bg-white border-b sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="text-lg font-bold text-gray-900">Lumion — Interview Tests</div>
+      <div class="flex items-center gap-3">
+        <a href="Jobs.html" class="px-3 py-2 border rounded">Back to Jobs</a>
+        <button id="startTimerBtn" class="px-3 py-2 bg-gray-900 text-white rounded">Start Timer</button>
+        <div id="timer" class="px-3 py-2 border rounded text-gray-700">00:00</div>
+        <button id="submitBtn" class="px-3 py-2 bg-indigo-600 text-white rounded">Submit</button>
+        <button id="exportBtn" class="px-3 py-2 border rounded">Export Results</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- LAYOUT -->
+  <main class="max-w-7xl mx-auto px-6 py-6 grid grid-cols-12 gap-6">
+    <!-- Sidebar: Open Positions -->
+    <aside class="col-span-4 bg-white rounded-lg border p-4">
+      <div class="font-semibold text-gray-900">Open Positions</div>
+      <div class="mt-2"><input id="jobSearch" type="text" placeholder="Search roles" class="w-full px-3 py-2 border rounded" /></div>
+      <div id="jobList" class="mt-3 space-y-2"></div>
+    </aside>
+
+    <!-- Content: Test Sections -->
+    <section class="col-span-8 bg-white rounded-lg border p-6">
+      <div class="prose">
+        <h1 id="roleTitle" class="text-2xl">Select a role to load tests</h1>
+        <p id="roleMeta" class="text-gray-600">Choose from the left panel to generate tests tailored to the role.</p>
+        <div id="progress" class="mt-2 text-sm text-gray-600"></div>
+      </div>
+      <div id="summaryBar" class="mt-4"></div>
+      <div id="sections" class="mt-6 space-y-8"></div>
+    </section>
+  </main>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed right-6 bottom-6 hidden bg-gray-900 text-white px-4 py-2 rounded shadow">Saved</div>
+
+  <script>
+  // Helpers
+  function showToast(msg){ const t=document.getElementById('toast'); t.innerText=msg; t.classList.remove('hidden'); setTimeout(()=>{ t.classList.add('hidden'); },1600); }
+  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
+  function roleFromTitle(title){
+    const t = (title||'').toLowerCase();
+    if(/frontend|engineer|developer|full\s*stack|backend/.test(t)) return 'engineering';
+    if(/data|analytics|scientist|ml|ai/.test(t)) return 'data';
+    if(/product|pm|manager/.test(t)) return 'product';
+    if(/hr|talent|recruit/.test(t)) return 'hr';
+    if(/payroll|compensation/.test(t)) return 'payroll';
+    return 'general';
+  }
+
+  // Load Jobs from localStorage set by Jobs.html
+  const jobsState = (()=>{ try { return JSON.parse(localStorage.getItem('lumion_jobs_state')||'null'); } catch { return null; } })();
+  const jobs = jobsState?.jobs || [];
+
+  // URL params: dashboard mode
+  const params = new URLSearchParams(location.search);
+  const jobParam = params.get('jobId');
+  const candParam = params.get('candId');
+
+  // Render job list + search
+  const jobList = document.getElementById('jobList');
+  const jobSearch = document.getElementById('jobSearch');
+  function renderJobList(query=''){
+    jobList.innerHTML = '';
+    const q = (query||'').toLowerCase();
+    jobs.filter(j=> !q || (j.title||'').toLowerCase().includes(q) || (j.team||'').toLowerCase().includes(q)).forEach(j=>{
+      const btn = document.createElement('button');
+      btn.className = 'w-full text-left px-3 py-2 rounded border hover:bg-gray-50';
+      btn.innerHTML = `<div class="font-semibold">${j.title||'Role'}</div><div class="text-sm text-gray-600">${j.team||'Team'} • ${j.location||'Location'}</div>`;
+      btn.onclick = ()=> loadRole(j);
+      jobList.appendChild(btn);
+    });
+  }
+  renderJobList();
+  if(jobSearch){ jobSearch.oninput = ()=> renderJobList(jobSearch.value); }
+
+  // Sections
+  const sectionsEl = document.getElementById('sections');
+  const roleTitleEl = document.getElementById('roleTitle');
+  const roleMetaEl = document.getElementById('roleMeta');
+  const summaryEl = document.getElementById('summaryBar');
+  const tabsEl = document.getElementById('tabs');
+  
+  function activateTab(name){
+    const panels = sectionsEl.querySelectorAll('[data-panel]');
+    panels.forEach(p=>{
+      if(name==='overview'){ p.classList.remove('hidden'); }
+      else { p.classList.toggle('hidden', p.getAttribute('data-panel')!==name); }
+    });
+    Array.from(tabsEl.querySelectorAll('.tabBtn')).forEach(btn=>{
+      const active = btn.getAttribute('data-tab')===name;
+      btn.className = 'tabBtn px-3 py-1 rounded ' + (active ? 'bg-gray-900 text-white' : 'border');
+    });
+  }
+  
+  function attachTabs(){
+    if(!tabsEl) return;
+    tabsEl.addEventListener('click',(e)=>{
+      const t = e.target.closest('button[data-tab]');
+      if(!t) return;
+      activateTab(t.getAttribute('data-tab'));
+    });
+    activateTab('overview');
+  }
+  
+  function updateMcqProgress(bank){
+    if(!progressEl || !bank?.mcq) return;
+    let answered = 0;
+    bank.mcq.forEach((q,i)=>{
+      const checked = document.querySelector(`input[name='mcq_${i}']:checked`);
+      if(checked) answered++;
+    });
+    progressEl.innerText = `Answered ${answered}/${bank.mcq.length} MCQs`;
+  }
+  const progressEl = document.getElementById('progress');
+
+  // Build question bank per role
+  function bankFor(role){
+    const mcq = {
+      engineering: [
+        {q:'Which time complexity is better for large n?', opts:['O(n^2)','O(n log n)','O(n)','O(log n)'], ans:'O(log n)'},
+        {q:'What does immutability help with?', opts:['Performance','Predictability','Readability','Insecurity'], ans:'Predictability'},
+        {q:'HTTP 201 means?', opts:['OK','Created','No Content','Bad Request'], ans:'Created'},
+        {q:'What is idempotency?', opts:['Same result repeatedly','Randomized output','No side-effects','Caching only'], ans:'Same result repeatedly'}
+      ],
+      data: [
+        {q:'Which join returns rows with matching keys in both tables?', opts:['LEFT','RIGHT','INNER','FULL'], ans:'INNER'},
+        {q:'ROC-AUC measures?', opts:['Calibration','Ranking quality','RMSE','Recall'], ans:'Ranking quality'},
+        {q:'Feature leakage is?', opts:['Missing values','High variance','Target info in features','Low bias'], ans:'Target info in features'}
+      ],
+      product: [
+        {q:'Best way to resolve conflicting stakeholder asks?', opts:['Prioritize highest rank','Outcome-driven trade-offs','Random selection','Sales-first always'], ans:'Outcome-driven trade-offs'},
+        {q:'Good product metric?', opts:['Lines of code','Sprint points','Activation rate','Server wattage'], ans:'Activation rate'}
+      ],
+      hr: [
+        {q:'ER investigation requires?', opts:['Neutrality','Assumptions','Hearsay','Immediate termination'], ans:'Neutrality'},
+        {q:'Confidential data handling?', opts:['Public share','Need-to-know','Team-wide','Vendor-only'], ans:'Need-to-know'}
+      ],
+      payroll: [
+        {q:'Gross-to-net requires?', opts:['Tax tables','Design sprints','Stakeholder RFC','OKRs'], ans:'Tax tables'},
+        {q:'Multi-country accuracy improves with?', opts:['Manual entry','Automated validations','Ad-hoc reconciliation','Verbal approvals'], ans:'Automated validations'}
+      ],
+      general: [
+        {q:'What defines success?', opts:['Output','Outcomes','Hours','Budgets'], ans:'Outcomes'}
+      ]
+    };
+    const coding = [
+      {
+        title: 'Implement twoSum(nums, target) returning indices',
+        stub: 'function twoSum(nums, target){\n  // your code here\n}',
+        tests: [
+          { input: [[2,7,11,15], 9], expect: [0,1] },
+          { input: [[3,2,4], 6], expect: [1,2] },
+          { input: [[3,3], 6], expect: [0,1] }
+        ],
+        scorer: (out, exp)=> Array.isArray(out) && out[0]===exp[0] && out[1]===exp[1]
+      },
+      {
+        title: 'Check balanced parentheses: isBalanced(s)',
+        stub: 'function isBalanced(s){\n  // your code here\n}',
+        tests: [
+          { input: ['(()())'], expect: true },
+          { input: ['(()'], expect: false },
+          { input: ['()[]{}'], expect: true }
+        ],
+        scorer: (out, exp)=> out===exp
+      }
+    ];
+    return {
+      mcq: mcq[role] || mcq.general,
+      coding: role==='engineering' ? coding : []
+    };
+  }
+
+  // Harder bank for dashboard mode (more challenging, trick options)
+  function bankHardFor(role){
+    const base = bankFor(role);
+    if(role === 'engineering'){
+      const extra = [
+        {q:'Choose the correct Big-O for binary search.', opts:['O(n)','O(log n)','O(n log n)','O(1)'], ans:'O(log n)'},
+        {q:'Which structure offers amortized O(1) for push/pop?', opts:['LinkedList','ArrayList','Stack','Queue'], ans:'Stack'},
+        {q:'What does a stable sort guarantee?', opts:['Lower memory','Preserves equal keys order','Fastest runtime','Less comparisons'], ans:'Preserves equal keys order'},
+        {q:'Select the safest way to avoid race conditions.', opts:['Global locks','Spin waits','Optimistic concurrency','Ignoring hazards'], ans:'Optimistic concurrency'},
+        {q:'Which HTTP method is idempotent?', opts:['POST','PATCH','PUT','CONNECT'], ans:'PUT'},
+        {q:'Pick a correct statement about closures.', opts:['They leak memory','They capture lexical scope','They require classes','They break recursion'], ans:'They capture lexical scope'}
+      ];
+      base.mcq = base.mcq.concat(extra);
+    }
+    return base;
+  }
+
+  // Load role and render sections
+  let current = { job:null, answers:{}, score:0, started:false, duration:25*60, endTs:null };
+  function loadRole(job){
+    current.job = job; current.answers={}; current.score=0;
+    const role = roleFromTitle(job.title);
+    const bank = bankFor(role);
+    current.bank = bank; // track bank for progress
+    roleTitleEl.innerText = job.title + ' — Tests';
+    roleMetaEl.innerText = `${job.team||'Team'} • ${job.location||'Location'} • Role: ${role}`;
+    sectionsEl.innerHTML = '';
+  
+    const panelMcq = document.createElement('div'); panelMcq.setAttribute('data-panel','mcq');
+    const panelCoding = document.createElement('div'); panelCoding.setAttribute('data-panel','coding');
+  
+    // MCQ section
+    const mcqWrap = document.createElement('div'); mcqWrap.className='space-y-4';
+    mcqWrap.innerHTML = `<h2 class="text-xl font-semibold">Multiple Choice</h2><p class="text-gray-600">Select the best answer.</p>`;
+    bank.mcq.forEach((q,i)=>{
+      const block = document.createElement('div'); block.className='border rounded p-4 bg-white shadow-sm';
+      const opts = q.opts.map(opt=>`<label class="block cursor-pointer px-2 py-1 rounded hover:bg-gray-50">
+        <input type="radio" name="mcq_${i}" value="${opt}" class="mr-2 hidden">
+        <span class="inline-block">${opt}</span>
+      </label>`).join('');
+      block.innerHTML = `<div class="font-semibold mb-2">${q.q}</div>${opts}`;
+      block.querySelectorAll(`input[name='mcq_${i}']`).forEach(r=>{
+        r.addEventListener('change',()=>{ updateMcqProgress(bank); });
+      });
+      mcqWrap.appendChild(block);
+    });
+    panelMcq.appendChild(mcqWrap);
+    sectionsEl.appendChild(panelMcq);
+    updateMcqProgress(bank);
+  
+    // Coding section (if engineering)
+    if(bank.coding.length){
+      const codeWrap = document.createElement('div'); codeWrap.className='space-y-4';
+      codeWrap.innerHTML = `<h2 class="text-xl font-semibold">Coding</h2><p class="text-gray-600">Write JavaScript solutions and run tests.</p>`;
+      const runAll = document.createElement('button');
+      runAll.className = 'px-3 py-2 bg-indigo-600 text-white rounded';
+      runAll.innerText = 'Run All Tests';
+      runAll.onclick = ()=> bank.coding.forEach((_, idx)=> runCoding(idx, bank));
+      codeWrap.appendChild(runAll);
+  
+      bank.coding.forEach((c,ci)=>{
+        const block = document.createElement('div'); block.className='border rounded p-4 bg-white shadow-sm';
+        const taId = `code_${ci}`;
+        block.innerHTML = `
+          <div class="font-semibold mb-2">${c.title}</div>
+          <textarea id="${taId}" class="mono w-full h-40 border rounded p-3" spellcheck="false">${c.stub}</textarea>
+          <div class="mt-3 flex items-center gap-2">
+            <button data-ci="${ci}" class="runBtn px-3 py-2 bg-gray-900 text-white rounded">Run Tests</button>
+            <div id="result_${ci}" class="text-sm text-gray-700"></div>
+          </div>`;
+        codeWrap.appendChild(block);
+      });
+      panelCoding.appendChild(codeWrap);
+      sectionsEl.appendChild(panelCoding);
+      Array.from(document.getElementsByClassName('runBtn')).forEach(btn=>{
+        btn.onclick = ()=> runCoding(parseInt(btn.getAttribute('data-ci'),10), bank);
+      });
+    };
+  
+    attachTabs();
+  }
+
+
+  
+
+  // Simulation helpers for dashboard view
+  function simulateCandidateResponses(bank){
+    const answers = { mcq: [], coding: [] };
+    // MCQ: target 50–70% correctness; ensure not all correct
+    let correctCount = 0;
+    bank.mcq.forEach((q)=>{
+      const pCorrect = 0.6; // 60% chance
+      let chosen;
+      if(Math.random() < pCorrect){
+        chosen = q.ans;
+        correctCount++;
+      } else {
+        const wrongOpts = q.opts.filter(o=>o!==q.ans);
+        chosen = wrongOpts[Math.floor(Math.random()*wrongOpts.length)];
+      }
+      answers.mcq.push({ q: q.q, chosen, correct: chosen===q.ans, correctAns: q.ans });
+    });
+    // Flip one answer to be wrong if all correct
+    if(correctCount === bank.mcq.length && bank.mcq.length){
+      answers.mcq[0].chosen = bank.mcq[0].opts.find(o=>o!==bank.mcq[0].ans);
+      answers.mcq[0].correct = false;
+    }
+
+    // Coding: show candidate attempts and simulate pass/fail per test
+    bank.coding.forEach((c)=>{
+      const attempt = c.title.includes('twoSum')
+        ? 'function twoSum(nums, target){\n  // naive attempt\n  for(let i=0;i<nums.length;i++){\n    for(let j=i+1;j<nums.length;j++){\n      if(nums[i]+nums[j]===target) return [i,j];\n    }\n  }\n  return [-1,-1];\n}'
+        : 'function isBalanced(s){\n  // simplistic counter, fails for mixed types\n  let bal=0;\n  for(const ch of s){\n    if(ch==="("||ch==="["||ch==="{") bal++;\n    if(ch===")"||ch==="]"||ch==="}") bal--;\n    if(bal<0) return false;\n  }\n  return bal===0;\n}';
+      const outputs = c.tests.map(t=>{
+        const ok = Math.random() < 0.6; // around 60% pass rate
+        return { input: t.input, expect: t.expect, ok };
+      });
+      const pass = outputs.filter(o=>o.ok).length; const total = outputs.length;
+      answers.coding.push({ title: c.title, attempt, outputs, pass, total });
+    });
+    return answers;
+  }
+
+  function renderDashboard(job, cand){
+    current.job = job;
+    const role = roleFromTitle(job.title);
+    const bank = bankHardFor(role);
+    current.bank = bank;
+    const sim = simulateCandidateResponses(bank);
+  
+    roleTitleEl.innerText = job.title + ' — Test Dashboard';
+    roleMetaEl.innerText = `Candidate: ${cand.name} • ${cand.title} • ${cand.company} — Role: ${role}`;
+    sectionsEl.innerHTML = ''; summaryEl.innerHTML = '';
+  
+    // Summary metrics
+    const mcqScoreX = sim.mcq.filter(x=>x.correct).length;
+    const mcqTotalX = sim.mcq.length;
+    const codingPassX = sim.coding.reduce((acc, r)=> acc + (r.pass||0), 0);
+    const codingTotalX = sim.coding.reduce((acc, r)=> acc + (r.total||0), 0);
+    const overallPctX = Math.round(((mcqTotalX? (mcqScoreX/mcqTotalX): 0) * 0.6 + (codingTotalX? (codingPassX/codingTotalX): 0) * 0.4) * 100);
+  
+    // Avatar initials
+    const initials = (cand.name||'').split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase() || 'C';
+  
+    // Summary bar
+    const wrap = document.createElement('div');
+    wrap.className = 'grid grid-cols-1 md:grid-cols-4 gap-4';
+    wrap.innerHTML = `
+      <div class="flex items-center gap-3 border rounded p-4 bg-gray-50">
+        <div class="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">${initials}</div>
+        <div>
+          <div class="font-semibold">${cand.name}</div>
+          <div class="text-sm text-gray-600">${cand.title} • ${cand.company}</div>
+        </div>
+      </div>
+      <div class="border rounded p-4 bg-white shadow-sm">
+        <div class="text-sm text-gray-600">MCQ Score</div>
+        <div class="mt-2 text-2xl font-bold">${mcqScoreX}/${mcqTotalX}</div>
+      </div>
+      <div class="border rounded p-4 bg-white shadow-sm">
+        <div class="text-sm text-gray-600">Coding Tests</div>
+        <div class="mt-2 text-2xl font-bold">${codingPassX}/${codingTotalX}</div>
+      </div>
+      <div class="border rounded p-4 bg-white shadow-sm">
+        <div class="text-sm text-gray-600">Overall Rating</div>
+        <div class="mt-2 text-2xl font-bold">${overallPctX}%</div>
+        <div class="mt-1 text-xs text-gray-500">60% MCQ • 40% Coding</div>
+      </div>`;
+    summaryEl.appendChild(wrap);
+  
+    // Two‑column content grid
+    const grid = document.createElement('div');
+    grid.className = 'grid grid-cols-1 md:grid-cols-2 gap-6';
+  
+    // MCQ Results
+    const mcqWrap = document.createElement('div'); mcqWrap.className='space-y-4';
+    mcqWrap.innerHTML = `<h2 class="text-xl font-semibold">MCQ Results</h2><p class="text-gray-600">Hard questions with AI verdicts — not all answers are correct.</p>`;
+    sim.mcq.forEach((a, idx)=>{
+      const block = document.createElement('div'); block.className='border rounded p-4 bg-white shadow-sm';
+      const verdictClass = a.correct ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
+      const verdictText = a.correct ? 'Correct' : 'Incorrect';
+      block.innerHTML = `
+        <div class="font-semibold"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-100 text-gray-700 text-xs mr-2">${idx+1}</span>${a.q}</div>
+        <div class="mt-2 text-sm">Candidate answer: <span class="px-2 py-1 ${verdictClass} rounded">${a.chosen}</span></div>
+        <div class="mt-1 text-sm text-gray-700">AI verdict: ${verdictText}</div>
+        <div class="mt-1 text-sm text-gray-500">Correct answer: ${a.correctAns}</div>
+      `;
+      mcqWrap.appendChild(block);
+    });
+    const mcqScore = sim.mcq.filter(x=>x.correct).length;
+    const mcqSummary = document.createElement('div'); mcqSummary.className='text-sm text-gray-700';
+    mcqSummary.innerText = `MCQ Score: ${mcqScore}/${sim.mcq.length}`;
+    mcqWrap.appendChild(mcqSummary);
+  
+    // Coding Results
+    if(sim.coding.length){
+      const codeWrap = document.createElement('div'); codeWrap.className='space-y-4';
+      codeWrap.innerHTML = `<h2 class="text-xl font-semibold">Coding Results</h2><p class="text-gray-600">Candidate attempts and test outcomes.</p>`;
+      sim.coding.forEach((r,ci)=>{
+        const block = document.createElement('div'); block.className='border rounded p-4 bg-white shadow-sm';
+        const ta = document.createElement('textarea'); ta.className='mono w-full h-40 border rounded p-3'; ta.readOnly = true; ta.value = r.attempt;
+        const res = document.createElement('div'); res.className='text-sm text-gray-700 mt-2'; res.innerText = `Passed ${r.pass}/${r.total}`;
+        const tbl = document.createElement('div'); tbl.className='mt-2';
+        r.outputs.forEach((o,i)=>{
+          const line = document.createElement('div'); line.className='text-sm';
+          line.innerText = `#${i+1} Input: ${JSON.stringify(o.input)} • Expect: ${JSON.stringify(o.expect)} • Result: ${o.ok? 'Pass':'Fail'}`;
+          tbl.appendChild(line);
+        });
+        const head = document.createElement('div'); head.className='font-semibold mb-2'; head.innerText = r.title;
+        block.appendChild(head); block.appendChild(ta); block.appendChild(res); block.appendChild(tbl);
+        codeWrap.appendChild(block);
+      });
+      sectionsEl.appendChild(codeWrap);
+    }
+  
+    attachTabs();
+  }
+
+  // If URL has job & candidate, auto-enter dashboard mode
+  if(jobParam && candParam){
+    const jobSel = jobs.find(j=>j.id===jobParam);
+    const candSel = jobSel ? jobSel.candidates.find(c=>c.id===candParam) : null;
+    if(jobSel && candSel){ renderDashboard(jobSel, candSel); }
+  }
+
+  function runCoding(index, bank){
+    const c = bank.coding[index]; const ta = document.getElementById(`code_${index}`); const res = document.getElementById(`result_${index}`);
+    try {
+      const fn = new Function(ta.value + `\nreturn { twoSum: typeof twoSum==='function'?twoSum:undefined, isBalanced: typeof isBalanced==='function'?isBalanced:undefined };`);
+      const impl = fn();
+      let pass=0; const total=c.tests.length; const outputs=[];
+      c.tests.forEach(t=>{
+        const name = c.title.includes('twoSum') ? 'twoSum' : 'isBalanced';
+        const out = impl[name].apply(null, t.input);
+        const ok = c.scorer(out, t.expect); if(ok) pass++; outputs.push({input:t.input, out, expect:t.expect, ok});
+      });
+      res.innerText = `Passed ${pass}/${total}`;
+      current.score += pass; current.answers[`coding_${index}`]=outputs;
+    } catch(err){ res.innerText = 'Error: ' + err.message; }
+  }
+
+  // Timer
+  const timerEl = document.getElementById('timer');
+  document.getElementById('startTimerBtn').onclick = ()=>{
+    if(current.started) return; current.started = true;
+    const now = Date.now(); current.endTs = now + current.duration*1000;
+    const tick = ()=>{
+      const left = Math.max(0, Math.floor((current.endTs - Date.now())/1000));
+      const mm = String(Math.floor(left/60)).padStart(2,'0'); const ss = String(left%60).padStart(2,'0');
+      timerEl.innerText = `${mm}:${ss}`;
+      if(left>0) requestAnimationFrame(tick); else showToast('Time up');
+    }; tick();
+  };
+
+  // Submit & Export
+  function computeMcqScore(){
+    const role = roleFromTitle(current.job?.title||''); const bank = current.bank || bankFor(role);
+    let score=0; bank.mcq.forEach((q,i)=>{
+      const checked = document.querySelector(`input[name='mcq_${i}']:checked`); const val = checked? checked.value : null; current.answers[`mcq_${i}`]=val; if(val===q.ans) score++;
+    });
+    current.score += score; return score;
+  }
+
+  document.getElementById('submitBtn').onclick = ()=>{
+    if(!current.job){ showToast('Select a role first'); return; }
+    const mcqScore = computeMcqScore();
+    const result = { job: current.job, score: current.score, mcqScore, answers: current.answers, ts: Date.now() };
+    try {
+      const list = JSON.parse(localStorage.getItem('lumion_role_tests')||'[]'); list.push(result);
+      localStorage.setItem('lumion_role_tests', JSON.stringify(list));
+      showToast('Submitted');
+    } catch { showToast('Failed to submit'); }
+  };
+
+  document.getElementById('exportBtn').onclick = ()=>{
+    const blob = new Blob([JSON.stringify({ last: current }, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=`role_test_${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  };
+  </script>
+</body>
+</html>
