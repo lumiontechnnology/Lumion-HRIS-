@@ -178,6 +178,7 @@
             <select id="modalStatus" class="w-full px-3 py-2 border rounded"></select>
             <button id="modalShortlist" class="mt-3 w-full px-4 py-2 bg-green-600 text-white rounded">Shortlist</button>
             <button id="modalMoveOnboard" class="mt-2 w-full px-4 py-2 bg-indigo-600 text-white rounded">Move to Onboarding (Hired)</button>
+            <button id="modalStartInterview" class="mt-2 w-full px-4 py-2 bg-emerald-600 text-white rounded">Start Interview</button>
           </div>
         </div>
       </div>
@@ -351,6 +352,7 @@ function renderJobDetail(){
               ${Object.keys(STATUS_COLORS).map(s => `<option ${s===c.status?'selected':''}>${s}</option>`).join('')}
             </select>
             <button onclick="openPreview('${c.id}')" class="px-3 py-1 border rounded text-sm">Preview</button>
+            <button onclick="gotoInterview('${state.selectedJobId}','${c.id}')" class="px-3 py-1 bg-emerald-600 text-white rounded text-sm">Interview</button>
             <button onclick="quickActionHire('${c.id}')" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">Hire</button>
           </div>
         </div>
@@ -371,6 +373,10 @@ function changeStatus(candidateId, newStatus){
   if(!c) return;
   c.status = newStatus;
   saveState(state);
+  if(newStatus === 'Interview'){
+    gotoInterview(job.id, candidateId);
+    return;
+  }
   renderJobDetail();
 }
 
@@ -394,7 +400,11 @@ function openPreview(candidateId){
   statusSelect.onchange = (e) => {
     c.status = e.target.value;
     saveState(state);
-    renderJobDetail();
+    if(e.target.value === 'Interview'){
+      gotoInterview(job.id, c.id);
+    } else {
+      renderJobDetail();
+    }
   };
 
   document.getElementById('modalShortlist').onclick = () => {
@@ -409,6 +419,34 @@ function openPreview(candidateId){
     renderJobDetail();
     closeModal();
   };
+
+  document.getElementById('modalStartInterview').onclick = () => {
+    c.status = 'Interview';
+    saveState(state);
+    gotoInterview(job.id, c.id);
+  };
+
+  // Inject "Send Test" button (professional flow: send role test and open dashboard)
+  try {
+    const startBtn = document.getElementById('modalStartInterview');
+    let sendBtn = document.getElementById('modalSendTest');
+    if(startBtn && !sendBtn){
+      sendBtn = document.createElement('button');
+      sendBtn.id = 'modalSendTest';
+      sendBtn.className = 'mt-2 w-full px-4 py-2 bg-gray-900 text-white rounded';
+      sendBtn.innerText = 'Send Test';
+      startBtn.parentElement.appendChild(sendBtn);
+    }
+    if(sendBtn){
+      sendBtn.onclick = ()=>{
+        try {
+          c.status = c.status || 'Applied';
+          saveState(state);
+          gotoTest(job.id, c.id);
+        } catch {}
+      };
+    }
+  } catch {}
 
   document.getElementById('candidateModal').classList.remove('hidden');
   document.getElementById('candidateModal').classList.add('flex');
@@ -743,11 +781,35 @@ window.simulateSource = simulateSource;
 window.openPreview = openPreview;
 window.changeStatus = changeStatus;
 window.quickActionHire = quickActionHire;
+window.gotoInterview = gotoInterview;
+window.gotoTest = gotoTest;
 
 /* make modal close on outside click */
 document.getElementById('candidateModal').addEventListener('click', (e)=>{
   if(e.target.id === 'candidateModal') closeModal();
 });
+
+function gotoInterview(jobId, candId){
+  try {
+    const job = state.jobs.find(j=>j.id===jobId);
+    const cand = job ? job.candidates.find(x=>x.id===candId) : null;
+    if(job && cand){
+      localStorage.setItem('lumion_current_interview', JSON.stringify({ jobId, candId, timestamp: Date.now() }));
+    }
+  } catch {}
+  window.location.href = `interview-dashboard.html?jobId=${encodeURIComponent(jobId)}&candId=${encodeURIComponent(candId)}`;
+}
+
+function gotoTest(jobId, candId){
+  try {
+    const job = state.jobs.find(j=>j.id===jobId);
+    const cand = job ? job.candidates.find(x=>x.id===candId) : null;
+    if(job && cand){
+      localStorage.setItem('lumion_current_test', JSON.stringify({ jobId, candId, timestamp: Date.now() }));
+    }
+  } catch {}
+  window.location.href = `interview-tests.html?jobId=${encodeURIComponent(jobId)}&candId=${encodeURIComponent(candId)}`;
+}
 </script>
 </body>
 

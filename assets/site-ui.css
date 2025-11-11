@@ -1,0 +1,76 @@
+/* Shared Header & Footer UI */
+:root {
+  --text: #0f172a;
+  --muted: #64748b;
+  --brand: #4f46e5;
+  --bg: #ffffff;
+  --nav-hover: #eef2ff;
+  --cta: #4f46e5;
+  --footer-bg: #0b1020;
+  --footer-text: #e5e7eb;
+  --footer-muted: #94a3b8;
+  --divider: rgba(255,255,255,0.08);
+}
+
+/* Header */
+#site-header { position: sticky; top: 0; z-index: 50; }
+.site-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 12px 20px; background: transparent; color: var(--text);
+}
+.site-header.minimal { box-shadow: none; background: transparent; }
+.site-brand { display:flex; align-items:center; gap:8px; font-weight:700; }
+.site-brand img { height: 28px; width: 28px; object-fit: contain; }
+.site-nav { display:flex; align-items:center; gap: 12px; }
+.site-nav a { color: var(--text); text-decoration:none; padding: 8px 10px; border-radius: 10px; }
+.site-nav a:hover { background: var(--nav-hover); }
+.site-actions { display:flex; align-items:center; gap:10px; }
+.btn { padding: 8px 12px; border-radius: 10px; border:1px solid #e2e8f0; background:#f8fafc; color:#111827; cursor:pointer; }
+.btn:hover { background:#eef2ff; }
+.btn.primary { background: var(--cta); color:#fff; border-color: var(--cta); }
+.btn.primary:hover { opacity:0.95; }
+
+/* Mobile nav */
+.hamburger { display:none; width:36px; height:36px; border:1px solid #e2e8f0; border-radius:10px; align-items:center; justify-content:center; cursor:pointer; }
+.hamburger span { width:18px; height:2px; background:#111827; display:block; position:relative; }
+.hamburger span::before, .hamburger span::after { content:''; position:absolute; left:0; width:18px; height:2px; background:#111827; }
+.hamburger span::before { top:-6px; }
+.hamburger span::after { top:6px; }
+.mobile-menu { display:none; position:absolute; right:20px; top:56px; background:#fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 24px rgba(2,6,23,0.12); padding:8px; }
+.mobile-menu a { display:block; padding:8px 10px; color:#111827; text-decoration:none; border-radius:8px; }
+.mobile-menu a:hover { background:#eef2ff; }
+
+/* Product dropdown */
+.has-dropdown { position: relative; }
+.has-dropdown .dropdown { position: absolute; top: calc(100% + 6px); left: 0; background: #fff; border:1px solid #e2e8f0; border-radius:12px; box-shadow:0 8px 24px rgba(2,6,23,0.12); padding:8px; min-width: 260px; display:none; z-index: 60; }
+.has-dropdown .dropdown a { display:block; padding:8px 12px; color:#111827; border-radius:8px; text-decoration:none; }
+.has-dropdown .dropdown a:hover { background:#eef2ff; color:#4f46e5; }
+.has-dropdown:hover .dropdown { display:block; }
+.mobile-sub { padding-left:8px; border-left:2px solid #f3f4f6; margin:6px 0 10px; }
+
+@media (max-width: 768px){
+  .site-nav { display:none; }
+  .hamburger { display:flex; }
+}
+
+/* Footer */
+#site-footer { margin-top: 32px; }
+.site-footer { background: var(--footer-bg); color: var(--footer-text); }
+.footer-inner { max-width: 1200px; margin: 0 auto; padding: 28px 20px; }
+.footer-top { display:grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 24px; align-items:flex-start; }
+.footer-brand { display:flex; flex-direction:column; gap:8px; }
+.footer-brand .tagline { color: var(--footer-muted); }
+.footer-col h4 { margin: 0 0 10px; font-size: 0.95rem; color:#fff; }
+.footer-col ul { list-style:none; padding:0; margin:0; }
+.footer-col li { margin:6px 0; }
+.footer-col a { color: var(--footer-text); text-decoration:none; }
+.footer-col a:hover { color:#fff; }
+.footer-divider { height:1px; background: var(--divider); margin: 16px 0; }
+.footer-bottom { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.social { display:flex; align-items:center; gap:10px; }
+.social a { display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border:1px solid var(--divider); border-radius:8px; color: var(--footer-text); }
+.social a:hover { background: rgba(255,255,255,0.06); }
+.copyright { color: var(--footer-muted); font-size: 0.9rem; }
+
+@media (max-width: 900px){ .footer-top { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px){ .footer-top { grid-template-columns: 1fr; } .footer-bottom { flex-direction: column; align-items:flex-start; } }

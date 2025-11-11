@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Team – Lumion</title>
+  <link rel="stylesheet" href="/assets/site-ui.css" />
+  <style>
+    .page { max-width: 1000px; margin: 24px auto; padding: 0 16px; }
+    .hero { display:flex; align-items:center; justify-content:space-between; gap:16px; margin: 8px 0 20px; }
+    .hero h1 { margin: 0; font-size: 2rem; }
+    .card { background:#ffffff; border:1px solid #e2e8f0; border-radius:14px; padding:18px; box-shadow:0 8px 24px rgba(2,6,23,0.06); display:flex; gap:18px; }
+    .avatar { width: 140px; height: 140px; border-radius: 16px; object-fit: cover; border:1px solid #e2e8f0; }
+    .bio h2 { margin:0 0 6px; }
+    .bio .role { color:#64748b; margin-bottom: 8px; }
+    .bio p { margin: 8px 0; line-height: 1.6; color:#1f2937; }
+    .note { color:#64748b; font-size:.9rem; }
+    @media (max-width: 780px){ .card { flex-direction: column; align-items:flex-start; } .avatar { width: 100%; height: auto; max-height: 280px; } }
+  </style>
+</head>
+<body>
+  <script type="module" src="/js/header-footer.js"></script>
+  <main class="page">
+    <div class="hero">
+      <h1>Team</h1>
+    </div>
+
+    <section class="card">
+      <img class="avatar" src="/assets/profile/WhatsApp%20Image%202025-11-11%20at%209.03.38%20AM.jpeg" alt="Tolulope" onerror="this.src='/Logo__mark.png'" />
+      <div class="bio">
+        <h2>Tolulope</h2>
+        <div class="role">Founder • HR Professional & Product Innovator</div>
+        <p>Tolulope is a forward-thinking HR professional and emerging product innovator who bridges human experience with intelligent technology. With five years of experience in HR operations, talent development, and people analytics, Tolulope built Lumion HRIS and Lumion Candidate as integrated systems designed to reimagine how African businesses and job seekers connect through data, empathy, and automation.</p>
+        <p>Having self-led the prototype design, user experience, and AI feature mapping, Tolulope brings together creativity, strategic HR insight, and technical learning to craft solutions that blend human intuition with machine precision. Her goal is simple: to make the future of work in Africa smart, inclusive, and emotionally aware.</p>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

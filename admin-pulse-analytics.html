@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion HR — Admin Pulse Analytics</title>
+  <link rel="icon" href="/Logo__mark.png">
+  <link rel="stylesheet" href="/assets/site-ui.css" />
+  <link rel="stylesheet" href="/assets/admin-analytics.css" />
+  <style>
+    .container{max-width:1120px;margin:0 auto;padding:16px}
+    .grid{display:grid;gap:16px}
+    .cols-3{grid-template-columns:repeat(3,1fr)}
+    .cols-2{grid-template-columns:repeat(2,1fr)}
+    .card{background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.06);padding:16px}
+    .muted{color:#6b7280}
+    .kpi{display:flex;align-items:center;justify-content:space-between}
+    .kpi .v{font-size:1.75rem;font-weight:700}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px}
+    .btn{padding:8px 12px;border-radius:8px;border:1px solid #e6e9f0;background:#fff;cursor:pointer}
+    .btn.primary{background:#4f46e5;color:#fff;border-color:#4f46e5}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:8px;border-bottom:1px solid #efefef;text-align:left}
+    .section-title{display:flex;align-items:center;justify-content:space-between}
+    .small{font-size:.9rem}
+    .chart{width:100%;height:260px}
+    .heatgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+    .heatcell{padding:10px;border-radius:8px;text-align:center}
+    .ok{background:#ecfdf5;color:#065f46}
+    .warn{background:#fff7ed;color:#9a3412}
+    .risk{background:#fee2e2;color:#991b1b}
+  </style>
+</head>
+<body>
+
+  <div id="header-root"></div>
+
+  <main class="container" style="padding-top:24px">
+    <div class="section-title topbar">
+      <h2 class="neon-title" style="margin:0">Admin Dashboard — Realtime Pulse Analytics</h2>
+      <div class="topbar">
+        <span id="demoBanner" class="pill" style="display:none">Demo Data Active</span>
+        <button id="demoToggle" class="demo-btn">Demo Mode</button>
+        <a href="/analytics.html" class="btn neon">Back to Analytics</a>
+        <button id="exportPulses" class="btn neon" style="margin-left:8px">Export Pulses CSV</button>
+      </div>
+    </div>
+
+    <!-- Executive Summary View -->
+    <section class="grid cols-3 grid-glow" style="margin-top:16px">
+      <div class="card">
+        <div class="kpi"><div>
+          <div class="muted small">Company Mood Avg (7d)</div>
+          <div id="kpi-mood" class="kpi-value">—</div>
+        </div><div id="kpi-mood-dir" class="pill">—</div></div>
+        <div class="muted small" style="margin-top:8px">Direction vs prior 7d</div>
+      </div>
+      <div class="card">
+        <div class="kpi"><div>
+          <div class="muted small">Avg Stress (7d)</div>
+          <div id="kpi-stress" class="kpi-value">—</div>
+        </div><div id="kpi-stress-dir" class="pill">—</div></div>
+        <div class="muted small" style="margin-top:8px">Direction vs prior 7d</div>
+      </div>
+      <div class="card">
+        <div class="kpi"><div>
+          <div class="muted small">Engagement Index (org)</div>
+          <div id="kpi-eng" class="kpi-value">—%</div>
+        </div><div id="kpi-alerts" class="pill">Alerts: —</div></div>
+        <div class="muted small" style="margin-top:8px">Company-wide index avg</div>
+      </div>
+    </section>
+
+    <!-- Department Comparisons & Critical Alerts -->
+    <section class="grid cols-2 grid-glow" style="margin-top:16px">
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Department Comparison</h3>
+          <div class="muted small">Avg mood & stress</div></div>
+        <table class="dept-table" id="deptTable"><thead>
+          <tr><th>Department</th><th>Mood</th><th>Stress</th><th>Engagement</th></tr>
+        </thead><tbody></tbody></table>
+      </div>
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Critical Alerts</h3>
+          <div class="muted small">Threshold configurable</div></div>
+        <ul id="alertsList" style="margin-top:8px"></ul>
+        <div style="margin-top:12px" class="small muted">Thresholds — Mood ≤ <span id="thMood">-1</span>, Stress ≥ <span id="thStress">4</span>, Workload ≥ <span id="thWork">4</span></div>
+      </div>
+    </section>
+
+    <!-- Advanced Analytics Modules -->
+    <section class="grid cols-2 grid-glow" style="margin-top:16px">
+      <div class="card card-wide">
+        <div class="section-title"><h3 style="margin:0">Mood Trend (30d)</h3>
+          <div class="muted small">Realtime from pulses</div></div>
+        <div class="chart-container"><canvas id="moodTrend" class="chart" width="960" height="260"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Correlation: Mood vs Stress/Workload</h3>
+          <div class="muted small">Pearson r</div></div>
+        <div id="corrBox" class="grid" style="grid-template-columns:1fr 1fr; gap:12px; margin-top:8px">
+          <div><div class="muted small">Mood ↔ Stress</div><div id="corrStress" class="kpi-value">—</div></div>
+          <div><div class="muted small">Mood ↔ Workload</div><div id="corrWork" class="kpi-value">—</div></div>
+        </div>
+        <div class="muted small" style="margin-top:8px">Forecast: <span id="forecastMood">—</span> next 7d (SMA)</div>
+      </div>
+    </section>
+
+    <!-- Additional Line Charts: Stress & Workload Trends -->
+    <section class="grid cols-2 grid-glow" style="margin-top:16px">
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Stress Trend (30d)</h3>
+          <div class="muted small">Realtime from pulses</div></div>
+        <div class="chart-container"><canvas id="stressTrend" class="chart" width="960" height="260"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Workload Trend (30d)</h3>
+          <div class="muted small">Realtime from pulses</div></div>
+        <div class="chart-container"><canvas id="workTrend" class="chart" width="960" height="260"></canvas></div>
+      </div>
+    </section>
+
+    <!-- Live Stream Chart (Demo Mode) -->
+    <section class="card" style="margin-top:16px">
+      <div class="section-title"><h3 style="margin:0">Live Mood Stream (last 60s)</h3>
+        <div class="muted small">Updates every second in Demo Mode</div></div>
+      <div class="chart-container"><canvas id="liveMood" class="chart" width="960" height="240"></canvas></div>
+    </section>
+
+    <!-- Organizational Heat Mapping -->
+    <section class="card" style="margin-top:16px">
+      <div class="section-title"><h3 style="margin:0">Organizational Heat Map</h3>
+        <div class="muted small">Department risk status</div></div>
+      <div id="heatGrid" class="heatgrid" style="margin-top:8px"></div>
+    </section>
+
+    <!-- Employee Wellness Monitoring -->
+    <section class="grid cols-2 grid-glow" style="margin-top:16px">
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Team Management</h3>
+          <div class="muted small">Drill-down to employees</div></div>
+        <div id="teams" class="grid" style="grid-template-columns:repeat(3,1fr)"></div>
+      </div>
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Employee Wellness</h3>
+          <div class="muted small">Detailed view</div></div>
+        <div id="employeePanel" class="small muted">Select a team or employee to view wellness history and insights.</div>
+      </div>
+    </section>
+
+    <!-- Sentiment Analysis Dashboard -->
+    <section class="card" style="margin-top:16px">
+      <div class="section-title"><h3 style="margin:0">Sentiment Analysis</h3>
+        <div class="muted small">Notes from mood check-ins</div></div>
+      <div id="sentimentBox" class="grid cols-3" style="margin-top:8px">
+        <div><div class="muted small">Positive</div><div id="sentPos" class="kpi-value">—</div></div>
+        <div><div class="muted small">Neutral</div><div id="sentNeu" class="kpi-value">—</div></div>
+        <div><div class="muted small">Negative</div><div id="sentNeg" class="kpi-value">—</div></div>
+      </div>
+      <div class="muted small" style="margin-top:8px">Top keywords: <span id="sentKeys">—</span></div>
+    </section>
+
+    <!-- Intervention Management & Reporting -->
+    <section class="grid cols-2 grid-glow" style="margin-top:16px">
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Intervention Management</h3>
+          <div class="muted small">Schedule & track</div></div>
+        <div class="small muted">Trigger manager check-ins for flagged employees.</div>
+        <div style="margin-top:8px">
+          <input id="empEmail" type="email" placeholder="employee@lumion.com" style="width:60%;padding:8px;border:1px solid #e6e9f0;border-radius:8px" />
+          <button id="scheduleCheckin" class="btn primary" style="margin-left:8px">Schedule Check-in</button>
+        </div>
+        <ul id="interventions" style="margin-top:12px"></ul>
+      </div>
+      <div class="card">
+        <div class="section-title"><h3 style="margin:0">Reporting & Export</h3>
+          <div class="muted small">CSV / PDF</div></div>
+        <div class="small muted">Generate leadership summaries and export raw datasets.</div>
+        <div style="margin-top:8px">
+          <button id="exportCSV2" class="btn">Export Org Report (CSV)</button>
+          <button id="printSnapshot" class="btn" style="margin-left:8px">Print Snapshot</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="./js/header-footer.js"></script>
+  <script type="module" src="./js/admin-pulse-analytics.js"></script>
+</body>
+</html>

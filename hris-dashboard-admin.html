@@ -8,7 +8,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Lumion HR — Admin Dashboard</title>
+  <title>Lumion HR</title>
   <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png">
   <link rel="stylesheet" href="assets/tailwind.css">
   <!-- Chart.js for predictive chart (guarded) -->
@@ -41,39 +41,7 @@
 </head>
 <body class="bg-gray-50 text-gray-800">
 
-  <!-- NAV -->
-  <header class="bg-white border-b sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <img src="https://i.ibb.co/XfRLzWwy/Logo.png" alt="Lumion" class="h-10 w-auto"/>
-        <div>
-          <div class="text-lg font-semibold">Lumion HR</div>
-          <div class="text-xs text-gray-500">AI-powered HR & People Ops</div>
-        </div>
-      </div>
-      <nav class="flex items-center gap-6 text-sm">
-        <a class="text-indigo-600 font-semibold" href="hris-dashboard-admin.html">Overview</a>
-        <a class="text-gray-600 hover:text-indigo-600" href="employees.html">Employees</a>
-        <a class="text-gray-600 hover:text-indigo-600" href="payroll-dashboard.html">Payroll</a>
-        <a class="text-gray-600 hover:text-indigo-600" href="Jobs.html">Jobs</a>
-        <a class="text-gray-600 hover:text-indigo-600" href="Onboarding.html">Onboarding</a>
-        <a class="text-gray-600 hover:text-indigo-600" href="leave-attendance.html">Leave & Attendance</a>
-        <a class="text-gray-600 hover:text-indigo-600" href="hr-performance.html">HR Performance</a>
-        <a class="text-gray-600 hover:text-indigo-600" href="analytics.html">Analytics</a>
-        <button class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Invite Team</button>
-        <button onclick="logout()" class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-  Logout
-</button>
-
-<script>
-  function logout() {
-    localStorage.removeItem("isLoggedIn");
-    window.location.href = "index.html";
-  }
-</script>
-      </nav>
-    </div>
-  </header>
+  <!-- NAV removed; shared site header/footer will be injected -->
 
   <main class="max-w-7xl mx-auto px-6 py-8">
     <!-- OVERVIEW -->
@@ -439,6 +407,9 @@
             <div class="font-medium">${c.name}</div>
             <div class="text-xs text-gray-500">${c.exp} • Expected ${formatN(c.expected)} • Source: ${c.source}</div>
             <div class="text-xs text-gray-600 mt-1">Match: <span class="font-semibold">${c.match}%</span></div>
+            ${c.interview ? `<div class="text-xs text-green-700 mt-1">Interview: ${new Date(c.interview.datetime).toLocaleString()} • ${c.interview.location}</div>` : ''}
+            ${c.interview && c.interview.joinLink ? `<div class="text-xs mt-1"><a href="${c.interview.joinLink}" target="_blank" class="text-blue-600 underline">Join Link</a></div>` : ''}
+            ${c.interview && c.interview.scores ? `<div class="text-xs text-gray-700 mt-1">Role fit: ${c.interview.scores.role}% • Culture fit: ${c.interview.scores.culture}%</div>` : ''}
           </div>
           <div class="flex items-center gap-2">
             <select class="candStatus border p-2 rounded text-sm">
@@ -449,6 +420,7 @@
               <option ${c.status==='Rejected'?'selected':''}>Rejected</option>
             </select>
             <button class="messageBtn px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm">Message</button>
+            <button class="interviewBtn px-3 py-1 bg-green-100 text-green-800 rounded text-sm">Interview</button>
           </div>
         `;
         candidatesPanel.appendChild(card);
@@ -463,6 +435,9 @@
         card.querySelector(".messageBtn").addEventListener("click", ()=> {
           alert(`Open messaging with ${c.name} (placeholder).`);
         });
+
+        // interview scheduling
+        card.querySelector(".interviewBtn").addEventListener("click", ()=> openInterviewScheduler(job, c));
       });
     }
 
@@ -734,6 +709,273 @@
     }
 
     /***********************
+     * Interview Assistant
+     ***********************/
+    function formatICSDate(dt){
+      const d = new Date(dt);
+      const pad = n => String(n).padStart(2,'0');
+      const y = d.getUTCFullYear();
+      const m = pad(d.getUTCMonth()+1);
+      const day = pad(d.getUTCDate());
+      const hh = pad(d.getUTCHours());
+      const mm = pad(d.getUTCMinutes());
+      const ss = pad(d.getUTCSeconds());
+      return `${y}${m}${day}T${hh}${mm}${ss}Z`;
+    }
+
+    function generateICS({summary, description, location, startISO, durationMin}){
+      const start = new Date(startISO);
+      const end = new Date(start.getTime() + durationMin*60000);
+      const uid = 'lumion-' + Math.random().toString(36).slice(2) + '@lumion.com';
+      const dtstamp = formatICSDate(new Date());
+      const dtstart = formatICSDate(start);
+      const dtend = formatICSDate(end);
+      return `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Lumion HR//EN\nBEGIN:VEVENT\nUID:${uid}\nDTSTAMP:${dtstamp}\nDTSTART:${dtstart}\nDTEND:${dtend}\nSUMMARY:${summary}\nDESCRIPTION:${description}\nLOCATION:${location}\nEND:VEVENT\nEND:VCALENDAR`;
+    }
+
+    function openInterviewScheduler(job, cand){
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop';
+      const defaultWhen = new Date(); defaultWhen.setDate(defaultWhen.getDate()+2); defaultWhen.setHours(10,0,0,0);
+      const defaultValue = new Date(defaultWhen.getTime() - defaultWhen.getTimezoneOffset()*60000).toISOString().slice(0,16);
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[780px] max-w-[95%]">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="text-lg font-bold">Interview — ${cand.name}</h3>
+              <div class="text-sm text-gray-600">Role: ${job.title} • ${job.team}</div>
+            </div>
+            <button class="px-3 py-1 border rounded" id="intvClose">Close</button>
+          </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <label class="text-xs text-gray-600">Date & Time</label>
+                <input id="intv_dt" type="datetime-local" class="w-full p-2 border rounded" value="${defaultValue}" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Duration (minutes)</label>
+                <input id="intv_dur" type="number" class="w-full p-2 border rounded" value="45" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Location</label>
+                <input id="intv_loc" class="w-full p-2 border rounded" value="Video: Lumion Meet" />
+                <div class="text-xs text-gray-500 mt-1">Use video or physical location</div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Quick Suggestions</label>
+                <div id="intv_suggestions" class="flex gap-2 mt-1"></div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Meeting Provider</label>
+                <select id="intv_provider" class="w-full p-2 border rounded mt-1">
+                  <option value="google">Google Meet</option>
+                  <option value="zoom">Zoom</option>
+                  <option value="custom">Custom Link</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Join Link</label>
+                <div class="flex gap-2">
+                  <input id="intv_join" class="flex-1 p-2 border rounded" placeholder="Paste meeting URL here" />
+                  <button id="openProvider" class="px-2 py-1 border rounded text-xs">Open Provider</button>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">Open provider to create meeting and paste link.</div>
+              </div>
+            </div>
+
+          <div class="mt-6">
+            <h4 class="text-sm font-semibold">AI Prescreen (first-level)</h4>
+            <div class="text-xs text-gray-500">Suggested questions based on role; capture notes and set preliminary score.</div>
+            <div class="mt-2 p-3 border rounded">
+              <div id="intv_questions" class="text-sm text-gray-700 space-y-1"></div>
+              <textarea id="intv_notes" class="w-full p-2 border rounded mt-2" rows="4" placeholder="Notes from prescreen"></textarea>
+              <div class="mt-2 text-sm">Preliminary score: <span id="intv_score" class="font-semibold">${cand.match}</span>%</div>
+              <div class="mt-2 flex gap-2">
+                <button id="runPrescreen" class="px-3 py-1 bg-indigo-600 text-white rounded">Generate Questions</button>
+                <button id="nudgeScoreUp" class="px-3 py-1 border rounded">+5%</button>
+                <button id="nudgeScoreDown" class="px-3 py-1 border rounded">-5%</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <h4 class="text-sm font-semibold">Recording (browser)</h4>
+            <div class="text-xs text-gray-500">Record audio locally during the interview. Consent required.</div>
+            <div class="mt-2 p-3 border rounded flex items-center gap-2">
+              <button id="recStart" class="px-3 py-1 bg-gray-800 text-white rounded">Start Recording</button>
+              <button id="recStop" class="px-3 py-1 border rounded" disabled>Stop</button>
+              <span id="recStatus" class="text-xs text-gray-600">Idle</span>
+              <a id="recDownload" class="text-xs text-blue-600 underline hidden" download>Download audio</a>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <h4 class="text-sm font-semibold">Transcript & Rating</h4>
+            <div class="text-xs text-gray-500">Paste interview transcript to evaluate role fit and culture fit.</div>
+            <textarea id="intv_transcript" class="w-full p-2 border rounded mt-2" rows="6" placeholder="Paste transcript here..."></textarea>
+            <div class="mt-2 flex gap-2">
+              <button id="evalTranscript" class="px-3 py-1 bg-indigo-600 text-white rounded">Evaluate</button>
+              <span id="evalResult" class="text-sm text-gray-700"></span>
+            </div>
+          </div>
+
+          <div class="mt-6 flex gap-2 justify-end">
+            <button id="genICS" class="px-4 py-2 border rounded">Generate Calendar Invite</button>
+            <button id="saveIntv" class="px-4 py-2 bg-green-600 text-white rounded">Save & Set Interview</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('modalRoot').appendChild(modal);
+
+      // suggestions: next 3 weekdays at 10:00, 13:00
+      const sugEl = modal.querySelector('#intv_suggestions');
+      const makeSlot = (d,h) => {
+        const dt = new Date(); dt.setDate(dt.getDate()+d); dt.setHours(h,0,0,0);
+        const val = new Date(dt.getTime() - dt.getTimezoneOffset()*60000).toISOString().slice(0,16);
+        const btn = document.createElement('button');
+        btn.className = 'px-2 py-1 text-xs border rounded';
+        btn.textContent = new Date(dt).toLocaleString();
+        btn.addEventListener('click', ()=> modal.querySelector('#intv_dt').value = val);
+        return btn;
+      };
+      [1,2,3].forEach(d => { sugEl.appendChild(makeSlot(d,10)); sugEl.appendChild(makeSlot(d,13)); });
+
+      // meeting provider open
+      modal.querySelector('#openProvider').addEventListener('click', ()=>{
+        const provider = modal.querySelector('#intv_provider').value;
+        if(provider === 'google') window.open('https://meet.google.com/new','_blank');
+        else if(provider === 'zoom') window.open('https://zoom.us/','_blank');
+        else alert('Paste your custom meeting link in the field.');
+      });
+
+      // AI prescreen questions
+      const qEl = modal.querySelector('#intv_questions');
+      const genQs = () => {
+        const base = [
+          `Walk me through a recent project relevant to ${job.title}.`,
+          'What trade-offs did you make and why?',
+          'Tell me about a challenging stakeholder or teammate and how you handled it.',
+          'What do you expect in your next role and why Lumion?'
+        ];
+        const roleExtras = {
+          'Frontend': ['How do you ensure accessibility and performance?', 'Explain a tricky state management problem you solved.'],
+          'Backend': ['Describe a scalable API you designed.', 'How do you approach data modeling and consistency?'],
+          'Product': ['How do you define success metrics?', 'Tell me about prioritization across conflicting requests.'],
+          'HR': ['Describe how you assess culture fit fairly.', 'What’s your approach to structured interviews?'],
+          'Sales': ['How do you qualify leads effectively?', 'Tell me about handling objections and closing.']
+        };
+        const extras = Object.entries(roleExtras).find(([k]) => job.title.toLowerCase().includes(k.toLowerCase()));
+        const list = extras ? base.concat(extras[1]) : base;
+        qEl.innerHTML = list.map(q => `<div>• ${q}</div>`).join('');
+      };
+      modal.querySelector('#runPrescreen').addEventListener('click', genQs);
+      genQs();
+
+      // score nudges
+      const scoreEl = modal.querySelector('#intv_score');
+      modal.querySelector('#nudgeScoreUp').addEventListener('click', ()=> scoreEl.textContent = Math.min(100, Number(scoreEl.textContent)+5));
+      modal.querySelector('#nudgeScoreDown').addEventListener('click', ()=> scoreEl.textContent = Math.max(0, Number(scoreEl.textContent)-5));
+
+      // audio recording (MediaRecorder)
+      let mediaRecorder = null; let recChunks = []; let recUrl = null;
+      const recStartBtn = modal.querySelector('#recStart');
+      const recStopBtn = modal.querySelector('#recStop');
+      const recStatus = modal.querySelector('#recStatus');
+      const recDl = modal.querySelector('#recDownload');
+      recStartBtn.addEventListener('click', async ()=>{
+        try{
+          const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+          recChunks = []; recUrl = null; recDl.classList.add('hidden');
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = e => { if(e.data.size>0) recChunks.push(e.data); };
+          mediaRecorder.onstop = ()=>{
+            const blob = new Blob(recChunks, { type:'audio/webm' });
+            recUrl = URL.createObjectURL(blob);
+            recDl.href = recUrl; recDl.textContent = 'Download audio'; recDl.classList.remove('hidden');
+            recStatus.textContent = 'Recorded';
+          };
+          mediaRecorder.start();
+          recStatus.textContent = 'Recording…';
+          recStartBtn.disabled = true; recStopBtn.disabled = false;
+        }catch(err){
+          alert('Microphone access denied or unavailable.');
+        }
+      });
+      recStopBtn.addEventListener('click', ()=>{
+        try{ mediaRecorder && mediaRecorder.stop(); }catch{}
+        recStartBtn.disabled = false; recStopBtn.disabled = true;
+      });
+
+      // transcript evaluation
+      function evalTextForRoleAndCulture(txt, job){
+        const t = (txt||'').toLowerCase();
+        const words = t.split(/\s+/).filter(Boolean);
+        const lenScore = Math.min(100, Math.round(words.length/10)*5); // more content -> higher up to 100
+        const posWords = ['teamwork','collaborate','ownership','learning','growth','respect','integrity','communication','inclusive','empathy','impact'];
+        const negWords = ['late','conflict','toxic','blame','rigid','dishonest'];
+        const posHits = posWords.reduce((s,w)=> s + (t.includes(w)?1:0), 0);
+        const negHits = negWords.reduce((s,w)=> s + (t.includes(w)?1:0), 0);
+        const culture = Math.max(0, Math.min(100, 50 + posHits*8 - negHits*12));
+        const roleKey = job.title.toLowerCase().includes('front') ? ['react','accessibility','performance','state','ui'] :
+                        job.title.toLowerCase().includes('back') ? ['api','scalable','database','consistency','security'] :
+                        job.title.toLowerCase().includes('product') ? ['metrics','prioritization','roadmap','stakeholder','hypothesis'] :
+                        job.title.toLowerCase().includes('hr') ? ['talent','culture','policy','fair','structure'] :
+                        job.title.toLowerCase().includes('sales') ? ['pipeline','quota','close','objection','negotiation'] : ['experience','skills'];
+        const roleHits = roleKey.reduce((s,w)=> s + (t.includes(w)?1:0), 0);
+        const role = Math.max(0, Math.min(100, Math.round(lenScore*0.4 + roleHits*12 + posHits*3)));
+        return { role, culture };
+      }
+      modal.querySelector('#evalTranscript').addEventListener('click', ()=>{
+        const txt = modal.querySelector('#intv_transcript').value;
+        const scores = evalTextForRoleAndCulture(txt, job);
+        modal.querySelector('#evalResult').textContent = `Role fit: ${scores.role}% • Culture fit: ${scores.culture}%`;
+      });
+
+      // generate ICS
+      modal.querySelector('#genICS').addEventListener('click', ()=>{
+        const startISO = modal.querySelector('#intv_dt').value;
+        const durationMin = Number(modal.querySelector('#intv_dur').value)||45;
+        const location = modal.querySelector('#intv_loc').value||'Video: Lumion Meet';
+        const joinLink = modal.querySelector('#intv_join').value||'';
+        if(!startISO){ alert('Select date & time first'); return; }
+        const ics = generateICS({
+          summary: `Interview: ${job.title} — ${cand.name}`,
+          description: `First-level interview for ${job.title}.\nJoin: ${joinLink}\nNotes: ${modal.querySelector('#intv_notes').value || ''}`,
+          location,
+          startISO,
+          durationMin,
+        });
+        const blob = new Blob([ics], { type:'text/calendar' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `Interview_${cand.name.replace(/\s+/g,'_')}.ics`; a.click(); URL.revokeObjectURL(url);
+        logActivity(`Calendar invite generated for ${cand.name} (${job.title})`);
+      });
+
+      // save
+      modal.querySelector('#saveIntv').addEventListener('click', ()=>{
+        const startISO = modal.querySelector('#intv_dt').value;
+        const durationMin = Number(modal.querySelector('#intv_dur').value)||45;
+        const location = modal.querySelector('#intv_loc').value||'Video: Lumion Meet';
+        const notes = modal.querySelector('#intv_notes').value||'';
+        const preScore = Number(modal.querySelector('#intv_score').textContent)||cand.match;
+        const joinLink = modal.querySelector('#intv_join').value||'';
+        const txt = modal.querySelector('#intv_transcript').value||'';
+        const scores = evalTextForRoleAndCulture(txt, job);
+        if(!startISO){ alert('Please select date & time'); return; }
+        cand.interview = { datetime: new Date(startISO).toISOString(), durationMin, location, joinLink, notes, preScore, scores };
+        if(recUrl) cand.interview.recordingUrl = recUrl;
+        cand.status = 'Interview';
+        logActivity(`Interview scheduled for ${cand.name} on ${new Date(startISO).toLocaleString()} (${job.title})`);
+        renderCandidatesForJob(job);
+        modal.remove();
+        updatePredictions();
+      });
+
+      modal.querySelector('#intvClose').addEventListener('click', ()=> modal.remove());
+    }
+
+    /***********************
      * UI wiring & boot
      ***********************/
     function updateSummary(){
@@ -773,24 +1015,85 @@
       else { win.style.display = "block"; document.getElementById("chatInput").focus(); }
     }
     window.toggleChat = toggleChat;
+
+    // simple rule-based assistant using local data
+    function generateAssistantResponse(raw){
+      const q = raw.trim();
+      const text = q.toLowerCase();
+
+      // helpers
+      const listJobs = () => {
+        if(!jobs.length) return "No open roles right now.";
+        const summary = jobs.map(j => `${j.title} (${j.candidates.length} candidates)`).join(', ');
+        return `Open roles: ${jobs.length} — ${summary}.`;
+      };
+
+      const highestMatch = () => {
+        const all = jobs.flatMap(j => j.candidates.map(c => ({...c, jobTitle: j.title})));
+        if(!all.length) return "No candidates yet. Click 'Auto-match all' to simulate candidates.";
+        const best = all.reduce((m,c)=> c.match > m.match ? c : m, all[0]);
+        return `Highest match is ${best.name} for ${best.jobTitle} at ${best.match}%.`;
+      };
+
+      const employeesInDept = (dept) => {
+        const list = employees.filter(e => e.dept.toLowerCase() === dept.toLowerCase());
+        if(!list.length) return `No employees found in ${dept}.`;
+        return `Employees in ${dept}: ` + list.map(e => e.name).join(', ') + '.';
+      };
+
+      const totalPayrollStr = () => {
+        const total = employees.reduce((s,e)=> s + Number(e.salary || 0), 0);
+        return `Estimated monthly gross payroll: ₦${Number(total).toLocaleString()}.`;
+      };
+
+      const onLeaveStr = () => {
+        const list = employees.filter(e => e.status === 'On Leave');
+        if(!list.length) return 'No employees are currently on leave.';
+        return 'On leave: ' + list.map(e => e.name + ' (' + e.dept + ')').join(', ') + '.';
+      };
+
+      // intents
+      if(text.includes('open role') || text.includes('jobs')) return listJobs();
+      if(text.includes('highest match') || text.includes('top candidate')) return highestMatch();
+      if(text.includes('total payroll') || (text.includes('payroll') && text.includes('total'))) return totalPayrollStr();
+      if(text.includes('on leave')) return onLeaveStr();
+
+      // "employees in <dept>"
+      const inIdx = text.indexOf('employees in ');
+      if(inIdx !== -1){
+        const dept = q.slice(inIdx + 'employees in '.length).trim();
+        if(dept) return employeesInDept(dept);
+      }
+
+      // actions
+      if(text.includes('export employees')){ exportEmployeesCSV(); return 'Exported employees CSV to your browser downloads.'; }
+      if(text.includes('auto-match all')){ jobs.forEach(j => autoMatchJob(j.id)); return 'Auto-matching candidates across all open roles…'; }
+
+      return "I can help with: 'show open roles', 'who has the highest match score?', 'employees in Sales', 'total payroll', 'who is on leave', 'export employees'.";
+    }
+
     document.getElementById("chatSend").addEventListener("click", ()=> {
-      const text = document.getElementById("chatInput").value.trim();
+      const inputEl = document.getElementById("chatInput");
+      const text = inputEl.value.trim();
       if(!text) return;
       const c = document.getElementById("chatMessages");
       const user = document.createElement("div"); user.className = 'chat-bubble chat-user'; user.textContent = text;
       c.appendChild(user);
-      document.getElementById("chatInput").value = "";
+      inputEl.value = "";
       c.scrollTop = c.scrollHeight;
       setTimeout(()=> {
-        const ai = document.createElement("div"); ai.className='chat-bubble chat-ai'; ai.textContent = "Lumion Assistant (prototype): Try 'show open roles' or 'who has the highest match score?'.";
+        const ai = document.createElement("div"); ai.className='chat-bubble chat-ai'; ai.textContent = generateAssistantResponse(text);
         c.appendChild(ai); c.scrollTop = c.scrollHeight;
-      }, 700);
+      }, 400);
     });
 
     logActivity("Dashboard initialized");
   }); // domContentLoaded end
   </script>
 </body>
+<script type="module">
+  import '/js/header-footer.js';
+</script>
 </html>
 
 
