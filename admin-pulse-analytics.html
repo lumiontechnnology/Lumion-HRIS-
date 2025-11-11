@@ -85,6 +85,24 @@
           <div class="muted small">Threshold configurable</div></div>
         <ul id="alertsList" style="margin-top:8px"></ul>
         <div style="margin-top:12px" class="small muted">Thresholds — Mood ≤ <span id="thMood">-1</span>, Stress ≥ <span id="thStress">4</span>, Workload ≥ <span id="thWork">4</span></div>
+        <div id="thresholdsUI" class="small" style="margin-top:10px; padding:10px; border:1px solid #e6e9f0; border-radius:8px">
+          <div class="muted" style="margin-bottom:6px">Configure thresholds (saved to admin preferences)</div>
+          <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:8px">
+            <label style="display:block">Mood ≤
+              <input id="thMoodInput" type="number" step="0.1" min="-2" max="2" value="-1" style="width:100%; padding:6px; border:1px solid #e6e9f0; border-radius:6px" />
+            </label>
+            <label style="display:block">Stress ≥
+              <input id="thStressInput" type="number" step="0.1" min="1" max="5" value="4" style="width:100%; padding:6px; border:1px solid #e6e9f0; border-radius:6px" />
+            </label>
+            <label style="display:block">Workload ≥
+              <input id="thWorkInput" type="number" step="0.1" min="1" max="5" value="4" style="width:100%; padding:6px; border:1px solid #e6e9f0; border-radius:6px" />
+            </label>
+          </div>
+          <div style="margin-top:8px">
+            <button id="saveThresholds" class="btn primary">Save Thresholds</button>
+            <span id="thSaveMsg" class="muted" style="margin-left:8px; display:none">Saved ✓</span>
+          </div>
+        </div>
       </div>
     </section>
 

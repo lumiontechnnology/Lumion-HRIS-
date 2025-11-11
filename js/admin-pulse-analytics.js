@@ -307,6 +307,35 @@ function bind(){
   const printBtn = document.getElementById('printSnapshot'); printBtn && (printBtn.onclick = ()=> window.print());
   const schedBtn = document.getElementById('scheduleCheckin'); schedBtn && (schedBtn.onclick = scheduleIntervention);
   const demoBtn = document.getElementById('demoToggle'); demoBtn && (demoBtn.onclick = ()=>{ setDemoMode(!demoMode); rerender(); });
+
+  // Thresholds UI binding
+  const moodIn = document.getElementById('thMoodInput');
+  const stressIn = document.getElementById('thStressInput');
+  const workIn = document.getElementById('thWorkInput');
+  const saveBtn = document.getElementById('saveThresholds');
+  const msg = document.getElementById('thSaveMsg');
+  const t = getThresholds();
+  if (moodIn && stressIn && workIn) {
+    moodIn.value = String(t.mood);
+    stressIn.value = String(t.stress);
+    workIn.value = String(t.workload);
+  }
+  if (saveBtn) {
+    saveBtn.onclick = ()=>{
+      const next = {
+        mood: Number(moodIn?.value ?? t.mood),
+        stress: Number(stressIn?.value ?? t.stress),
+        workload: Number(workIn?.value ?? t.workload)
+      };
+      // Basic range clamp to expected scales
+      next.mood = Math.max(-2, Math.min(2, next.mood));
+      next.stress = Math.max(1, Math.min(5, next.stress));
+      next.workload = Math.max(1, Math.min(5, next.workload));
+      Store.setUserPref('u-admin', 'alertThresholds', next);
+      rerender();
+      if (msg) { msg.style.display = 'inline'; setTimeout(()=>{ msg.style.display='none'; }, 1600); }
+    };
+  }
 }
 
 function rerender(){
