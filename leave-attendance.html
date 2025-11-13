@@ -32,6 +32,7 @@
     /* modal center */
     .modal-bg { background: rgba(2,6,23,0.45); }
   </style>
+  <script type="module" src="./js/store.js"></script>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
@@ -352,9 +353,11 @@ function populateRequestsTable(filter='all') {
         : r.status==='approved'
           ? `<span class="status-pill bg-green-100 text-green-700">Approved</span>`
           : `<span class="status-pill bg-red-100 text-red-700">Rejected</span>`;
+      const displayName = emp ? emp.name : (r.externalName || 'Unknown User');
+      const displayDept = emp ? emp.department : (r.externalDept || '—');
       return `
       <tr class="border-t">
-        <td class="py-3 px-3">${emp.name}<div class="tiny text-gray-500">${emp.department}</div></td>
+        <td class="py-3 px-3">${displayName}<div class="tiny text-gray-500">${displayDept}</div></td>
         <td class="py-3 px-3">${capitalize(r.type)}</td>
         <td class="py-3 px-3">${r.start}</td>
         <td class="py-3 px-3">${r.end}</td>
@@ -408,7 +411,22 @@ function approveRequest(id){
     balance.used += r.days;
   }
   r.status = 'approved';
+  try {
+    // Sync back to Store for user-origin leaves
+    if (window.Store && typeof window.Store.getState === 'function'){
+      const s = Store.getState();
+      const inStore = (s.leaves||[]).find(l => l.id === r.storeId || l.id === r.id);
+      if (inStore){ inStore.status = 'approved'; Store.setState(s); }
+    }
+  } catch {}
+  try {
+    if (window.Store && typeof window.Store.addNotification === 'function'){
+      const uid = (Store.getState().users.find(u=> u.email === emp.email)?.id || emp.id || 'unknown');
+      Store.addNotification({ type:'leave_approved', userId: uid, date: Store.todayStr(), message: `${emp.name} • ${r.type} ${r.days}d (${r.start} → ${r.end})` });
+    }
+  } catch {}
   updateAfterChange();
+  if (typeof refreshNotificationsPanel === 'function') refreshNotificationsPanel();
 }
 
 /* Reject */
@@ -416,7 +434,23 @@ function rejectRequest(id){
   const r = leaveRequests.find(x=>x.id===id);
   if(!r) return;
   r.status = 'rejected';
+  try {
+    // Sync back to Store for user-origin leaves
+    if (window.Store && typeof window.Store.getState === 'function'){
+      const s = Store.getState();
+      const inStore = (s.leaves||[]).find(l => l.id === r.storeId || l.id === r.id);
+      if (inStore){ inStore.status = 'rejected'; Store.setState(s); }
+    }
+  } catch {}
   updateAfterChange();
+  try {
+    const emp = employeesData.find(e=>e.id===r.employeeId);
+    if (window.Store && typeof window.Store.addNotification === 'function'){
+      const uid = (Store.getState().users.find(u=> u.email === emp.email)?.id || emp.id || 'unknown');
+      Store.addNotification({ type:'leave_rejected', userId: uid, date: Store.todayStr(), message: `${emp.name} • ${r.type} ${r.days}d (${r.start} → ${r.end})` });
+    }
+  } catch {}
+  if (typeof refreshNotificationsPanel === 'function') refreshNotificationsPanel();
 }
 
 /* Update UI after data changes */
@@ -426,6 +460,26 @@ function updateAfterChange(){
   populateAttendanceTable();
   updateSummaryCards();
   computeInsight();
+}
+
+function refreshNotificationsPanel(){
+  try {
+    if (window.Store && typeof window.Store.getNotifications === 'function'){
+      const notifs = window.Store.getNotifications();
+      const box = document.getElementById('notifList');
+      if (box){
+        if (!notifs.length){ box.innerHTML = 'No notifications.'; }
+        else {
+          box.innerHTML = notifs.slice(0,20).map(n => `
+            <div class="border-b pb-2">
+              <div class="font-semibold">${n.type.replace(/_/g,' ')}</div>
+              <div class="text-gray-600">${n.message || ''}</div>
+              <div class="text-gray-500">${n.date || ''} • ${new Date(n.ts||Date.now()).toLocaleString()}</div>
+            </div>`).join('');
+        }
+      }
+    }
+  } catch {}
 }
 
 /* Attendance functions */
@@ -669,6 +723,23 @@ document.addEventListener('DOMContentLoaded', ()=> {
   leaveRequests.push({
     id:3, employeeId:11, type:'annual', start: addDays(7), end: addDays(10), days:4, status:'pending', reason:'Family', createdAt: new Date().toISOString()
   });
+  try {
+    // Hydrate from Store.leaves for user-origin requests
+    if (window.Store && typeof window.Store.getState === 'function'){
+      const s = Store.getState();
+      (s.leaves||[]).forEach(l => {
+        const start = l.startDate || l.start || Store.todayStr();
+        const end = l.endDate || l.end || start;
+        const days = daysBetween(start, end);
+        const empRec = s.employees.find(e => e.email === (s.users.find(u => u.id === l.userId)?.email));
+        const name = empRec?.name || (s.users.find(u=>u.id===l.userId)?.name) || 'Unknown User';
+        const dept = empRec?.department || '—';
+        if (!leaveRequests.find(r => r.storeId === l.id)){
+          leaveRequests.push({ id: l.id, storeId: l.id, employeeId: -1, externalName: name, externalDept: dept, type: l.type, start, end, days, status: l.status || 'pending', reason: l.reason||'', createdAt: new Date().toISOString() });
+        }
+      });
+    }
+  } catch {}
   updateAfterChange();
 
   // Populate notifications from Store if available

@@ -21,6 +21,8 @@ function createHeader(){
             <a href="/Onboarding.html">Onboarding</a>
             <a href="/leave-attendance.html">Leave & Attendance</a>
             <a href="/hr-performance.html">HR Performance</a>
+            <a href="/hr-performance.html#bsc">Balanced Scorecard (Admin)</a>
+            <a href="/performance-dashboard.html">Performance Dashboard</a>
             <a href="/analytics.html">Analytics</a>
             <a href="/Jobs.html#inviteBtn">Invite Team</a>
           </div>
@@ -39,6 +41,7 @@ function createHeader(){
       <div class="site-actions">
         ${user ? `
           <a class="btn" href="${user.role==='admin' ? '/hris-dashboard-admin.html' : '/user-dashboard.html'}">Dashboard</a>
+          <a class="btn" href="/performance-dashboard.html">Performance</a>
           <button class="btn danger" id="site-logout">Logout</button>
         ` : `
           <a class="btn" href="/login.html">Login</a>
@@ -55,6 +58,8 @@ function createHeader(){
             <a href="/Onboarding.html">Onboarding</a>
             <a href="/leave-attendance.html">Leave & Attendance</a>
             <a href="/hr-performance.html">HR Performance</a>
+            <a href="/hr-performance.html#bsc">Balanced Scorecard (Admin)</a>
+            <a href="/performance-dashboard.html">Performance Dashboard</a>
             <a href="/analytics.html">Analytics</a>
             <a href="/Jobs.html#inviteBtn">Invite Team</a>
           </div>
@@ -68,6 +73,7 @@ function createHeader(){
           <a href="/team.html">Team</a>
           ${user ? `
             <a href="${user.role==='admin' ? '/hris-dashboard-admin.html' : '/user-dashboard.html'}">Dashboard</a>
+            <a href="/performance-dashboard.html">Performance</a>
             <button id="site-logout-mobile" class="btn danger" style="margin-top:8px">Logout</button>
           ` : `
             <a href="/login.html">Login</a>

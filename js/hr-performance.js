@@ -1,4 +1,5 @@
 import { Store } from './store.js';
+import { AdminBalancedScorecard } from './bsc-module.js';
 import { ensureSeededLeaves, getPeopleMeta, LeaveLabels } from './hr-data.js';
 
 // Initial seed (deterministic) and setup
@@ -245,18 +246,40 @@ function renderAll(){
 function setActiveTab(tab){
   const summary = document.getElementById('summary-section');
   const leaves = document.getElementById('leaves-section');
+  const bsc = document.getElementById('bsc-section');
+  const cycles = document.getElementById('cycles-section');
   const tabSummary = document.getElementById('tab-summary');
   const tabLeaves = document.getElementById('tab-leaves');
+  const tabBsc = document.getElementById('tab-bsc');
+  const tabCycles = document.getElementById('tab-cycles');
   const isSummary = tab === 'summary';
+  const isBsc = tab === 'bsc';
+  const isCycles = tab === 'cycles';
   summary.classList.toggle('hidden', !isSummary);
-  leaves.classList.toggle('hidden', isSummary);
+  leaves.classList.toggle('hidden', isSummary || isBsc || isCycles);
+  if (bsc) bsc.classList.toggle('hidden', !isBsc);
+  if (cycles) cycles.classList.toggle('hidden', !isCycles);
   // visual pills
   if (isSummary){
     tabSummary.classList.remove('bg-white','border','text-gray-700');
     tabLeaves.classList.add('bg-white','border','text-gray-700');
+    if (tabBsc) tabBsc.classList.add('bg-white','border','text-gray-700');
+    if (tabCycles) tabCycles.classList.add('bg-white','border','text-gray-700');
   } else {
-    tabLeaves.classList.remove('bg-white','border','text-gray-700');
     tabSummary.classList.add('bg-white','border','text-gray-700');
+    if (tabBsc && isBsc) {
+      tabBsc.classList.remove('bg-white','border','text-gray-700');
+      tabLeaves.classList.add('bg-white','border','text-gray-700');
+      if (tabCycles) tabCycles.classList.add('bg-white','border','text-gray-700');
+    } else if (tabCycles && isCycles) {
+      tabCycles.classList.remove('bg-white','border','text-gray-700');
+      tabLeaves.classList.add('bg-white','border','text-gray-700');
+      if (tabBsc) tabBsc.classList.add('bg-white','border','text-gray-700');
+    } else {
+      tabLeaves.classList.remove('bg-white','border','text-gray-700');
+      if (tabBsc) tabBsc.classList.add('bg-white','border','text-gray-700');
+      if (tabCycles) tabCycles.classList.add('bg-white','border','text-gray-700');
+    }
   }
 }
 
@@ -362,6 +385,76 @@ renderOverview();
 handleHash();
 window.addEventListener('hashchange', handleHash);
 document.getElementById('tab-summary').addEventListener('click', ()=> setTimeout(()=>renderOverview(), 0));
+const tabBsc = document.getElementById('tab-bsc');
+let ADMIN_BSC=null;
+if (tabBsc) {
+  tabBsc.addEventListener('click', ()=> {
+    if (!ADMIN_BSC) { ADMIN_BSC = new AdminBalancedScorecard(); ADMIN_BSC.initialize(); }
+    else { ADMIN_BSC.render(); }
+  });
+}
+
+const tabCycles = document.getElementById('tab-cycles');
+function renderCycles(){
+  const s = Store.getState();
+  const deptSel = document.getElementById('cyc-dept');
+  if (deptSel && !deptSel.options.length){
+    const depts = ['All', ...[...new Set((s.employees||[]).map(e=>e.department))]];
+    deptSel.innerHTML = depts.map(x=>`<option value="${x}">${x}</option>`).join('');
+  }
+  const rows = Store.getAppraisalCycles();
+  const tbody = document.getElementById('cyc-table');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  rows.forEach(c => {
+    const completed = (c.participants||[]).filter(uid => (c.statusByUser||{})[uid] === 'completed').length;
+    const pending = (c.participants||[]).length - completed;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-2">${c.type.toUpperCase()}</td>
+      <td class="p-2">${c.period}</td>
+      <td class="p-2">${(c.participants||[]).length}</td>
+      <td class="p-2">${completed}</td>
+      <td class="p-2">${pending}</td>
+      <td class="p-2">
+        <button class="pill bg-white border text-gray-700" data-act="remind" data-id="${c.id}">Send Reminders</button>
+        ${c.type==='360' ? `<button class="pill bg-white border text-gray-700" data-act="assign" data-id="${c.id}">Assign Default Raters</button>` : ''}
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('button[data-act="remind"]').forEach(btn => {
+    btn.addEventListener('click', ()=>{
+      const id = btn.getAttribute('data-id');
+      const cyc = rows.find(r => r.id === id);
+      (cyc.participants||[]).filter(uid => (cyc.statusByUser||{})[uid] !== 'completed').forEach(uid => Store.sendCycleReminder(id, uid));
+      renderCycles();
+    });
+  });
+  tbody.querySelectorAll('button[data-act="assign"]').forEach(btn => {
+    btn.addEventListener('click', ()=>{
+      const id = btn.getAttribute('data-id');
+      Store.assignDefaultRaters(id);
+      renderCycles();
+    });
+  });
+}
+if (tabCycles){
+  tabCycles.addEventListener('click', ()=> renderCycles());
+  const btnCreate = document.getElementById('cyc-create');
+  if (btnCreate) btnCreate.addEventListener('click', ()=>{
+    const type = document.getElementById('cyc-type').value;
+    const period = document.getElementById('cyc-period').value;
+    const dept = document.getElementById('cyc-dept').value;
+    const s = Store.getState();
+    const users = (s.users||[]).filter(u => {
+      const e = (s.employees||[]).find(e=>e.email===u.email);
+      return dept==='All' ? true : e?.department === dept;
+    }).map(u=>u.id);
+    const ownerId = (s.users||[])[0]?.id || 1;
+    Store.createAppraisalCycle({ type, period, participants: users, ownerId });
+    renderCycles();
+  });
+}
 document.getElementById('tab-leaves').addEventListener('click', ()=> setTimeout(()=>renderAll(), 0));
 
 // Demographics helpers and charts

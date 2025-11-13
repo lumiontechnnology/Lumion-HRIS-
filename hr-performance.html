@@ -42,6 +42,8 @@
       <nav class="flex gap-2 text-sm">
         <a href="#summary" id="tab-summary" class="pill">Summary</a>
         <a href="#leaves" id="tab-leaves" class="pill bg-white border text-gray-700">Leaves</a>
+        <a href="#bsc" id="tab-bsc" class="pill bg-white border text-gray-700">Balanced Scorecard</a>
+        <a href="#cycles" id="tab-cycles" class="pill bg-white border text-gray-700">Appraisal Cycles</a>
       </nav>
     </header>
 
@@ -139,6 +141,113 @@
             <div id="c-focus-b-label" class="tiny text-gray-500 mb-1">—</div>
             <canvas id="c-focus-b" height="140"></canvas>
           </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Admin Balanced Scorecard -->
+    <div id="bsc-section" class="hidden mb-8">
+      <section class="card p-4 mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div class="font-semibold tiny text-gray-700">Balanced Scorecard (Admin)</div>
+            <div class="tiny text-gray-500">Organization view with strategic filters</div>
+          </div>
+          <div class="flex gap-2 text-sm flex-wrap">
+            <select id="absc-quarter" class="border rounded p-2">
+              <option>Q1-2025</option><option>Q2-2025</option><option>Q3-2025</option><option selected>Q4-2025</option>
+            </select>
+            <select id="absc-perspective" class="border rounded p-2">
+              <option value="all">All Perspectives</option>
+              <option value="financial">Financial</option>
+              <option value="customer">Customer</option>
+              <option value="process">Internal Processes</option>
+              <option value="learning">Learning & Growth</option>
+            </select>
+            <select id="absc-theme" class="border rounded p-2">
+              <option value="all">All Themes</option>
+              <option value="growth">Growth</option>
+              <option value="efficiency">Efficiency</option>
+              <option value="innovation">Innovation</option>
+              <option value="quality">Quality</option>
+            </select>
+          </div>
+        </div>
+      </section>
+      <section class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4"><div class="text-sm text-gray-500">Financial</div><div id="absc-fin" class="text-2xl font-bold">—</div><div class="tiny text-gray-500">Perspective score</div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Customer</div><div id="absc-cust" class="text-2xl font-bold">—</div><div class="tiny text-gray-500">Perspective score</div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Internal Processes</div><div id="absc-proc" class="text-2xl font-bold">—</div><div class="tiny text-gray-500">Perspective score</div></div>
+        <div class="card p-4"><div class="text-sm text-gray-500">Learning & Growth</div><div id="absc-learn" class="text-2xl font-bold">—</div><div class="tiny text-gray-500">Perspective score</div></div>
+      </section>
+      <section class="card p-4">
+        <h3 class="font-semibold tiny mb-2">Strategic Objectives Matrix</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th class="text-left p-2 tiny text-gray-500">Perspective</th>
+                <th class="text-left p-2 tiny text-gray-500">Objective</th>
+                <th class="text-left p-2 tiny text-gray-500">KPIs & Measures</th>
+                <th class="text-left p-2 tiny text-gray-500">Target</th>
+                <th class="text-left p-2 tiny text-gray-500">Actual</th>
+                <th class="text-left p-2 tiny text-gray-500">Status</th>
+                <th class="text-left p-2 tiny text-gray-500">Initiative</th>
+                <th class="text-left p-2 tiny text-gray-500">Department</th>
+              </tr>
+            </thead>
+            <tbody id="absc-matrix" class="text-sm"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Admin Appraisal Cycles -->
+    <div id="cycles-section" class="hidden mb-8">
+      <section class="card p-4 mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div class="font-semibold tiny text-gray-700">Appraisal Cycles</div>
+            <div class="tiny text-gray-500">Create and manage 360° and BSC evaluations</div>
+          </div>
+          <div class="flex gap-2 text-sm flex-wrap items-end">
+            <div>
+              <div class="tiny text-gray-500">Type</div>
+              <select id="cyc-type" class="border rounded p-2">
+                <option value="360">360° Feedback</option>
+                <option value="bsc">Balanced Scorecard</option>
+              </select>
+            </div>
+            <div>
+              <div class="tiny text-gray-500">Period</div>
+              <select id="cyc-period" class="border rounded p-2">
+                <option>Q1-2025</option><option>Q2-2025</option><option>Q3-2025</option><option selected>Q4-2025</option>
+              </select>
+            </div>
+            <div>
+              <div class="tiny text-gray-500">Department</div>
+              <select id="cyc-dept" class="border rounded p-2"></select>
+            </div>
+            <button id="cyc-create" class="pill bg-indigo-600 text-white" type="button">Create Cycle</button>
+          </div>
+        </div>
+      </section>
+      <section class="card p-4">
+        <h3 class="font-semibold tiny mb-2">Active Cycles</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead>
+              <tr>
+                <th class="text-left p-2 tiny text-gray-500">Type</th>
+                <th class="text-left p-2 tiny text-gray-500">Period</th>
+                <th class="text-left p-2 tiny text-gray-500">Participants</th>
+                <th class="text-left p-2 tiny text-gray-500">Completed</th>
+                <th class="text-left p-2 tiny text-gray-500">Pending</th>
+                <th class="text-left p-2 tiny text-gray-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cyc-table" class="text-sm"></tbody>
+          </table>
         </div>
       </section>
     </div>

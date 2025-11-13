@@ -30,6 +30,14 @@
     .btn.ghost { background: transparent; color: #0ea5e9; border: 1px solid #0ea5e9; }
     .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #f1f5f9; color: #334155; font-size: 0.8rem; }
     .section-title { margin: 0 0 8px; }
+    .pers-fin { background:#10B981; color:#fff; }
+    .pers-cust { background:#8B5CF6; color:#fff; }
+    .pers-proc { background:#F59E0B; color:#fff; }
+    .pers-learn { background:#EF4444; color:#fff; }
+    .status-on { background:#DCFCE7; color:#166534; }
+    .status-risk { background:#FEF9C3; color:#854D0E; }
+    .status-off { background:#FEE2E2; color:#7F1D1D; }
+    .status-done { background:#E5E7EB; color:#374151; }
   </style>
 </head>
 <body>
@@ -50,10 +58,31 @@
   <div class="container">
     <h2>Performance & 360 Appraisal</h2>
     <p class="muted" id="perf-user-subtitle"></p>
+    <div class="card" style="margin:12px 0;">
+      <div style="padding:12px; display:flex; gap:8px; flex-wrap:wrap;">
+        <a class="btn" href="#appraisal">Open 360 Appraisal</a>
+        <a class="btn ghost" href="#bsc">Open Balanced Scorecard</a>
+        <a class="btn ghost" href="hr-performance.html#bsc">BSC Admin</a>
+        <a class="btn secondary" href="#reviewer-tasks">Reviewer Tasks</a>
+      </div>
+    </div>
+    <div id="cycle-invitations" class="card" style="margin:12px 0; display:none;">
+      <div style="padding:12px;">
+        <h3 class="section-title">Active Appraisal Invitations</h3>
+        <div id="cycle-invite-list" class="muted"></div>
+      </div>
+    </div>
+    <div id="reviewer-tasks" class="card" style="margin:12px 0; display:none;">
+      <div style="padding:12px;">
+        <h3 class="section-title">Pending Reviews for Others</h3>
+        <div id="reviewer-task-list" class="muted"></div>
+      </div>
+    </div>
 
     <div class="tabs">
       <button class="tab" id="tab-kpi">KPI Setup</button>
       <button class="tab" id="tab-appraisal">360 Appraisal</button>
+      <button class="tab" id="tab-bsc">Balanced Scorecard</button>
     </div>
 
     <section id="section-kpi" class="card">
@@ -162,6 +191,50 @@
             <div id="ap-history" style="margin-top:8px;"></div>
           </div>
         </div>
+      </div>
+    </section>
+    <section id="section-bsc" class="card" style="display:none;">
+      <h3 class="section-title">Balanced Scorecard</h3>
+      <div class="actions" style="margin-bottom:12px; flex-wrap:wrap;">
+        <select id="bsc-quarter">
+          <option>Q1-2025</option><option>Q2-2025</option><option>Q3-2025</option><option selected>Q4-2025</option>
+        </select>
+        <select id="bsc-perspective">
+          <option value="all">All Perspectives</option>
+          <option value="financial">Financial</option>
+          <option value="customer">Customer</option>
+          <option value="process">Internal Processes</option>
+          <option value="learning">Learning & Growth</option>
+        </select>
+        <select id="bsc-dept">
+          <option value="all">All Departments</option>
+          <option>Admin</option><option>Engineering</option><option>Sales</option><option>Finance</option><option>HR</option>
+        </select>
+        <select id="bsc-theme">
+          <option value="all">All Themes</option>
+          <option value="growth">Growth</option>
+          <option value="efficiency">Efficiency</option>
+          <option value="innovation">Innovation</option>
+          <option value="quality">Quality</option>
+        </select>
+        <button class="btn ghost" id="bsc-add">Add Objective</button>
+      </div>
+      <div id="bsc-overview" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;"></div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Perspective</th>
+              <th>Objective</th>
+              <th>KPIs & Measures</th>
+              <th>Target</th>
+              <th>Actual</th>
+              <th>Status</th>
+              <th>Initiative</th>
+            </tr>
+          </thead>
+          <tbody id="bsc-matrix-body"></tbody>
+        </table>
       </div>
     </section>
   </div>

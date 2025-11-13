@@ -22,6 +22,70 @@ function fmtHHMM(d){
 }
 function parseHHMM(s){ const [h,m] = (s||'').split(':').map(Number); if (isNaN(h)||isNaN(m)) return null; const d=new Date(); d.setHours(h||0,m||0,0,0); return d; }
 
+function showToast(message, type='info'){
+  const c = document.getElementById('toast-container'); if(!c) return;
+  const d = document.createElement('div'); d.className = `toast ${type}`; d.textContent = message; c.appendChild(d);
+  requestAnimationFrame(()=> d.classList.add('show'));
+  setTimeout(()=>{ d.classList.remove('show'); setTimeout(()=> c.removeChild(d), 220); }, 3000);
+}
+
+function showLoading(selector, text='Loading...'){
+  const n = typeof selector === 'string' ? document.querySelector(selector) : selector;
+  if (!n) return ()=>{};
+  const prev = { html: n.innerHTML, disabled: n.disabled };
+  n.innerHTML = `<span class="spinner"></span>${text}`;
+  n.disabled = true;
+  return ()=>{ n.innerHTML = prev.html; n.disabled = prev.disabled; };
+}
+
+function validateLeaveForm(form){
+  const s = form.start.value;
+  const e = form.end.value;
+  if (!s || !e){ showToast('Select start and end dates','warning'); return false; }
+  const sd = new Date(s);
+  const ed = new Date(e);
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (sd < today){ showToast('Start date cannot be in the past','error'); return false; }
+  if (ed < sd){ showToast('End date must be after start date','error'); return false; }
+  const isWeekend = (d)=>{ const x = d.getDay(); return x===0 || x===6; };
+  if (isWeekend(sd) || isWeekend(ed)){ showToast('Selected dates include a weekend','warning'); }
+  return true;
+}
+
+function renderPendingRequests(){
+  const b = document.getElementById('badge-pending'); if(!b) return;
+  const list = Store.getLeaves(user.id).filter(l=> (l.status||'pending') === 'pending');
+  const n = list.length;
+  b.textContent = String(n);
+  b.style.display = n > 0 ? '' : 'none';
+}
+
+function renderQuickStats(){
+  const now = new Date();
+  const ym = now.toISOString().slice(0,7);
+  const all = Store.getLeaves(user.id);
+  const monthCount = all.filter(l => (l.startDate||'').slice(0,7) === ym || (l.endDate||'').slice(0,7) === ym).length;
+  const upcoming = all.filter(l => (l.startDate||l.start||'') >= Store.todayStr()).sort((a,b)=> (a.startDate||'').localeCompare(b.startDate||''))[0];
+  const qs1 = document.getElementById('qs-leaves-month'); if(qs1) qs1.textContent = monthCount ? `${monthCount} leave(s) this month` : 'No leaves this month';
+  const qs2 = document.getElementById('qs-upcoming'); if(qs2) qs2.textContent = upcoming ? `Upcoming: ${upcoming.type} on ${upcoming.startDate||upcoming.start}` : 'No upcoming leave';
+}
+
+function enhancePulseUI(){
+  const labels = ['Very Low','Low','Moderate','High','Very High'];
+  const add = (id)=>{
+    const input = document.getElementById(id); if(!input) return;
+    const next = input.nextElementSibling;
+    if(!next || !next.classList || !next.classList.contains('slider-labels')){
+      const div = document.createElement('div');
+      div.className = 'slider-labels';
+      div.innerHTML = labels.map(l=> `<span>${l}</span>`).join('');
+      input.insertAdjacentElement('afterend', div);
+    }
+  };
+  add('pulse-stress');
+  add('pulse-workload');
+}
+
 function initials(name) {
   return (name||'')
     .split(' ')
@@ -70,7 +134,7 @@ function renderLeaveBalances() {
     return `
       <div class="leave-row">
         <div class="label">${r.label}</div>
-        <div class="bar"><span style="width:${pct}%"></span></div>
+        <div class="bar bar-${r.key}"><span style="width:${pct}%"></span></div>
         <div class="meta">${remaining} of ${total} day(s)</div>
       </div>
     `;
@@ -142,11 +206,21 @@ function wireActions() {
     const reason = form.reason.value.trim();
     const start = form.start.value;
     const end = form.end.value;
-    if (!start || !end) return;
-    Store.addLeave({ userId: user.id, type, reason, startDate: start, endDate: end });
-    close();
-    renderLeaveBalances();
-    renderDeptOnLeave(currentRange);
+    if (!validateLeaveForm(form)) return;
+    const restore = showLoading(form.querySelector('button[type="submit"]') || form, 'Submitting...');
+    setTimeout(()=>{
+      Store.addLeave({ userId: user.id, type, reason, startDate: start, endDate: end });
+      try {
+        Store.addNotification({ type:'leave_requested', userId: user.id, date: Store.todayStr(), message: `${user.name} • ${type} ${daysBetween(start,end)}d (${start} → ${end})` });
+      } catch {}
+      restore();
+      close();
+      renderLeaveBalances();
+      renderDeptOnLeave(currentRange);
+      renderPendingRequests();
+      renderQuickStats();
+      showToast('Leave request submitted','success');
+    }, 350);
   });
 
   // Range filters
@@ -234,6 +308,8 @@ let currentRange = 'today';
 renderDeptOnLeave(currentRange);
 renderPayslipSummary();
 wireActions();
+renderPendingRequests();
+renderQuickStats();
 
 // ===== Attendance: clock in/out, history, and location awareness =====
 const ATT_OFFICE_SITES = {
@@ -346,6 +422,7 @@ function initAttendanceUI(){
   const btnOut = document.getElementById('btn-clock-out');
   if (btnIn) btnIn.addEventListener('click', async ()=>{
     const mode = getSelectedMode();
+    const restoreLoading = showLoading(btnIn, 'Clocking in...');
     if (mode === 'office'){
       if (!('geolocation' in navigator)){
         setLocNote('Location unavailable; recording as remote.');
@@ -353,6 +430,8 @@ function initAttendanceUI(){
         Store.updateAttendanceMeta(user.id, Store.todayStr(), { mode:'remote', sessionLogin: fmtHHMM(sessionStart) });
         Store.addNotification({ type: 'remote_recorded', userId: user.id, date: Store.todayStr(), message: 'Clock-in recorded as remote due to missing location.' });
         renderAttendanceToday();
+        restoreLoading();
+        showToast('Clocked in (remote)','success');
         return;
       }
       navigator.geolocation.getCurrentPosition((pos)=>{
@@ -377,12 +456,16 @@ function initAttendanceUI(){
           Store.addNotification({ type: 'late', userId: user.id, date: Store.todayStr(), message: `Late clock-in at ${rec?.clockIn || ''}` });
         }
         renderAttendanceToday();
+        restoreLoading();
+        showToast('Clocked in','success');
       }, (err)=>{
         setLocNote('Location permission denied; recording as remote.');
         Store.clockInAt(user.id, fmtHHMM(sessionStart));
         Store.updateAttendanceMeta(user.id, Store.todayStr(), { mode:'remote', sessionLogin: fmtHHMM(sessionStart) });
         Store.addNotification({ type: 'remote_recorded', userId: user.id, date: Store.todayStr(), message: 'Clock-in recorded as remote due to denied location permission.' });
         renderAttendanceToday();
+        restoreLoading();
+        showToast('Clocked in (remote)','success');
       }, { enableHighAccuracy:true, timeout:8000, maximumAge:0 });
     } else {
       // Remote: use session start time as the login reference
@@ -395,11 +478,16 @@ function initAttendanceUI(){
         Store.addNotification({ type: 'late', userId: user.id, date: Store.todayStr(), message: `Late clock-in at ${rec?.clockIn || ''}` });
       }
       renderAttendanceToday();
+      restoreLoading();
+      showToast('Clocked in (remote)','success');
     }
   });
   if (btnOut) btnOut.addEventListener('click', ()=>{
+    const restoreLoading = showLoading(btnOut, 'Clocking out...');
     Store.clockOut(user.id);
     renderAttendanceToday();
+    restoreLoading();
+    showToast('Clocked out','success');
   });
   // initial render
   // Trigger mode note update
@@ -437,6 +525,7 @@ function initAttendanceUI(){
 
 // ===== Daily Check-in (Pulse) =====
 function renderPulseUI(){
+  enhancePulseUI();
   const stress = document.getElementById('pulse-stress');
   const stressVal = document.getElementById('pulse-stress-val');
   const workload = document.getElementById('pulse-workload');
@@ -466,6 +555,7 @@ function renderPulseUI(){
 
   const btn = document.getElementById('pulse-save');
   if (btn) btn.addEventListener('click', ()=>{
+    const restore = showLoading(btn, 'Saving...');
     const moodRadio = document.querySelector('input[name="pulse-mood"]:checked');
     const mood = Number(moodRadio ? moodRadio.value : 0);
     const stressN = Number((document.getElementById('pulse-stress')||{ value:3}).value);
@@ -480,6 +570,8 @@ function renderPulseUI(){
     // After save, hide/snooze nudge for the rest of today
     try { Store.dismissNudge(user.id, 'highWorkloadStreak', Store.todayStr()); } catch {}
     const nc = document.getElementById('nudge-card'); if (nc) nc.style.display = 'none';
+    restore();
+    showToast('Check-in saved','success');
   });
 
   // Compute contextual nudge: high workload 3 consecutive days

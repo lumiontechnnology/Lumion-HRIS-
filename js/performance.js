@@ -1,5 +1,6 @@
 // Performance dashboard logic: KPI setup and 360 appraisal
 import { Store } from './store.js';
+import { BalancedScorecard } from './bsc-module.js';
 (function () {
   const current = Store.currentUser();
   if (!current) {
@@ -17,8 +18,10 @@ import { Store } from './store.js';
   // UI Elements
   const tabKpi = el('#tab-kpi');
   const tabAp = el('#tab-appraisal');
+  const tabBsc = el('#tab-bsc');
   const sectionKpi = el('#section-kpi');
   const sectionAp = el('#section-appraisal');
+  const sectionBsc = el('#section-bsc');
   const kpiRows = el('#kpi-rows');
   const kpiDeptTip = el('#kpi-dept-tip');
   const kpiSaveAll = el('#kpi-save-all');
@@ -49,21 +52,28 @@ import { Store } from './store.js';
   perfUserSubtitle.textContent = `${employee?.name || current.name}${viewingNote} • ${employee?.department || current.role}`;
 
   // Tab handling
+  let BSC=null;
   function activateTab(which) {
     const kActive = which === 'kpi';
+    const apActive = which === 'appraisal';
+    const bscActive = which === 'bsc';
     tabKpi.classList.toggle('active', kActive);
-    tabAp.classList.toggle('active', !kActive);
+    tabAp.classList.toggle('active', apActive);
+    if (tabBsc) tabBsc.classList.toggle('active', bscActive);
     sectionKpi.style.display = kActive ? '' : 'none';
-    sectionAp.style.display = kActive ? 'none' : '';
-    if (!kActive) renderAppraisal();
+    sectionAp.style.display = apActive ? '' : 'none';
+    if (sectionBsc) sectionBsc.style.display = bscActive ? '' : 'none';
+    if (apActive) renderAppraisal();
+    if (bscActive){ if(!BSC) { BSC = new BalancedScorecard({ userId: subjectUserId }); BSC.initialize(); } else { BSC.render(); } }
   }
   function syncFromHash() {
     const hash = (window.location.hash || '').replace('#', '');
-    activateTab(hash === 'appraisal' ? 'appraisal' : 'kpi');
+    activateTab(hash === 'appraisal' ? 'appraisal' : hash === 'bsc' ? 'bsc' : 'kpi');
   }
   window.addEventListener('hashchange', syncFromHash);
   tabKpi.addEventListener('click', () => { window.location.hash = 'kpi'; });
   tabAp.addEventListener('click', () => { window.location.hash = 'appraisal'; });
+  if (tabBsc) tabBsc.addEventListener('click', () => { window.location.hash = 'bsc'; });
 
   // KPI rendering
   function renderKpis() {
@@ -321,4 +331,31 @@ import { Store } from './store.js';
   syncFromHash();
   // Make sure history exists
   seedPastAppraisals();
+  try {
+    const cycles = Store.getCyclesForUser(subjectUserId) || [];
+    const pending = cycles.filter(c => (c.statusByUser||{})[subjectUserId] !== 'completed');
+    const box = document.getElementById('cycle-invitations');
+    const list = document.getElementById('cycle-invite-list');
+    if (pending.length && box && list){
+      box.style.display = '';
+      list.innerHTML = pending.map(c => {
+        const label = c.type === 'bsc' ? 'Open Balanced Scorecard' : 'Start 360° Feedback';
+        const targetHash = c.type === 'bsc' ? '#bsc' : '#appraisal';
+        return `<div style="margin:6px 0;">${c.type.toUpperCase()} • ${c.period} — <a href="${targetHash}" style="color:#2563eb; text-decoration:none;">${label}</a></div>`;
+      }).join('');
+    }
+  } catch {}
+  try {
+    const tasks = Store.getReviewerTasks(subjectUserId) || [];
+    const box = document.getElementById('reviewer-tasks');
+    const list = document.getElementById('reviewer-task-list');
+    if (tasks.length && box && list){
+      box.style.display = '';
+      list.innerHTML = tasks.map(t => {
+        const url = t.type === 'bsc' ? `bsc-review.html?cycle=${encodeURIComponent(t.cycleId)}&subject=${t.subjectId}&role=${t.role}` : `360-review.html?cycle=${encodeURIComponent(t.cycleId)}&subject=${t.subjectId}&role=${t.role}`;
+        const label = t.type === 'bsc' ? 'Review BSC' : `Review 360 (${t.role})`;
+        return `<div style="margin:6px 0;">${t.type.toUpperCase()} • ${t.period} — <a href="${url}" style="color:#2563eb; text-decoration:none;">${label}</a></div>`;
+      }).join('');
+    }
+  } catch {}
 })();

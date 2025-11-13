@@ -154,6 +154,23 @@ const defaultState = {
   appraisals: [
     // { id, userId, period, status, self: { ratings:{kpiId: number}, comments }, manager: { reviewerId, ratings, comments }, peers: [{ name, email, rating, comment }], createdAt }
   ]
+  ,
+  // Balanced Scorecard
+  bscObjectives: [
+    // { id, userId, department, perspective, objective, kpis: [string], target, actual, status, initiative, theme }
+  ],
+  bscTrends: {
+    // userId: [{ period, financial, customer, process, learning, initiatives: { completed, inProgress, notStarted } }]
+  }
+  ,
+  // Appraisal cycles (admin-managed)
+  cycles: [
+    // { id, type: '360'|'bsc', period: 'Qx-YYYY', createdAt, participants: [userId], statusByUser: { [userId]: 'invited'|'in_progress'|'completed' }, reminders: [{ userId, ts }], ownerId, rolesByUser: { [userId]: { peers:[userId], manager:userId|null, directs:[userId] } } }
+  ]
+  ,
+  bscReviews: {
+    // userId: [{ cycleId, period, objectiveId, raterId, raterRole, rating, comment, ts }]
+  }
 };
 
 function loadState() {
@@ -554,6 +571,218 @@ export const Store = {
     ap.summary = { kpiScore, selfScore, managerScore, overall };
     saveState(s);
     return ap.summary;
+  },
+
+  // Balanced Scorecard
+  getBSCObjectives(userId){
+    const s = loadState();
+    if (!s.bscObjectives || s.bscObjectives.length === 0){
+      const e = Store.getEmployeeForUser(userId);
+      const dept = e?.department || 'Admin';
+      const seed = [
+        { perspective:'financial', objective:'Improve revenue conversion', kpis:['Win Rate','Monthly Revenue'], target:100, actual:72, status:'at_risk', initiative:'Deal coaching', theme:'growth' },
+        { perspective:'customer', objective:'Increase customer satisfaction', kpis:['CSAT','Response Time'], target:5, actual:4, status:'on_track', initiative:'Support SLAs', theme:'quality' },
+        { perspective:'process', objective:'Enhance deployment efficiency', kpis:['Deployments','MTTR'], target:25, actual:18, status:'on_track', initiative:'CI/CD enhancements', theme:'efficiency' },
+        { perspective:'learning', objective:'Upskill engineering team', kpis:['Certifications','Training Hours'], target:40, actual:22, status:'off_track', initiative:'Quarterly workshops', theme:'innovation' }
+      ];
+      s.bscObjectives = seed.map((o,i)=> ({ id:`bsc-${Date.now()}-${i}`, userId, department:dept, ...o }));
+      saveState(s);
+    }
+    return (s.bscObjectives||[]).filter(o => o.userId === userId);
+  },
+  addBSCObjective(data){
+    const s = loadState();
+    const id = data.id || `bsc-${Date.now()}`;
+    s.bscObjectives = s.bscObjectives || [];
+    s.bscObjectives.push({ id, ...data });
+    saveState(s);
+    return id;
+  },
+  updateBSCProgress(objectiveId, progress){
+    const s = loadState();
+    const idx = (s.bscObjectives||[]).findIndex(o => o.id === objectiveId);
+    if (idx >= 0){
+      s.bscObjectives[idx] = { ...s.bscObjectives[idx], ...(progress||{}) };
+      saveState(s);
+      return true;
+    }
+    return false;
+  },
+  getBSCTrends(userId){
+    const s = loadState();
+    s.bscTrends = s.bscTrends || {};
+    if (!s.bscTrends[userId] || s.bscTrends[userId].length === 0){
+      const periods = ['Q1-2025','Q2-2025','Q3-2025','Q4-2025'];
+      const rand = () => 50 + Math.floor(Math.random()*50);
+      s.bscTrends[userId] = periods.map(p => ({ period:p, financial:rand(), customer:rand(), process:rand(), learning:rand(), initiatives:{ completed:Math.floor(Math.random()*6), inProgress:Math.floor(Math.random()*5), notStarted:Math.floor(Math.random()*4) } }));
+      saveState(s);
+    }
+    return s.bscTrends[userId];
+  },
+  getAllBSCObjectives(){
+    const s = loadState();
+    s.bscObjectives = s.bscObjectives || [];
+    if (s.bscObjectives.length === 0){
+      const users = (s.users||[]);
+      const seedObjs = [
+        { perspective:'financial', objective:'Increase revenue conversion', kpis:['Win Rate','MRR'], target:100, actual:70, status:'at_risk', initiative:'Deal coaching', theme:'growth' },
+        { perspective:'customer', objective:'Improve satisfaction', kpis:['CSAT','Response Time'], target:5, actual:4, status:'on_track', initiative:'Support SLAs', theme:'quality' },
+        { perspective:'process', objective:'Optimize deployment efficiency', kpis:['Deployments','MTTR'], target:25, actual:18, status:'on_track', initiative:'CI/CD enhancements', theme:'efficiency' },
+        { perspective:'learning', objective:'Upskill teams', kpis:['Certifications','Training Hours'], target:40, actual:22, status:'off_track', initiative:'Quarterly workshops', theme:'innovation' }
+      ];
+      users.forEach((u,idx)=>{
+        const e = s.employees.find(e=>e.email===u.email);
+        const dept = e?.department || 'Admin';
+        seedObjs.forEach((o,i)=> s.bscObjectives.push({ id:`bsc-${Date.now()}-${idx}-${i}`, userId:u.id, department:dept, ...o }));
+      });
+      saveState(s);
+    }
+    return s.bscObjectives;
+  },
+
+  // Appraisal cycles
+  createAppraisalCycle({ type, period, participants = [], ownerId }){
+    const s = loadState();
+    const id = `cycle-${Date.now()}`;
+    const statusByUser = {};
+    participants.forEach(uid => { statusByUser[uid] = 'invited'; });
+    s.cycles = s.cycles || [];
+    s.cycles.push({ id, type, period, participants, statusByUser, reminders: [], ownerId, createdAt: new Date().toISOString(), rolesByUser: {} });
+    // Send notifications to participants
+    participants.forEach(uid => {
+      Store.addNotification({ type:'appraisal_invite', userId: uid, date: period, message: `${type.toUpperCase()} review invitation for ${period}`, id:`invite:${id}:${uid}` });
+    });
+    saveState(s);
+    return id;
+  },
+  getAppraisalCycles(){ return loadState().cycles || []; },
+  getCyclesForUser(userId){
+    const s = loadState();
+    return (s.cycles||[]).filter(c => (c.participants||[]).includes(userId));
+  },
+  getAppraisalParticipants(cycleId){
+    const s = loadState();
+    const c = (s.cycles||[]).find(x => x.id === cycleId);
+    if (!c) return [];
+    return (c.participants||[]).map(uid => ({ userId: uid, roles: (c.rolesByUser||{})[uid] || { peers:[], manager:null, directs:[] }, status: (c.statusByUser||{})[uid] || 'invited' }));
+  },
+  assignDefaultRaters(cycleId){
+    const s = loadState();
+    const c = (s.cycles||[]).find(x => x.id === cycleId);
+    if (!c || c.type !== '360') return false;
+    c.rolesByUser = c.rolesByUser || {};
+    const users = (s.users||[]);
+    const employees = (s.employees||[]);
+    const byId = new Map(users.map(u=>[u.id,u]));
+    const deptOf = (uid) => { const u = byId.get(uid); const e = employees.find(e=>e.email===u?.email); return e?.department||null; };
+    const managerOf = (uid) => { const u = byId.get(uid); return users.find(x=>x.id === (u?.managerId||null))?.id || null; };
+    const directsOf = (uid) => users.filter(x=>x.managerId === uid).map(x=>x.id);
+    (c.participants||[]).forEach(uid => {
+      const dept = deptOf(uid);
+      const peers = users.filter(x=> x.id!==uid && x.managerId!==uid && dept && employees.find(e=>e.email===x.email)?.department===dept).slice(0,3).map(x=>x.id);
+      const manager = managerOf(uid);
+      const directs = directsOf(uid).slice(0,3);
+      c.rolesByUser[uid] = { peers, manager, directs };
+    });
+    saveState(s);
+    return true;
+  },
+  assignParticipants(cycleId, userIds){
+    const s = loadState();
+    const c = (s.cycles||[]).find(x => x.id === cycleId);
+    if (!c) return false;
+    const set = new Set([...(c.participants||[]), ...userIds]);
+    c.participants = [...set];
+    c.statusByUser = c.statusByUser || {};
+    userIds.forEach(uid => { if (!c.statusByUser[uid]) c.statusByUser[uid] = 'invited'; Store.addNotification({ type:'appraisal_invite', userId: uid, date: c.period, message: `${c.type.toUpperCase()} review invitation for ${c.period}`, id:`invite:${cycleId}:${uid}` }); });
+    saveState(s);
+    return true;
+  },
+  updateCycleParticipantStatus(cycleId, userId, status){
+    const s = loadState();
+    const c = (s.cycles||[]).find(x => x.id === cycleId);
+    if (!c) return false;
+    c.statusByUser = c.statusByUser || {};
+    c.statusByUser[userId] = status;
+    saveState(s);
+    return true;
+  },
+  sendCycleReminder(cycleId, userId){
+    const s = loadState();
+    const c = (s.cycles||[]).find(x => x.id === cycleId);
+    if (!c) return false;
+    c.reminders = c.reminders || [];
+    c.reminders.push({ userId, ts: new Date().toISOString() });
+    Store.addNotification({ type:'reminder', userId, date:c.period, message:`Reminder: complete ${c.type.toUpperCase()} review for ${c.period}`, id:`reminder:${cycleId}:${userId}:${Date.now()}` });
+    saveState(s);
+    return true;
+  },
+  // Reviewer tasks and submissions
+  getReviewerTasks(userId){
+    const s = loadState();
+    const tasks = [];
+    (s.cycles||[]).forEach(c => {
+      if (c.type === '360'){
+        (c.participants||[]).forEach(sub => {
+          const roles = (c.rolesByUser||{})[sub] || { peers:[], manager:null, directs:[] };
+          if (roles.manager === userId) tasks.push({ cycleId:c.id, type:'360', role:'manager', subjectId:sub, period:c.period });
+          if ((roles.directs||[]).includes(userId)) tasks.push({ cycleId:c.id, type:'360', role:'direct', subjectId:sub, period:c.period });
+          if ((roles.peers||[]).includes(userId)) tasks.push({ cycleId:c.id, type:'360', role:'peer', subjectId:sub, period:c.period });
+        });
+      }
+      if (c.type === 'bsc'){
+        (c.participants||[]).forEach(sub => {
+          // Both subject and manager rate BSC
+          tasks.push({ cycleId:c.id, type:'bsc', role:'subject', subjectId:sub, period:c.period });
+          const mgr = Store.getManagerForUser(sub)?.id || null;
+          if (mgr) tasks.push({ cycleId:c.id, type:'bsc', role:'manager', subjectId:sub, period:c.period });
+        });
+      }
+    });
+    return tasks;
+  },
+  submitFeedback({ cycleId, subjectId, raterId, role, ratings, comments }){
+    const s = loadState();
+    const c = (s.cycles||[]).find(x => x.id === cycleId);
+    if (!c || c.type !== '360') return false;
+    const period = c.period;
+    const ap = Store.getOrStartAppraisal(subjectId, period);
+    if (role === 'manager'){
+      ap.manager = { reviewerId: raterId, ratings: { ...ap.manager.ratings, ...(ratings||{}) }, comments: comments || ap.manager.comments };
+    } else {
+      ap.peers = ap.peers || [];
+      const id = `${cycleId}:${raterId}:${subjectId}`;
+      const idx = ap.peers.findIndex(p => p.id === id);
+      const entry = { id, name: '', email: '', rating: ratings?.__overall || null, comment: comments || '' };
+      if (idx >= 0) ap.peers[idx] = { ...ap.peers[idx], ...entry };
+      else ap.peers.push(entry);
+    }
+    saveState(s);
+    return true;
+  },
+  submitBSC({ cycleId, subjectId, raterId, period, ratingsByObjective }){
+    const s = loadState();
+    s.bscReviews = s.bscReviews || {};
+    const list = s.bscReviews[subjectId] = s.bscReviews[subjectId] || [];
+    Object.entries(ratingsByObjective||{}).forEach(([objectiveId, payload])=>{
+      list.push({ cycleId, period, objectiveId, raterId, raterRole: payload.role || 'subject', rating: payload.rating || null, comment: payload.comment || '', ts: new Date().toISOString() });
+    });
+    saveState(s);
+    return true;
+  },
+  // API-like wrappers for requested names
+  createAppraisal(data){ return Store.createAppraisalCycle(data); },
+  updateAppraisal(id, patch){
+    const s = loadState();
+    const c = (s.cycles||[]).find(x => x.id === id);
+    if (!c) return false;
+    Object.assign(c, patch||{});
+    saveState(s);
+    return true;
+  },
+  getAppraisals(userId, role){
+    if (role === 'reviewer') return Store.getReviewerTasks(userId);
+    return Store.getCyclesForUser(userId);
   },
 
   // Department leave insight for dashboard

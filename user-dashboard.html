@@ -6,7 +6,7 @@
     <title>User Dashboard – Lumion HRIS</title>
     <style>
       :root{
-        --bg:#f6f7fb; --card:#fff; --ink:#111827; --muted:#6b7280; --brand:#2563eb; --teal:#0ea5e9; --green:#10b981;
+        --bg:#f6f7fb; --card:#fff; --ink:#111827; --muted:#6b7280; --brand:#2563eb; --teal:#0ea5e9; --green:#10b981; --orange:#f97316; --purple:#8b5cf6; --red:#ef4444;
       }
       *{box-sizing:border-box}
       body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--ink)}
@@ -15,13 +15,15 @@
       .container{max-width:1150px;margin:20px auto;padding:0 16px}
       .hero{position:relative;background:linear-gradient(120deg,#0b4a6f,#0d78b0);border-radius:16px;color:#fff;padding:22px 22px 28px 22px;overflow:hidden}
       .hero-inner{display:flex;gap:18px;align-items:flex-start}
-      .avatar{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px}
+      .avatar{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:24px;transition:transform .2s ease}
+      .avatar:hover{transform:scale(1.03)}
       .hero-name{font-size:18px;margin:2px 0 6px 0}
       .empid{opacity:.9;font-size:12px;letter-spacing:.3px}
       .kpi{margin-left:auto;background:rgba(255,255,255,.1);padding:10px 12px;border-radius:10px;text-align:left}
       .kpi .percent{font-weight:700}
       .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;margin-top:14px}
-      .card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:14px}
+      .card{background:var(--card);border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.08);padding:14px;transition:transform .18s ease, box-shadow .18s ease}
+      .card:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.12)}
       .col-3{grid-column:span 3}
       .col-4{grid-column:span 4}
       .col-5{grid-column:span 5}
@@ -29,22 +31,28 @@
       .muted{color:var(--muted)}
       .small{font-size:12px}
       .title{font-weight:700;margin-bottom:8px}
-      .tile{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #eef0f4;border-radius:12px}
+      .tile{display:flex;align-items:center;gap:10px;padding:12px;border:1px solid #eef0f4;border-radius:12px;transition:background .2s ease}
+      .tile:hover{background:#f8fafc}
       .tile .icon{width:30px;height:30px;border-radius:8px;background:#eef6ff;display:flex;align-items:center;justify-content:center;color:#2563eb;font-weight:700}
       .tile .label{font-size:12px;color:var(--muted)}
       .tile .value{font-weight:600}
       .actions{display:flex;gap:8px;flex-wrap:wrap}
-      .btn{background:var(--brand);color:#fff;border:none;padding:10px 12px;border-radius:10px;cursor:pointer}
+      .btn{background:var(--brand);color:#fff;border:none;padding:10px 12px;border-radius:10px;cursor:pointer;transition:transform .12s ease, box-shadow .12s ease}
+      .btn:hover{transform:translateY(-1px);box-shadow:0 6px 12px rgba(2,6,23,.1)}
+      .btn:disabled{opacity:.7;cursor:not-allowed}
       .btn.alt{background:#0ea5e9}
       .btn.ghost{background:#eef2ff;color:#1f2a5a}
-      .leave-row{display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:10px;margin:6px 0}
+      .leave-row{display:grid;grid-template-columns:160px 1fr 120px;align-items:center;gap:10px;margin:8px 0}
       .leave-row .bar{height:8px;background:#eef2ff;border-radius:999px;overflow:hidden}
-      .leave-row .bar span{display:block;height:8px;background:#3b82f6}
+      .leave-row .bar span{display:block;height:8px}
+      .bar-annual span{background:var(--green)}
+      .bar-sick span{background:var(--orange)}
+      .bar-exam span{background:var(--purple)}
+      .bar-compassionate span{background:var(--red)}
       .person{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dashed #eef0f4}
       .person .avatar{width:36px;height:36px;font-size:13px;background:#e9f2ff;color:#1f2a5a}
       .pay{display:flex;gap:16px}
       .pay .stat{background:#f8fafc;border-radius:12px;padding:10px 12px}
-      /* modal */
       .modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center}
       .modal.open{display:flex}
       .modal .panel{width:min(520px,90vw);background:#fff;border-radius:14px;padding:16px}
@@ -54,7 +62,6 @@
       .modal .actions{display:flex;justify-content:flex-end;margin-top:10px}
       .linkbar{font-size:12px;margin-top:8px}
       .linkbar a{color:#2563eb;text-decoration:none;margin-right:8px}
-      /* attendance */
       .pillbar{display:inline-flex;background:#eef2ff;border-radius:999px;overflow:hidden}
       .pillbar a{padding:6px 10px;font-size:12px;text-decoration:none;color:#1f2a5a}
       .pillbar a.active{background:#2563eb;color:#fff}
@@ -62,6 +69,24 @@
       .att-note{font-size:12px;color:var(--muted)}
       .att-table{width:100%;border-collapse:collapse}
       .att-table th,.att-table td{padding:8px;border-bottom:1px dashed #eef0f4;text-align:left;font-size:13px}
+      .quick-actions{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+      .action-btn{display:flex;align-items:center;gap:8px;background:#eef2ff;border:none;border-radius:12px;padding:10px;cursor:pointer;transition:transform .12s ease, box-shadow .12s ease}
+      .action-btn:hover{transform:translateY(-1px);box-shadow:0 6px 12px rgba(2,6,23,.08)}
+      .action-btn .icon{font-size:18px}
+      .badge{display:inline-block;background:#fde68a;color:#b45309;border-radius:999px;padding:2px 8px;font-size:11px;margin-left:auto}
+      #toast-container{position:fixed;right:20px;bottom:20px;z-index:90;display:flex;flex-direction:column;gap:8px;max-width:90vw}
+      .toast{background:#111827;color:#fff;padding:10px 12px;border-radius:10px;box-shadow:0 8px 20px rgba(2,6,23,.2);transform:translateX(120%);opacity:0;transition:transform .22s ease, opacity .22s ease}
+      .toast.show{transform:translateX(0);opacity:1}
+      .toast.info{background:#1f2937}
+      .toast.success{background:#16a34a}
+      .toast.error{background:#dc2626}
+      .toast.warning{background:#b45309}
+      .loading{display:inline-flex;align-items:center;gap:8px}
+      .spinner{width:16px;height:16px;border:2px solid #e5e7eb;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite}
+      @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+      .slider-labels{display:flex;justify-content:space-between;font-size:11px;color:#6b7280;margin-top:4px}
+      @media (max-width: 900px){ .grid{grid-template-columns:repeat(6,1fr)} .col-6{grid-column:span 6} .col-5{grid-column:span 6} .col-4{grid-column:span 6} .col-3{grid-column:span 6} .quick-actions{grid-template-columns:repeat(3,1fr)} }
+      @media (max-width: 640px){ .hero-inner{flex-direction:column} .quick-actions{grid-template-columns:repeat(2,1fr)} .tile{padding:10px} }
     </style>
   </head>
   <body>
@@ -70,6 +95,7 @@
       <div id="user-menu"></div>
     </header>
     <div class="container">
+      <div id="toast-container"></div>
       <section class="hero">
         <div class="hero-inner">
           <div class="avatar" id="hero-initials">U</div>
@@ -107,12 +133,18 @@
         </div>
       </section>
 
-      <section style="margin-top:12px" class="actions">
-        <button class="btn" id="act-request-leave">Request Leave</button>
-        <button class="btn alt" id="act-set-kpi">Set KPI Goals</button>
-        <button class="btn alt" id="act-take-appraisal">Take Appraisal</button>
-        <button class="btn ghost" id="act-view-payslip">View Payslip</button>
-        <button class="btn ghost" id="act-my-req">My Requisition</button>
+      <section class="quick-actions" style="margin-top:12px">
+        <button class="action-btn" id="act-request-leave"><span class="icon">📅</span><span>Request Leave</span></button>
+        <button class="action-btn" id="act-set-kpi"><span class="icon">🎯</span><span>Set KPI Goals</span></button>
+        <button class="action-btn" id="act-take-appraisal"><span class="icon">📝</span><span>Take Appraisal</span></button>
+        <button class="action-btn" id="act-view-payslip"><span class="icon">💼</span><span>View Payslip</span></button>
+        <button class="action-btn" id="act-my-req"><span class="icon">📦</span><span>My Requisition</span><span id="badge-pending" class="badge" style="display:none">0</span></button>
+      </section>
+
+      <section class="card" id="quick-stats" style="margin-top:12px">
+        <div class="title">Quick Stats</div>
+        <div class="small muted" id="qs-leaves-month">—</div>
+        <div class="small muted" id="qs-upcoming" style="margin-top:6px">—</div>
       </section>
 
       <section class="card" style="margin-top:12px">
