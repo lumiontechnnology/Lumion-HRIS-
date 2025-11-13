@@ -25,7 +25,7 @@ export function getPeopleMeta() {
   });
 }
 
-// Seed leaves if insufficient data exists, using deterministic patterns (no randomness)
+// Seed leaves if insufficient data exists, using deterministic patterns
 export function ensureSeededLeaves() {
   if (localStorage.getItem(SEED_FLAG) === '1') return;
   const s = Store.getState();
