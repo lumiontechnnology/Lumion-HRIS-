@@ -37,6 +37,7 @@
         <div class="text-sm text-gray-600">Acme Corp • Admin</div>
         <button id="inviteBtn" class="px-3 py-2 bg-indigo-600 text-white rounded-md shadow">Invite Team</button>
         <button id="viewEmployeesBtn" class="px-3 py-2 border rounded">Employees</button>
+        <button id="syncCloudBtn" class="px-3 py-2 border rounded">Sync Cloud</button>
       </div>
     </div>
   </nav>
@@ -818,6 +819,9 @@ document.getElementById('closeEmployeesBtn').addEventListener('click', ()=>{
 document.getElementById('employeesModal').addEventListener('click', (e)=>{
   if(e.target.id === 'employeesModal') closeEmployees();
 });
+document.getElementById('syncCloudBtn').addEventListener('click', async ()=>{
+  await syncCloud();
+});
 
 function gotoInterview(jobId, candId){
   try {
@@ -886,6 +890,24 @@ function closeEmployees(){
   const modal = document.getElementById('employeesModal');
   modal.classList.add('hidden');
   modal.classList.remove('flex');
+}
+
+async function syncCloud(){
+  try {
+    var jobs = Array.isArray(state.jobs) ? state.jobs : [];
+    for(var i=0;i<jobs.length;i++){
+      var j = jobs[i];
+      if(window.saveJob) await window.saveJob(j);
+      var hired = (j.candidates||[]).filter(function(c){ return c && (c.hired || c.status==='Onboarding'); });
+      for(var k=0;k<hired.length;k++){
+        var c = hired[k];
+        if(window.saveEmployee) await window.saveEmployee({ employee_id: c.id, name: c.name, job_id: j.id, job_title: j.title, status: c.status, notes: c.notes||'', years: c.years||0, skills: c.skills||[], certs: c.certs||[], source_company: c.company||'' });
+      }
+    }
+    showToast('Cloud sync complete');
+  } catch(e) {
+    showToast('Cloud sync failed');
+  }
 }
 </script>
 <script>
