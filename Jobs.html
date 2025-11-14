@@ -38,6 +38,7 @@
         <button id="inviteBtn" class="px-3 py-2 bg-indigo-600 text-white rounded-md shadow">Invite Team</button>
         <button id="viewEmployeesBtn" class="px-3 py-2 border rounded">Employees</button>
         <button id="syncCloudBtn" class="px-3 py-2 border rounded">Sync Cloud</button>
+        <button id="performanceBtn" class="px-3 py-2 border rounded">Performance</button>
       </div>
     </div>
   </nav>
@@ -200,6 +201,47 @@
         <button id="closeEmployeesBtn" class="px-3 py-1 rounded border">Close</button>
       </div>
       <div id="employeesList" class="mt-4 grid grid-cols-1 gap-3"></div>
+    </div>
+  </div>
+
+  <div id="performanceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 p-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-xl font-bold">Performance Dashboard</h3>
+          <div class="text-sm text-gray-600">Quarterly metrics</div>
+        </div>
+        <button id="closePerformanceBtn" class="px-3 py-1 rounded border">Close</button>
+      </div>
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="text-sm">Employee</label>
+          <select id="perfEmployee" class="mt-1 w-full border rounded px-2 py-2"></select>
+        </div>
+        <div>
+          <label class="text-sm">Year</label>
+          <input id="perfYear" type="number" class="mt-1 w-full border rounded px-2 py-2" />
+        </div>
+        <div class="flex items-end gap-2">
+          <button id="seedYearBtn" class="px-3 py-2 border rounded w-full">Generate Random Year</button>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2">
+        <button data-q="1" class="perfQ px-3 py-2 border rounded">Q1</button>
+        <button data-q="2" class="perfQ px-3 py-2 border rounded">Q2</button>
+        <button data-q="3" class="perfQ px-3 py-2 border rounded">Q3</button>
+        <button data-q="4" class="perfQ px-3 py-2 border rounded">Q4</button>
+        <select id="perfMetric" class="ml-2 px-3 py-2 border rounded">
+          <option value="kpi_score">KPI Score</option>
+          <option value="projects_completed">Projects Completed</option>
+          <option value="attendance_pct">Attendance %</option>
+          <option value="bonus_awarded">Bonus Awarded</option>
+        </select>
+      </div>
+      <div id="perfContent" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <div class="mt-6">
+        <canvas id="perfChart" width="720" height="260" class="w-full border rounded"></canvas>
+      </div>
     </div>
   </div>
 
@@ -436,6 +478,7 @@ function openPreview(candidateId){
     c.status = 'Onboarding'; c.hired = true;
     saveState(state);
     renderJobDetail();
+    try{ const emp = { employee_id: c.id, name: c.name, job_id: job.id, job_title: job.title, status: c.status, notes: c.notes||'', years: c.years||0, skills: c.skills||[], certs: c.certs||[], source_company: c.company||'' }; if(window.saveEmployee) window.saveEmployee(emp); saveEmployeeLocal(emp); }catch{}
     closeModal();
   };
 
@@ -822,6 +865,26 @@ document.getElementById('employeesModal').addEventListener('click', (e)=>{
 document.getElementById('syncCloudBtn').addEventListener('click', async ()=>{
   await syncCloud();
 });
+document.getElementById('performanceBtn').addEventListener('click', async ()=>{
+  await openPerformance();
+});
+document.getElementById('closePerformanceBtn').addEventListener('click', ()=>{
+  closePerformance();
+});
+document.querySelectorAll('.perfQ').forEach(function(btn){
+  btn.addEventListener('click', async function(){
+    var q = parseInt(this.getAttribute('data-q'));
+    await renderPerformance(q);
+    await renderPerformanceChart();
+  });
+});
+document.getElementById('perfMetric').addEventListener('change', async ()=>{
+  await renderPerformanceChart();
+});
+document.getElementById('seedYearBtn').addEventListener('click', async ()=>{
+  await seedPerformanceYear();
+  await renderPerformanceChart();
+});
 
 function gotoInterview(jobId, candId){
   try {
@@ -851,35 +914,56 @@ async function openEmployees(){
     if(window.loadEmployeesList){
       list = await window.loadEmployeesList();
     }
-    if(!Array.isArray(list) || list.length===0){
-      const out = [];
-      (state.jobs||[]).forEach(function(j){
-        (j.candidates||[]).forEach(function(c){
-          if(c && (c.hired || c.status==='Onboarding')){
-            out.push({ name: c.name, job_title: j.title, years: c.years||0, source_company: c.company||'', skills: c.skills||[] });
-          }
-        });
+    const fromLocal = Array.isArray(state.employees) ? state.employees.slice() : [];
+    const fromDerived = [];
+    (state.jobs||[]).forEach(function(j){
+      (j.candidates||[]).forEach(function(c){
+        if(c && (c.hired || c.status==='Onboarding')){
+          fromDerived.push({ employee_id: c.id, name: c.name, job_title: j.title, years: c.years||0, source_company: c.company||'', skills: c.skills||[], status: c.status||'' });
+        }
       });
-      list = out;
-    }
+    });
+    const map = {};
+    [].concat(Array.isArray(list)?list:[], fromLocal, fromDerived).forEach(function(e){
+      const id = e.employee_id || e.id || e.name;
+      if(!id) return;
+      map[id] = Object.assign({}, map[id]||{}, e);
+    });
+    list = Object.keys(map).map(function(k){ return map[k]; });
     const countEl = document.getElementById('employeesCount');
     countEl.innerText = String(list.length) + ' total';
     const wrap = document.getElementById('employeesList');
     wrap.innerHTML = '';
-    list.forEach(function(e){
+    const active = list.filter(function(e){ return (e.status||'') !== 'Exited'; });
+    const exited = list.filter(function(e){ return (e.status||'') === 'Exited'; });
+    function renderCard(e){
       const card = document.createElement('div');
       card.className = 'p-4 bg-white rounded-lg border';
       const initials = String(e.name||'').split(' ').map(function(n){return n[0]}).slice(0,2).join('') || 'E';
+      const empId = e.employee_id || e.id || e.name;
+      var extra = '';
+      if(e.status==='Exited' && e.exit_date){ extra = '<div class="text-xs text-red-600 mt-1">Exited: ' + String(e.exit_date).slice(0,10) + '</div>'; }
       card.innerHTML = '<div class="flex items-start gap-4">\
         <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-700 font-bold">' + initials + '</div>\
         <div class="flex-1">\
           <div class="font-semibold">' + (e.name||'') + ' <span class="text-sm text-gray-500">• ' + (e.job_title||'') + '</span></div>\
           <div class="text-xs text-gray-500">' + (e.source_company||'') + ' • ' + (e.years||0) + ' yrs</div>\
           <div class="mt-2 flex items-center gap-2 flex-wrap">' + (Array.isArray(e.skills)? e.skills.slice(0,5).map(function(s){ return '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">' + s + '</span>'; }).join('') : '') + '</div>\
+          ' + extra + '\
+        </div>\
+        <div>\
+          <button class="viewPerfBtn px-3 py-2 border rounded" data-empid="' + empId + '">View Performance</button>\
+          ' + ((e.status||'')!=='Exited' ? '<button class="exitBtn mt-2 px-3 py-2 border rounded" data-empid="' + empId + '">Mark Exit</button>' : '') + '\
         </div>\
       </div>';
-      wrap.appendChild(card);
-    });
+      const v = card.querySelector('.viewPerfBtn'); if(v){ v.addEventListener('click', async function(){ await openPerformanceFor(this.getAttribute('data-empid')); }); }
+      const x = card.querySelector('.exitBtn'); if(x){ x.addEventListener('click', async function(){ await exitEmployee(this.getAttribute('data-empid')); }); }
+      return card;
+    }
+    const titleA = document.createElement('div'); titleA.className = 'font-semibold'; titleA.textContent = 'Active'; wrap.appendChild(titleA);
+    active.forEach(function(e){ wrap.appendChild(renderCard(e)); });
+    const titleE = document.createElement('div'); titleE.className = 'font-semibold mt-4'; titleE.textContent = 'Exited'; wrap.appendChild(titleE);
+    exited.forEach(function(e){ wrap.appendChild(renderCard(e)); });
     const modal = document.getElementById('employeesModal');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -908,6 +992,222 @@ async function syncCloud(){
   } catch(e) {
     showToast('Cloud sync failed');
   }
+}
+
+async function exitEmployee(empId){
+  try {
+    var dateStr = prompt('Exit date (YYYY-MM-DD)?');
+    if(!dateStr) return;
+    var iso = new Date(dateStr).toISOString();
+    var patch = { status: 'Exited', exit_date: iso };
+    if(window.updateEmployee) await window.updateEmployee(empId, patch);
+    if(!state.exits) state.exits = {};
+    state.exits[empId] = iso;
+    (state.jobs||[]).forEach(function(j){ (j.candidates||[]).forEach(function(c){ if(c && c.id===empId){ c.status = 'Exited'; c.exit_date = iso; } }); });
+    if(Array.isArray(state.employees)){
+      var idx = state.employees.findIndex(function(e){ return (e.employee_id||e.id||e.name) === empId; });
+      if(idx>=0){ state.employees[idx].status = 'Exited'; state.employees[idx].exit_date = iso; }
+    }
+    if(typeof saveState === 'function') saveState(state);
+    await openEmployees();
+    showToast('Employee exited');
+  } catch { showToast('Failed to mark exit'); }
+}
+
+async function openPerformance(){
+  try {
+    const modal = document.getElementById('performanceModal');
+    const yearEl = document.getElementById('perfYear');
+    yearEl.value = new Date().getFullYear();
+    if(!state.performance) state.performance = {};
+    let list = [];
+    if(window.loadEmployeesList){ list = await window.loadEmployeesList(); }
+    if(!Array.isArray(list) || list.length===0){
+      const out = [];
+      (state.jobs||[]).forEach(function(j){ (j.candidates||[]).forEach(function(c){ if(c && (c.hired || c.status==='Onboarding')){ out.push({ employee_id: c.id, name: c.name }); } }); });
+      list = out;
+    }
+    const sel = document.getElementById('perfEmployee');
+    sel.innerHTML = '';
+    list.forEach(function(e){ const opt = document.createElement('option'); opt.value = e.employee_id || e.id || e.name; opt.textContent = e.name || e.employee_id || 'User'; sel.appendChild(opt); });
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    await renderPerformance(1);
+    await renderPerformanceChart();
+  } catch {}
+}
+
+function closePerformance(){
+  const modal = document.getElementById('performanceModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function renderPerformance(q){
+  try {
+    const empId = document.getElementById('perfEmployee').value;
+    const year = parseInt(document.getElementById('perfYear').value);
+    let data = [];
+    if(window.loadPerformance){ data = await window.loadPerformance(empId, year, q); }
+    if((!Array.isArray(data) || data.length===0) && state.performance){
+      data = loadPerformanceLocal(empId, year, q);
+    }
+    const cont = document.getElementById('perfContent');
+    cont.innerHTML = '';
+    if(!Array.isArray(data) || data.length===0){
+      const empty = document.createElement('div');
+      empty.className = 'p-4 bg-yellow-50 border rounded';
+      empty.innerText = 'No data for selected quarter';
+      cont.appendChild(empty);
+      return;
+    }
+    const p = data[0];
+    const g1 = document.createElement('div'); g1.className = 'p-4 bg-white rounded border'; g1.innerHTML = '<div class="font-semibold">KPI Score</div><div class="text-2xl">' + (p.kpi_score||0) + '</div>';
+    const g2 = document.createElement('div'); g2.className = 'p-4 bg-white rounded border'; g2.innerHTML = '<div class="font-semibold">Projects Completed</div><div class="text-2xl">' + (p.projects_completed||0) + '</div>';
+    const g3 = document.createElement('div'); g3.className = 'p-4 bg-white rounded border'; g3.innerHTML = '<div class="font-semibold">Attendance</div><div class="text-2xl">' + (p.attendance_pct||0) + '%</div>';
+    const g4 = document.createElement('div'); g4.className = 'p-4 bg-white rounded border'; g4.innerHTML = '<div class="font-semibold">Bonus</div><div class="text-2xl">$' + (p.bonus_awarded||0) + '</div>';
+    cont.appendChild(g1); cont.appendChild(g2); cont.appendChild(g3); cont.appendChild(g4);
+    if(p.notes){ const n = document.createElement('div'); n.className = 'p-4 bg-white rounded border md:col-span-2'; n.innerHTML = '<div class="font-semibold">Notes</div><div class="text-sm text-gray-600">' + p.notes + '</div>'; cont.appendChild(n); }
+  } catch {}
+}
+
+async function renderPerformanceChart(){
+  try {
+    const empId = document.getElementById('perfEmployee').value;
+    const year = parseInt(document.getElementById('perfYear').value);
+    const metric = document.getElementById('perfMetric').value || 'kpi_score';
+    const canvas = document.getElementById('perfChart');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    const quarters = [1,2,3,4];
+    const scores = [];
+    for(var i=0;i<quarters.length;i++){
+      var q = quarters[i];
+      var rows = [];
+      if(window.loadPerformance){ rows = await window.loadPerformance(empId, year, q); }
+      if((!Array.isArray(rows) || rows.length===0) && typeof loadPerformanceLocal === 'function'){
+        rows = loadPerformanceLocal(empId, year, q);
+      }
+      var val = 0;
+      if(Array.isArray(rows) && rows.length){ val = (rows[0][metric]||0); }
+      scores.push(val);
+    }
+    var max = scores.reduce(function(a,b){ return Math.max(a,b); }, metric==='attendance_pct'?100:Math.max.apply(null, scores.concat(100)));
+    var padding = 40;
+    var w = canvas.width - padding*2;
+    var h = canvas.height - padding*2;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = '#E5E7EB';
+    ctx.strokeRect(padding, padding, w, h);
+    var barW = w/quarters.length - 20;
+    for(var j=0;j<quarters.length;j++){
+      var x = padding + j*(barW+20) + 10;
+      var barH = h * (scores[j]/Math.max(max,1));
+      var y = padding + (h - barH);
+      ctx.fillStyle = '#4F46E5';
+      ctx.fillRect(x, y, barW, barH);
+      ctx.fillStyle = '#111827';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('Q'+quarters[j], x, padding + h + 16);
+      var label = String(scores[j]);
+      if(metric==='attendance_pct') label = String(scores[j]) + '%';
+      if(metric==='bonus_awarded') label = '$' + String(scores[j]);
+      ctx.fillText(label, x, y - 6);
+    }
+  } catch {}
+}
+
+async function openPerformanceFor(empId){
+  try {
+    await openPerformance();
+    const sel = document.getElementById('perfEmployee');
+    var found = false;
+    Array.prototype.slice.call(sel.options).forEach(function(o){ if(o.value === empId) found = true; });
+    if(!found){ const opt = document.createElement('option'); opt.value = empId; opt.textContent = empId; sel.appendChild(opt); }
+    sel.value = empId;
+    await renderPerformance(1);
+  } catch {}
+}
+
+function currentQuarter(){
+  var m = new Date().getMonth();
+  return (Math.floor(m/3)+1);
+}
+
+async function seedPerformanceOnHire(empId){
+  try {
+    var year = new Date().getFullYear();
+    var q = currentQuarter();
+    var p = { employee_id: empId, year: year, quarter: q, kpi_score: Math.floor(70 + Math.random()*20), projects_completed: Math.floor(1 + Math.random()*3), attendance_pct: Math.floor(90 + Math.random()*10), bonus_awarded: Math.floor(Math.random()*1500), notes: 'Initial quarter auto-seeded' };
+    savePerformanceLocal(p);
+    if(window.savePerformance) await window.savePerformance(p);
+  } catch {}
+}
+
+(function(){
+  if(window.saveEmployee){
+    var _orig = window.saveEmployee;
+    window.saveEmployee = async function(emp){
+      var ok = false;
+      try { ok = await _orig(emp); } catch {}
+      try { var id = emp && (emp.employee_id || emp.id || emp.name); if(id) await seedPerformanceOnHire(id); } catch {}
+      return ok;
+    };
+  }
+})();
+
+async function seedPerformanceYear(){
+  try {
+    const empId = document.getElementById('perfEmployee').value;
+    const year = parseInt(document.getElementById('perfYear').value);
+    for(var q=1;q<=4;q++){
+      const p = {
+        employee_id: empId,
+        year: year,
+        quarter: q,
+        kpi_score: Math.floor(60 + Math.random()*40),
+        projects_completed: Math.floor(1 + Math.random()*6),
+        attendance_pct: Math.floor(85 + Math.random()*15),
+        bonus_awarded: Math.floor(Math.random()*2000),
+        notes: 'Auto-generated'
+      };
+      if(window.savePerformance) await window.savePerformance(p);
+      savePerformanceLocal(p);
+    }
+    showToast('Performance year generated');
+    await renderPerformance(1);
+  } catch { showToast('Failed to generate'); }
+}
+
+function savePerformanceLocal(p){
+  if(!state.performance) state.performance = {};
+  var arr = state.performance[p.employee_id] || [];
+  var idx = -1;
+  for(var i=0;i<arr.length;i++){ if(arr[i].year===p.year && arr[i].quarter===p.quarter){ idx = i; break; } }
+  if(idx>=0){ arr[idx] = Object.assign({}, arr[idx], p); }
+  else { arr.push(p); }
+  state.performance[p.employee_id] = arr;
+  if(typeof saveState === 'function') saveState(state);
+}
+
+function loadPerformanceLocal(empId, year, quarter){
+  if(!state.performance) return [];
+  var arr = state.performance[empId] || [];
+  var out = arr.slice();
+  if(year) out = out.filter(function(r){ return r.year===year; });
+  if(quarter) out = out.filter(function(r){ return r.quarter===quarter; });
+  out.sort(function(a,b){ if(a.year!==b.year) return b.year - a.year; return b.quarter - a.quarter; });
+  return out;
+}
+function saveEmployeeLocal(emp){
+  if(!Array.isArray(state.employees)) state.employees = [];
+  var id = emp.employee_id || emp.id || emp.name;
+  var idx = state.employees.findIndex(function(e){ return (e.employee_id||e.id||e.name) === id; });
+  if(idx>=0){ state.employees[idx] = Object.assign({}, state.employees[idx], emp); }
+  else { state.employees.push(emp); }
+  if(typeof saveState === 'function') saveState(state);
 }
 </script>
 <script>

@@ -44,6 +44,31 @@
         return await r.json();
       }catch(e){ return []; }
     };
+    window.updateEmployee = async function(employeeId, patch){
+      try{
+        const r = await fetch(api + '/api/employees/' + encodeURIComponent(employeeId), { method:'PUT', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(patch||{}) });
+        return r.ok;
+      }catch(e){ return false; }
+    };
+    window.savePerformance = async function(p){
+      try{
+        const r = await fetch(api + '/api/performance', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
+        return r.ok;
+      }catch(e){ return false; }
+    };
+    window.loadPerformance = async function(employeeId, year, quarter){
+      try{
+        var url = api + '/api/performance';
+        var qs = [];
+        if(employeeId) qs.push('employee_id=' + encodeURIComponent(employeeId));
+        if(year) qs.push('year=' + encodeURIComponent(year));
+        if(quarter) qs.push('quarter=' + encodeURIComponent(quarter));
+        if(qs.length) url += ('?' + qs.join('&'));
+        const r = await fetch(url);
+        if(!r.ok) return [];
+        return await r.json();
+      }catch(e){ return []; }
+    };
     return;
   }
 
@@ -115,6 +140,38 @@
   window.loadEmployeesList = async function(){
     try{
       const r = await client.from('employees').select('*').order('created_at', { ascending: false });
+      if(r.error) return [];
+      return r.data || [];
+    }catch(e){ return []; }
+  };
+  window.updateEmployee = async function(employeeId, patch){
+    try{
+      const r = await client.from('employees').update(patch||{}).eq('employee_id', employeeId);
+      return !r.error;
+    }catch(e){ return false; }
+  };
+  window.savePerformance = async function(p){
+    try{
+      const r = await client.from('employee_performance').upsert({
+        employee_id: p.employee_id,
+        year: p.year,
+        quarter: p.quarter,
+        kpi_score: p.kpi_score||0,
+        projects_completed: p.projects_completed||0,
+        attendance_pct: p.attendance_pct||0,
+        bonus_awarded: p.bonus_awarded||0,
+        notes: p.notes||null
+      }, { onConflict: 'employee_id,year,quarter' });
+      return !r.error;
+    }catch(e){ return false; }
+  };
+  window.loadPerformance = async function(employeeId, year, quarter){
+    try{
+      let q = client.from('employee_performance').select('*');
+      if(employeeId) q = q.eq('employee_id', employeeId);
+      if(year) q = q.eq('year', year);
+      if(quarter) q = q.eq('quarter', quarter);
+      const r = await q.order('year', { ascending: false }).order('quarter', { ascending: false });
       if(r.error) return [];
       return r.data || [];
     }catch(e){ return []; }

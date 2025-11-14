@@ -213,7 +213,7 @@
         <td class="py-3">${emp.dept}</td>
         <td class="py-3">${emp.role}</td>
         <td class="py-3">${emp.manager || '-'}</td>
-        <td class="py-3">${emp.status}</td>
+        <td class="py-3">${emp.status}${emp.status==='Exited' && (emp.exit || emp.exit_date) ? ' (' + (emp.exit || emp.exit_date) + ')' : ''}</td>
         <td class="py-3">${formatN(emp.salary)}</td>
         <td class="py-3 text-right">
           <button class="viewBtn px-3 py-1 mr-2 text-sm text-indigo-600">View</button>
@@ -389,6 +389,96 @@
     `;
     document.getElementById('modalRoot').appendChild(modal);
     modal.querySelector('#closePerf').addEventListener('click', ()=> modal.remove());
+    const container = modal.querySelector('.bg-white');
+    const block = document.createElement('div');
+    block.className = 'mt-6';
+    block.innerHTML = '<div class="flex items-center gap-2">\
+      <input id="perfYear" type="number" class="px-2 py-1 border rounded w-28" value="' + new Date().getFullYear() + '">\
+      <button data-q="1" class="perfQ px-3 py-1 border rounded">Q1</button>\
+      <button data-q="2" class="perfQ px-3 py-1 border rounded">Q2</button>\
+      <button data-q="3" class="perfQ px-3 py-1 border rounded">Q3</button>\
+      <button data-q="4" class="perfQ px-3 py-1 border rounded">Q4</button>\
+      <select id="perfMetric" class="px-2 py-1 border rounded">\
+        <option value="kpi_score">KPI Score</option>\
+        <option value="projects_completed">Projects Completed</option>\
+        <option value="attendance_pct">Attendance %</option>\
+        <option value="bonus_awarded">Bonus Awarded</option>\
+      </select>\
+      <button id="seedPerfYear" class="ml-auto px-3 py-1 border rounded">Generate Random Year</button>\
+    </div>\
+    <div id="perfCards" class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3"></div>\
+    <div class="mt-4"><canvas id="perfChart" width="720" height="220" class="w-full border rounded"></canvas></div>';
+    container.appendChild(block);
+    const perfYearEl = block.querySelector('#perfYear');
+    const perfMetricEl = block.querySelector('#perfMetric');
+    const perfCardsEl = block.querySelector('#perfCards');
+    const chartEl = block.querySelector('#perfChart');
+    function getQuarterData(year, q){
+      const hist = (emp.history && emp.history.quarterly) || [];
+      const row = hist.find(r => r.year===year && r.quarter===q) || null;
+      return row;
+    }
+    function setQuarterData(year, q, data){
+      const hist = (emp.history && emp.history.quarterly) || [];
+      const idx = hist.findIndex(r => r.year===year && r.quarter===q);
+      const next = { employee_id: emp.id, year, quarter: q, kpi_score: data.kpi_score||0, projects_completed: data.projects_completed||0, attendance_pct: data.attendance_pct||0, bonus_awarded: data.bonus_awarded||0, notes: data.notes||'' };
+      if(idx>=0) hist[idx] = next; else hist.push(next);
+      emp.history = emp.history || { resumption: emp.start, promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] };
+      emp.history.quarterly = hist;
+      Store.updateEmployee(emp.id, { history: emp.history });
+    }
+    function renderCards(year, q){
+      const p = getQuarterData(year, q) || { kpi_score:0, projects_completed:0, attendance_pct:0, bonus_awarded:0, notes:'' };
+      perfCardsEl.innerHTML = '';
+      const g1 = document.createElement('div'); g1.className='p-3 border rounded'; g1.innerHTML='<div class="font-semibold">KPI Score</div><div class="text-2xl">'+(p.kpi_score||0)+'</div>'; perfCardsEl.appendChild(g1);
+      const g2 = document.createElement('div'); g2.className='p-3 border rounded'; g2.innerHTML='<div class="font-semibold">Projects Completed</div><div class="text-2xl">'+(p.projects_completed||0)+'</div>'; perfCardsEl.appendChild(g2);
+      const g3 = document.createElement('div'); g3.className='p-3 border rounded'; g3.innerHTML='<div class="font-semibold">Attendance</div><div class="text-2xl">'+(p.attendance_pct||0)+'%</div>'; perfCardsEl.appendChild(g3);
+      const g4 = document.createElement('div'); g4.className='p-3 border rounded'; g4.innerHTML='<div class="font-semibold">Bonus</div><div class="text-2xl">₦'+Number(p.bonus_awarded||0).toLocaleString()+'</div>'; perfCardsEl.appendChild(g4);
+    }
+    function renderChart(year){
+      const ctx = chartEl.getContext('2d');
+      ctx.clearRect(0,0,chartEl.width, chartEl.height);
+      const metric = perfMetricEl.value || 'kpi_score';
+      const quarters = [1,2,3,4];
+      const vals = quarters.map(q => { const r = getQuarterData(year, q); return r ? (r[metric]||0) : 0; });
+      const max = metric==='attendance_pct' ? 100 : Math.max(100, ...vals);
+      const padding = 40; const w = chartEl.width - padding*2; const h = chartEl.height - padding*2;
+      const barW = w/quarters.length - 20;
+      const x0 = padding; const y0 = padding;
+      const axis = '#E5E7EB';
+      const fill = '#4F46E5';
+      const text = '#111827';
+      const font = '12px sans-serif';
+      const ctx2 = ctx;
+      ctx2.strokeStyle = axis; ctx2.strokeRect(x0,y0,w,h);
+      quarters.forEach((q,i)=>{
+        const x = x0 + i*(barW+20) + 10;
+        const val = vals[i];
+        const bh = h * (val/Math.max(max,1));
+        const y = y0 + (h - bh);
+        ctx2.fillStyle = fill; ctx2.fillRect(x,y,barW,bh);
+        ctx2.fillStyle = text; ctx2.font = font;
+        ctx2.fillText('Q'+q, x, y0+h+16);
+        let label = String(val);
+        if(metric==='attendance_pct') label = label + '%';
+        if(metric==='bonus_awarded') label = '₦' + Number(val).toLocaleString();
+        ctx2.fillText(label, x, y-6);
+      });
+    }
+    function seedYear(){
+      const year = parseInt(perfYearEl.value);
+      [1,2,3,4].forEach(q => {
+        const row = { kpi_score: Math.floor(60+Math.random()*40), projects_completed: Math.floor(1+Math.random()*6), attendance_pct: Math.floor(85+Math.random()*15), bonus_awarded: Math.floor(Math.random()*2000), notes: 'Auto-generated' };
+        setQuarterData(year, q, row);
+      });
+      renderCards(year,1);
+      renderChart(year);
+    }
+    block.querySelectorAll('.perfQ').forEach(btn => { btn.addEventListener('click', ()=>{ const q = parseInt(btn.getAttribute('data-q')); renderCards(parseInt(perfYearEl.value), q); }); });
+    perfMetricEl.addEventListener('change', ()=> renderChart(parseInt(perfYearEl.value)));
+    block.querySelector('#seedPerfYear').addEventListener('click', seedYear);
+    renderCards(parseInt(perfYearEl.value),1);
+    renderChart(parseInt(perfYearEl.value));
   }
 
   function openEdit(emp=null){
@@ -409,6 +499,7 @@
           <div><label class="text-xs text-gray-600">Role</label><input id="ed_role" class="w-full p-2 border rounded" value="${data.role}"></div>
           <div><label class="text-xs text-gray-600">Line Manager</label><input id="ed_manager" class="w-full p-2 border rounded" value="${data.manager || ''}"></div>
           <div><label class="text-xs text-gray-600">Status</label><select id="ed_status" class="w-full p-2 border rounded"><option ${data.status==='Active'?'selected':''}>Active</option><option ${data.status==='On Leave'?'selected':''}>On Leave</option><option ${data.status==='Suspended'?'selected':''}>Suspended</option><option ${data.status==='Exited'?'selected':''}>Exited</option></select></div>
+          <div><label class="text-xs text-gray-600">Exit date</label><input id="ed_exit" type="date" class="w-full p-2 border rounded" value="${data.exit || data.exit_date || ''}"></div>
           <div><label class="text-xs text-gray-600">Salary (₦)</label><input id="ed_salary" type="number" class="w-full p-2 border rounded" value="${data.salary}"></div>
           <div><label class="text-xs text-gray-600">Start date</label><input id="ed_start" type="date" class="w-full p-2 border rounded" value="${data.start}"></div>
           <div><label class="text-xs text-gray-600">Email</label><input id="ed_email" class="w-full p-2 border rounded" value="${data.contact?.email || ''}"></div>
@@ -422,6 +513,11 @@
     `;
     document.getElementById('modalRoot').appendChild(modal);
     modal.querySelector('#cancelEdit').addEventListener('click', ()=> modal.remove());
+    const statusEl = modal.querySelector('#ed_status');
+    const exitWrap = modal.querySelector('#ed_exit').parentElement;
+    function toggleExit(){ exitWrap.style.display = statusEl.value==='Exited' ? '' : 'none'; }
+    toggleExit();
+    statusEl.addEventListener('change', toggleExit);
     modal.querySelector('#saveEdit').addEventListener('click', ()=>{
       const name = modal.querySelector('#ed_name').value.trim();
       const idv = modal.querySelector('#ed_id').value.trim();
@@ -433,12 +529,13 @@
       const start = modal.querySelector('#ed_start').value;
       const email = modal.querySelector('#ed_email').value.trim();
       const phone = modal.querySelector('#ed_phone').value.trim();
+      const exit = modal.querySelector('#ed_exit').value || '';
       if(!name || !idv){ alert('Name and ID required'); return; }
 
       if(isNew){
-        Store.addEmployee({ id:idv, name, dept, role, salary, status, start, manager, contact:{email,phone}, files:[], history:{ resumption:start, promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] } });
+        Store.addEmployee({ id:idv, name, dept, role, salary, status, start, manager, exit, exit_date: exit, contact:{email,phone}, files:[], history:{ resumption:start, promotions:[], transfers:[], performance:[], salaryReviews:[], warnings:[] } });
       } else {
-        Store.updateEmployee(data.id, { id:idv, name, dept, role, salary, status, start, manager, contact:{email,phone} });
+        Store.updateEmployee(data.id, { id:idv, name, dept, role, salary, status, start, manager, exit, exit_date: exit, contact:{email,phone} });
       }
       employees = Store.getEmployees();
       modal.remove();
