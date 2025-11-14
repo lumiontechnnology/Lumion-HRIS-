@@ -219,6 +219,7 @@
           <button class="viewBtn px-3 py-1 mr-2 text-sm text-indigo-600">View</button>
           <button class="perfBtn px-3 py-1 mr-2 text-sm bg-indigo-50 text-indigo-700 border rounded">Performance</button>
           <button class="editBtn px-3 py-1 mr-2 text-sm border rounded">Edit</button>
+          <button class="exitBtn px-3 py-1 mr-2 text-sm border rounded">Exit</button>
           <button class="delBtn px-3 py-1 text-sm text-red-600">Delete</button>
         </td>
       `;
@@ -227,6 +228,7 @@
       tr.querySelector('.viewBtn').addEventListener('click', ()=> openView(emp));
       tr.querySelector('.perfBtn').addEventListener('click', ()=> openPerformance(emp));
       tr.querySelector('.editBtn').addEventListener('click', ()=> openEdit(emp));
+      tr.querySelector('.exitBtn').addEventListener('click', ()=> exitEmployeeQuick(emp));
       tr.querySelector('.delBtn').addEventListener('click', ()=> removeEmployee(emp.id));
     });
     visibleCount.textContent = list.length;
@@ -547,6 +549,16 @@
   function removeEmployee(id){
     if(!confirm('Delete employee and personnel file?')) return;
     Store.removeEmployee(id);
+    employees = Store.getEmployees();
+    populateDeptFilter();
+    filterAndRender();
+  }
+
+  function exitEmployeeQuick(emp){
+    const dateStr = prompt('Exit date (YYYY-MM-DD)?');
+    if(!dateStr) return;
+    const iso = new Date(dateStr).toISOString().slice(0,10);
+    Store.updateEmployee(emp.id, { status: 'Exited', exit: iso, exit_date: iso });
     employees = Store.getEmployees();
     populateDeptFilter();
     filterAndRender();
