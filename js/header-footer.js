@@ -17,14 +17,14 @@ function createHeader(){
             <a href="/hris-dashboard-admin.html">Overview</a>
             <a href="/employees.html">Employees</a>
             <a href="/payroll-dashboard.html">Payroll</a>
-            <a href="/Jobs.html">Jobs</a>
+      <a href="/Jobs.html">Open Positions</a>
             <a href="/Onboarding.html">Onboarding</a>
             <a href="/leave-attendance.html">Leave & Attendance</a>
             <a href="/hr-performance.html">HR Performance</a>
             <a href="/hr-performance.html#bsc">Balanced Scorecard (Admin)</a>
             <a href="/performance-dashboard.html">Performance Dashboard</a>
             <a href="/analytics.html">Analytics</a>
-            <a href="/Jobs.html#inviteBtn">Invite Team</a>
+      <a href="/Jobs.html#inviteBtn">Invite Team</a>
           </div>
         </div>
         <div class="nav-item has-dropdown">
@@ -54,14 +54,14 @@ function createHeader(){
             <a href="/hris-dashboard-admin.html">Overview</a>
             <a href="/employees.html">Employees</a>
             <a href="/payroll-dashboard.html">Payroll</a>
-            <a href="/Jobs.html">Jobs</a>
+      <a href="/Jobs.html">Open Positions</a>
             <a href="/Onboarding.html">Onboarding</a>
             <a href="/leave-attendance.html">Leave & Attendance</a>
             <a href="/hr-performance.html">HR Performance</a>
             <a href="/hr-performance.html#bsc">Balanced Scorecard (Admin)</a>
             <a href="/performance-dashboard.html">Performance Dashboard</a>
             <a href="/analytics.html">Analytics</a>
-            <a href="/Jobs.html#inviteBtn">Invite Team</a>
+      <a href="/Jobs.html#inviteBtn">Invite Team</a>
           </div>
           <a href="/analytics.html">Resources</a>
           <div class="mobile-sub">

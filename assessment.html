@@ -12,6 +12,9 @@
     .prose h1, .prose h2 { font-weight: 700; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/env.js"></script>
+  <script src="js/supabase.js"></script>
   <script>
     // Redirect alias for common mis-typed slugs -> canonical assessment.html
     (function(){
@@ -30,7 +33,7 @@
     <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
       <div class="text-lg font-bold text-gray-900">Lumion — Interview Tests</div>
       <div class="flex items-center gap-3">
-        <a href="Jobs.html" class="px-3 py-2 border rounded">Back to Jobs</a>
+  <a href="Jobs.html" class="px-3 py-2 border rounded">Back to Open Positions</a>
         <button id="startTimerBtn" class="px-3 py-2 bg-gray-900 text-white rounded">Start Timer</button>
         <div id="timer" class="px-3 py-2 border rounded text-gray-700">00:00</div>
         <button id="submitBtn" class="px-3 py-2 bg-indigo-600 text-white rounded">Submit</button>
@@ -79,7 +82,7 @@
 
   // Load Jobs from localStorage set by Jobs.html
   const jobsState = (()=>{ try { return JSON.parse(localStorage.getItem('lumion_jobs_state')||'null'); } catch { return null; } })();
-  const jobs = jobsState?.jobs || [];
+  let jobs = jobsState?.jobs || [];
 
   // URL params: dashboard mode
   const params = new URLSearchParams(location.search);
@@ -473,6 +476,7 @@
       localStorage.setItem('lumion_role_tests', JSON.stringify(list));
       showToast('Submitted');
     } catch { showToast('Failed to submit'); }
+    if(window.saveRoleTest) window.saveRoleTest(result);
   };
 
   document.getElementById('exportBtn').onclick = ()=>{
@@ -481,5 +485,16 @@
     const a = document.createElement('a'); a.href=url; a.download=`role_test_${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
   };
   </script>
+  <script>
+(async function(){
+  if(window.loadRemoteState){
+    var remote = await window.loadRemoteState();
+    if(remote && Array.isArray(remote.jobs)){
+      jobs = remote.jobs;
+      renderJobList();
+    }
+  }
+})();
+</script>
 </body>
 </html>

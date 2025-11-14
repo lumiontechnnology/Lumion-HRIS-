@@ -8,7 +8,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Lumion — Employer Jobs Dashboard (Prototype)</title>
+  <title>Lumion — Open Positions</title>
   <link rel="icon" href="static/Logo__mark.png">
   <link rel="stylesheet" href="assets/tailwind.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
@@ -20,6 +20,9 @@
     .pointer { cursor: pointer; }
     .status-badge { padding: 6px 10px; border-radius: 999px; font-weight:600; font-size:12px; }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/env.js"></script>
+  <script src="js/supabase.js"></script>
 </head>
 <body class="bg-gray-50">
 
@@ -228,6 +231,7 @@ function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slic
 /* local storage wrapper */
 function saveState(state){
   localStorage.setItem('lumion_jobs_state', JSON.stringify(state));
+  if(window.saveRemoteState) window.saveRemoteState(state);
   showToast('Saved locally');
 }
 function loadState(){
@@ -241,7 +245,7 @@ function loadState(){
    ------------------------- */
 let state = loadState() || {
   jobs: initialJobs.map(j => ({...j, candidates: []})),
-  pool: sampleCandidates.slice(), // lumion DB / pool
+  pool: sampleCandidates.slice(),
   selectedJobId: null
 };
 
@@ -467,6 +471,7 @@ function quickActionHire(candidateId){
   saveState(state);
   renderJobDetail();
   showToast(`${c.name} moved to onboarding`);
+  try{ const emp = { employee_id: c.id, name: c.name, job_id: job.id, job_title: job.title, status: c.status, notes: c.notes||'', years: c.years||0, skills: c.skills||[], certs: c.certs||[], source_company: c.company||'' }; if(window.saveEmployee) window.saveEmployee(emp); }catch{}
 }
 
 /* -------------------------
@@ -714,6 +719,7 @@ document.getElementById('newJobBtn').onclick = () => {
   saveState(state);
   renderJobs();
   selectJob(j.id);
+  try{ if(window.saveJob) window.saveJob(j); }catch{}
 };
 
 document.getElementById('addCandidateBtn').onclick = () => {
@@ -810,6 +816,18 @@ function gotoTest(jobId, candId){
   } catch {}
   window.location.href = `interview-tests.html?jobId=${encodeURIComponent(jobId)}&candId=${encodeURIComponent(candId)}`;
 }
+</script>
+<script>
+(async function(){
+  if(window.loadRemoteState){
+    var remote = await window.loadRemoteState();
+    if(remote && remote.jobs){
+      state = remote;
+      renderJobs();
+      renderJobDetail();
+    }
+  }
+})();
 </script>
 </body>
 

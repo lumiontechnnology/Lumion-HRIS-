@@ -1,639 +1,681 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Lumion — AI Interview Assistant</title>
-  <link rel="icon" href="static/Logo__mark.png">
-  <link rel="stylesheet" href="assets/tailwind.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .glass { backdrop-filter: blur(10px); background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.18); }
-    .bubble { box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2); border-radius: 18px; }
-    .gradient-bg { background: radial-gradient(1200px 600px at 90% 0%, rgba(79,70,229,0.25), transparent),
-                               radial-gradient(900px 500px at 10% 100%, rgba(156,163,175,0.25), transparent);
-    }
-    .typing { width: 6px; height: 6px; background:#9CA3AF; border-radius:50%; display:inline-block; animation: bounce 1s infinite; }
-    .typing:nth-child(2){ animation-delay: 0.15s; }
-    .typing:nth-child(3){ animation-delay: 0.3s; }
-    @keyframes bounce { 0%, 100% { transform: translateY(0); opacity: 0.6; } 50% { transform: translateY(-4px); opacity: 1; } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumion 2.0 - AI Interview Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.18);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: var(--light);
+            min-height: 100vh;
+        }
+        
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+        
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 1; }
+            80%, 100% { transform: scale(2); opacity: 0; }
+        }
+        
+        .floating {
+            animation: floating 6s ease-in-out infinite;
+        }
+        
+        @keyframes floating {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .typing-dots span {
+            animation: bounce 1.4s infinite ease-in-out both;
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #9ca3af;
+        }
+        
+        .typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        .neon-glow {
+            box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary);
+        }
+        
+        .sentiment-positive { color: #10b981; }
+        .sentiment-negative { color: #ef4444; }
+        .sentiment-neutral { color: #f59e0b; }
+        
+        .message-bubble {
+            max-width: 80%;
+            padding: 16px 20px;
+            border-radius: 18px;
+            margin-bottom: 16px;
+            position: relative;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .ai-message {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+        }
+        
+        .user-message {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom-right-radius: 4px;
+            align-self: flex-end;
+        }
+        
+        .skill-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin: 4px;
+        }
+        
+        .metric-bar {
+            height: 8px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        
+        .metric-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.8s ease;
+        }
+        
+        .glow-button {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .glow-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        
+        .tab-active {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            color: white;
+        }
+        
+        .hiring-score {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+        
+        .hiring-score-circle {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+        
+        .hiring-score-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 8;
+        }
+        
+        .hiring-score-value {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 314;
+            stroke-dashoffset: 314;
+            transition: stroke-dashoffset 1.5s ease;
+        }
+        
+        .hiring-score-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        
+        .grid-pattern {
+            background-image: 
+                linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+    </style>
 </head>
-<body class="bg-gray-50 gradient-bg min-h-screen">
-  <!-- NAV -->
-  <nav class="bg-white/70 glass sticky top-0 z-40">
-    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-4">
-        <img src="static/Logo__mark.png" alt="Logo" class="h-8 w-8 object-contain">
-        <div class="text-lg font-bold text-indigo-700">Lumion — AI Interview Assistant</div>
-      </div>
-      <div class="flex items-center gap-3">
-        <a href="Jobs.html" class="px-3 py-2 border rounded">← Back to Jobs</a>
-        <button id="saveSessionBtn" class="px-3 py-2 bg-indigo-600 text-white rounded">Save Session</button>
-        <button id="exportSessionBtn" class="px-3 py-2 border rounded">Export JSON</button>
-      </div>
+<body class="grid-pattern">
+    <!-- Navigation -->
+    <nav class="glass-panel m-4 sticky top-4 z-50">
+        <div class="flex items-center justify-between p-4">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold gradient-text">Lumion 2.0</h1>
+                    <p class="text-xs text-gray-400">AI Interview Assistant</p>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full pulse-ring"></div>
+                    <span class="text-sm">AI Active</span>
+                </div>
+                
+                <div class="flex space-x-2">
+                    <button class="px-4 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-sm font-medium hover:bg-indigo-500/30 transition-all">
+                        <i class="fas fa-sync-alt mr-2"></i>New Session
+                    </button>
+                    <button class="px-4 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-sm font-medium hover:bg-indigo-500/30 transition-all">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 pb-10">
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Left Panel - Candidate & Job Info -->
+            <div class="col-span-3 space-y-6">
+                <!-- Candidate Card -->
+                <div class="glass-panel p-6">
+                    <div class="flex items-center space-x-4 mb-6">
+                        <div class="relative">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
+                                JD
+                            </div>
+                            <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-gray-900 flex items-center justify-center">
+                                <i class="fas fa-check text-xs text-white"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold">John Doe</h2>
+                            <p class="text-gray-400 text-sm">Senior Frontend Developer</p>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-400 mb-2">APPLYING FOR</h3>
+                            <p class="font-medium">Lead UI Engineer</p>
+                            <p class="text-sm text-gray-400">Product Team • San Francisco</p>
+                        </div>
+                        
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-400 mb-2">STATUS</h3>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 bg-amber-500 rounded-full"></div>
+                                <span class="text-sm">In Progress</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Skills & Match -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-lg font-bold mb-4">Skills & Match</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>React</span>
+                                <span>92%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 92%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>TypeScript</span>
+                                <span>87%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 87%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>UI/UX Design</span>
+                                <span>78%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 78%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>Leadership</span>
+                                <span>65%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-amber-500" style="width: 65%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-700/50">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Overall Match</span>
+                            <div class="hiring-score">
+                                <svg width="120" height="120" viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="54" class="hiring-score-bg"></circle>
+                                    <circle cx="60" cy="60" r="54" class="hiring-score-value" stroke="#10b981" stroke-dashoffset="56.52"></circle>
+                                </svg>
+                                <div class="hiring-score-text">82%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Insights -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-lg font-bold mb-4">AI Insights</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center mt-1">
+                                <i class="fas fa-lightbulb text-indigo-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-medium">Strong Technical Fit</h4>
+                                <p class="text-sm text-gray-400">Candidate demonstrates advanced knowledge in required areas.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center mt-1">
+                                <i class="fas fa-exclamation-triangle text-amber-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-medium">Communication Style</h4>
+                                <p class="text-sm text-gray-400">Tends to use technical jargon that may need simplification for stakeholders.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center mt-1">
+                                <i class="fas fa-chart-line text-green-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-medium">Growth Potential</h4>
+                                <p class="text-sm text-gray-400">Shows strong learning agility and adaptability to new technologies.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Center Panel - Interview Interface -->
+            <div class="col-span-6 space-y-6">
+                <!-- Interview Header -->
+                <div class="glass-panel p-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-2xl font-bold">Technical Interview</h2>
+                            <p class="text-gray-400">Session started 12 minutes ago</p>
+                        </div>
+                        
+                        <div class="flex space-x-3">
+                            <button class="px-4 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-sm font-medium hover:bg-indigo-500/30 transition-all">
+                                <i class="fas fa-video mr-2"></i>Video Call
+                            </button>
+                            <button class="px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-sm font-medium hover:bg-red-500/30 transition-all">
+                                <i class="fas fa-stop-circle mr-2"></i>End Interview
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-4 mt-6">
+                        <div class="tab-active px-4 py-2 rounded-lg text-sm font-medium">Questions</div>
+                        <div class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/30 hover:bg-gray-700/50 cursor-pointer">Evaluation</div>
+                        <div class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/30 hover:bg-gray-700/50 cursor-pointer">Notes</div>
+                        <div class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/30 hover:bg-gray-700/50 cursor-pointer">Recording</div>
+                    </div>
+                </div>
+                
+                <!-- Chat Interface -->
+                <div class="glass-panel p-6 flex flex-col" style="height: 500px;">
+                    <div class="flex-1 overflow-y-auto mb-4 flex flex-col space-y-4" id="chat-container">
+                        <!-- AI Message -->
+                        <div class="message-bubble ai-message">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
+                                    <i class="fas fa-robot text-white text-xs"></i>
+                                </div>
+                                <span class="text-sm font-medium">Lumion AI</span>
+                                <span class="text-xs text-gray-400">2:15 PM</span>
+                            </div>
+                            <p>Hello John! Thanks for joining the interview today. I'll be asking you a series of technical and behavioral questions. Let's start with your experience with React and state management.</p>
+                        </div>
+                        
+                        <!-- User Message -->
+                        <div class="message-bubble user-message">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="text-sm font-medium">John Doe</span>
+                                <span class="text-xs text-gray-400">2:16 PM</span>
+                            </div>
+                            <p>Thanks for having me! I've been working with React for about 5 years now. For state management, I've used Redux extensively in larger applications, but for most projects I prefer React's built-in state and Context API combined with libraries like React Query for server state.</p>
+                        </div>
+                        
+                        <!-- AI Message with Analysis -->
+                        <div class="message-bubble ai-message">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
+                                    <i class="fas fa-robot text-white text-xs"></i>
+                                </div>
+                                <span class="text-sm font-medium">Lumion AI</span>
+                                <span class="text-xs text-gray-400">2:17 PM</span>
+                            </div>
+                            <p class="mb-3">That's great experience. Can you walk me through a specific complex React component you've built and explain your approach to state management within it?</p>
+                            
+                            <div class="mt-3 pt-3 border-t border-indigo-500/30">
+                                <div class="flex items-center space-x-2 text-sm">
+                                    <i class="fas fa-chart-bar text-indigo-400"></i>
+                                    <span class="font-medium">AI Analysis:</span>
+                                    <span class="sentiment-positive">Positive technical depth detected</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- User Message -->
+                        <div class="message-bubble user-message">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="text-sm font-medium">John Doe</span>
+                                <span class="text-xs text-gray-400">2:19 PM</span>
+                            </div>
+                            <p>Sure! Recently I built a complex data visualization dashboard that needed to handle real-time updates. I used a combination of useState for UI state, useContext for theme and user preferences, and React Query for managing server state and caching.</p>
+                            <p class="mt-2">The component had multiple filters, date ranges, and visualization types that needed to be synchronized. I used the useReducer hook for complex state transitions and implemented custom hooks to abstract the data fetching logic.</p>
+                        </div>
+                        
+                        <!-- AI is typing indicator -->
+                        <div class="flex items-center space-x-2 text-gray-400 text-sm">
+                            <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                                <i class="fas fa-robot text-indigo-400"></i>
+                            </div>
+                            <span>Lumion AI is analyzing response</span>
+                            <div class="typing-dots flex space-x-1 ml-2">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-gray-700/50 pt-4">
+                        <div class="flex space-x-3">
+                            <input type="text" placeholder="Type your response or question..." class="flex-1 bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button class="glow-button px-6">
+                                <i class="fas fa-paper-plane mr-2"></i>Send
+                            </button>
+                        </div>
+                        
+                        <div class="flex justify-between mt-3">
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700/70 transition-all text-sm">
+                                    <i class="fas fa-microphone mr-1"></i>Voice
+                                </button>
+                                <button class="px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700/70 transition-all text-sm">
+                                    <i class="fas fa-magic mr-1"></i>AI Suggest
+                                </button>
+                            </div>
+                            
+                            <div class="flex space-x-2">
+                                <button class="px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700/70 transition-all text-sm">
+                                    <i class="fas fa-redo mr-1"></i>Rephrase
+                                </button>
+                                <button class="px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700/70 transition-all text-sm">
+                                    <i class="fas fa-forward mr-1"></i>Skip
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel - Analysis & Tools -->
+            <div class="col-span-3 space-y-6">
+                <!-- Real-time Metrics -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-lg font-bold mb-4">Real-time Metrics</h3>
+                    
+                    <div class="space-y-5">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Technical Depth</span>
+                                <span class="text-sm">84%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 84%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Communication</span>
+                                <span class="text-sm">76%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-green-500" style="width: 76%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Problem Solving</span>
+                                <span class="text-sm">92%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 92%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Cultural Fit</span>
+                                <span class="text-sm">68%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-amber-500" style="width: 68%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6 pt-4 border-t border-gray-700/50">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Hiring Recommendation</span>
+                            <div class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-medium">
+                                STRONG YES
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sentiment Analysis -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-lg font-bold mb-4">Sentiment Analysis</h3>
+                    
+                    <div class="flex items-center justify-center mb-4">
+                        <div class="relative">
+                            <div class="w-32 h-32 rounded-full border-8 border-indigo-500/30 flex items-center justify-center">
+                                <div class="w-24 h-24 rounded-full border-8 border-green-500 flex items-center justify-center">
+                                    <span class="text-2xl font-bold">78%</span>
+                                </div>
+                            </div>
+                            <div class="absolute top-0 left-0 w-full h-full">
+                                <div class="w-full h-full rounded-full border-8 border-transparent border-t-amber-500 border-r-amber-500 transform -rotate-45"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-sm">Confidence</span>
+                            <span class="text-sm font-medium sentiment-positive">High</span>
+                        </div>
+                        
+                        <div class="flex justify-between">
+                            <span class="text-sm">Engagement</span>
+                            <span class="text-sm font-medium sentiment-positive">High</span>
+                        </div>
+                        
+                        <div class="flex justify-between">
+                            <span class="text-sm">Clarity</span>
+                            <span class="text-sm font-medium sentiment-neutral">Medium</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AI Tools -->
+                <div class="glass-panel p-6">
+                    <h3 class="text-lg font-bold mb-4">AI Tools</h3>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <button class="p-3 rounded-xl bg-indigo-500/20 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex flex-col items-center justify-center">
+                            <i class="fas fa-question-circle text-indigo-400 text-xl mb-2"></i>
+                            <span class="text-sm">Generate Questions</span>
+                        </button>
+                        
+                        <button class="p-3 rounded-xl bg-green-500/20 border border-green-500/30 hover:bg-green-500/30 transition-all flex flex-col items-center justify-center">
+                            <i class="fas fa-chart-pie text-green-400 text-xl mb-2"></i>
+                            <span class="text-sm">Skill Analysis</span>
+                        </button>
+                        
+                        <button class="p-3 rounded-xl bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500/30 transition-all flex flex-col items-center justify-center">
+                            <i class="fas fa-file-alt text-amber-400 text-xl mb-2"></i>
+                            <span class="text-sm">Generate Report</span>
+                        </button>
+                        
+                        <button class="p-3 rounded-xl bg-purple-500/20 border border-purple-500/30 hover:bg-purple-500/30 transition-all flex flex-col items-center justify-center">
+                            <i class="fas fa-redo text-purple-400 text-xl mb-2"></i>
+                            <span class="text-sm">Compare Candidates</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-  </nav>
 
-  <!-- MAIN LAYOUT -->
-  <main class="max-w-7xl mx-auto px-6 py-6 grid grid-cols-12 gap-6">
-    <!-- Side Panel: Candidate Profile -->
-    <aside class="col-span-4 bg-white/60 glass rounded-lg shadow p-4">
-      <div class="flex items-start justify-between">
-        <div>
-          <div id="candName" class="text-xl font-bold">Candidate</div>
-          <div id="candHeadline" class="text-sm text-gray-600">Title • Company</div>
+    <!-- Floating AI Assistant -->
+    <div class="fixed bottom-6 right-6">
+        <div class="relative">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg neon-glow floating cursor-pointer">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-xs">
+                3
+            </div>
         </div>
-        <div class="text-right text-xs text-gray-500">
-          <div id="jobTitle" class="font-semibold">Role</div>
-          <div id="jobMeta" class="">Team • Location</div>
-        </div>
-      </div>
+    </div>
 
-      <div class="mt-4">
-        <div class="text-sm font-semibold text-gray-700">Skills</div>
-        <div id="candSkills" class="mt-2 flex flex-wrap gap-2"></div>
-      </div>
-
-      <div class="mt-4">
-        <div class="text-sm font-semibold text-gray-700">Resume Extract</div>
-        <div id="candResume" class="mt-2 text-sm text-gray-700">—</div>
-      </div>
-
-      <div class="mt-4">
-        <div class="text-sm font-semibold text-gray-700">Personality Traits</div>
-        <div id="candPersonality" class="mt-2 text-sm text-gray-700">—</div>
-      </div>
-
-      <div class="mt-6 grid grid-cols-2 gap-3">
-        <label class="flex items-center gap-2 text-sm">
-          <input id="voiceMode" type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600" />
-          <span>Voice Mode</span>
-        </label>
-        <label class="flex items-center gap-2 text-sm">
-          <input id="coachMode" type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600" />
-          <span>Guidance Mode</span>
-        </label>
-      </div>
-
-      <div class="mt-6">
-        <div class="text-sm font-semibold text-gray-700">Live Metrics</div>
-        <div class="mt-2 space-y-2">
-          <div class="text-xs text-gray-600">Technical Fit <span id="mTech">0%</span></div>
-          <div class="w-full h-2 bg-gray-200 rounded"><div id="barTech" class="h-2 bg-indigo-600 rounded" style="width:0%"></div></div>
-          <div class="text-xs text-gray-600 mt-2">Communication Clarity <span id="mComm">0%</span></div>
-          <div class="w-full h-2 bg-gray-200 rounded"><div id="barComm" class="h-2 bg-sky-500 rounded" style="width:0%"></div></div>
-          <div class="text-xs text-gray-600 mt-2">Confidence Index <span id="mConf">0%</span></div>
-          <div class="w-full h-2 bg-gray-200 rounded"><div id="barConf" class="h-2 bg-emerald-500 rounded" style="width:0%"></div></div>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Main Chat Cockpit -->
-    <section class="col-span-8 bg-white/60 glass rounded-lg shadow p-0 overflow-hidden">
-      <div class="flex items-center justify-between px-4 py-3 border-b bg-white/70">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">AI</div>
-          <div>
-            <div class="font-semibold">Interview Assistant (Employer Mode)</div>
-            <div class="text-xs text-gray-500">Assistant leads interview, captures notes and reactions</div>
-          </div>
-        </div>
-        <div class="flex items-center gap-4 text-sm">
-          <div id="statusRecording" class="px-2 py-1 rounded bg-red-100 text-red-700">Recording 🔴</div>
-          <div id="statusNotes" class="px-2 py-1 rounded bg-amber-100 text-amber-700">Notes 🧠</div>
-          <div id="statusInsights" class="px-2 py-1 rounded bg-emerald-100 text-emerald-700">Insights 💡</div>
-          <button id="startInterviewBtn" class="px-2 py-1 bg-indigo-600 text-white rounded">Start Interview</button>
-          <button id="recordToggle" class="px-2 py-1 border rounded">Start Recording</button>
-          <button id="startCameraBtn" class="px-2 py-1 border rounded">Start Camera</button>
-          <button id="meetBtn" class="px-2 py-1 bg-green-600 text-white rounded">Google Meet</button>
-          <button id="zoomBtn" class="px-2 py-1 bg-blue-600 text-white rounded">Zoom</button>
-          <button id="inviteBtn" class="px-2 py-1 border rounded">Add Calendar Invite</button>
-        </div>
-      </div>
-
-      <!-- Call/Avatar Panel -->
-      <div id="callPanel" class="px-4 py-3 border-b bg-white/60 flex items-center gap-4">
-        <video id="videoFeed" class="w-44 h-32 bg-black rounded hidden" autoplay playsinline></video>
-        <div id="avatarFace" class="w-44 h-32 rounded bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"></div>
-        <div class="flex items-center gap-3 text-sm">
-          <span>Interview Avatar:</span>
-          <label class="inline-flex items-center gap-1"><input type="radio" name="avatarGender" value="male" class="form-radio" checked> <span>Male</span></label>
-          <label class="inline-flex items-center gap-1"><input type="radio" name="avatarGender" value="female" class="form-radio"> <span>Female</span></label>
-        </div>
-      </div>
-
-      <div id="chatArea" class="p-4 h-[420px] overflow-y-auto bg-gradient-to-b from-white/70 to-white/40">
-        <!-- messages appended here -->
-      </div>
-
-      <div class="p-4 border-t bg-white/70">
-        <div class="flex items-center gap-2">
-          <input id="chatInput" type="text" placeholder="Type your response or question..." class="flex-1 px-3 py-2 border rounded" />
-          <button id="voiceBtn" class="px-3 py-2 border rounded">🎙️ Voice</button>
-          <button id="sendBtn" class="px-3 py-2 bg-indigo-600 text-white rounded">Send</button>
-          <button id="summarizeBtn" class="px-3 py-2 bg-emerald-600 text-white rounded">Summarize</button>
-        </div>
-        <div id="typing" class="mt-2 hidden"><span class="typing"></span> <span class="typing"></span> <span class="typing"></span></div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Floating Bubble (can expand/contract) -->
-  <button id="floatBubble" class="fixed bottom-6 right-6 bubble glass px-4 py-3 text-sm shadow text-gray-800 hover:bg-white/70">Open Interview Cockpit</button>
-
-  <!-- Toast -->
-  <div id="toast" class="fixed right-6 bottom-24 hidden bg-gray-900 text-white px-4 py-2 rounded shadow">Saved</div>
-
-  <script>
-  // Helpers
-  function showToast(msg){ const t=document.getElementById('toast'); t.innerText=msg; t.classList.remove('hidden'); setTimeout(()=>{ t.classList.add('hidden'); },1600); }
-  function qs(name){ const u=new URL(location.href); return u.searchParams.get(name)||''; }
-  function clamp(n,min,max){ return Math.max(min, Math.min(max, n)); }
-
-  // Load state
-  const jobsState = (()=>{ try { return JSON.parse(localStorage.getItem('lumion_jobs_state')||'null'); } catch { return null; } })();
-  const cur = (()=>{ try { return JSON.parse(localStorage.getItem('lumion_current_interview')||'null'); } catch { return null; } })();
-  const jobId = qs('jobId') || (cur && cur.jobId) || '';
-  const candId = qs('candId') || (cur && cur.candId) || '';
-  const job = jobsState?.jobs?.find(j=>j.id===jobId) || null;
-  const cand = job ? job.candidates.find(c=>c.id===candId) : null;
-
-  // Session object
-  const session = {
-    id: 'iv_' + Math.random().toString(36).slice(2,9),
-    jobId, candId,
-    jobTitle: job?.title || 'Unknown Role',
-    jobTeam: job?.team || 'General',
-    jobLocation: job?.location || '—',
-    candName: cand?.name || 'Candidate',
-    candHeadline: `${cand?.title||'—'} • ${cand?.company||'—'}`,
-    skills: cand?.skills || [],
-    notes: cand?.notes || '',
-    messages: [],
-    metrics: { tech: 0, comm: 0, conf: 0 },
-    recommendation: 'Review'
-  };
-
-  // Populate side panel
-  document.getElementById('candName').innerText = session.candName;
-  document.getElementById('candHeadline').innerText = session.candHeadline;
-  document.getElementById('jobTitle').innerText = session.jobTitle;
-  document.getElementById('jobMeta').innerText = `${session.jobTeam} • ${session.jobLocation}`;
-  document.getElementById('candSkills').innerHTML = session.skills.slice(0,8).map(s=>`<span class="px-2 py-1 bg-gray-100 rounded text-xs text-gray-700">${s}</span>`).join('');
-  document.getElementById('candResume').innerText = session.notes || 'No resume notes available.';
-  document.getElementById('candPersonality').innerText = personalityFromSkills(session.skills);
-
-  // Add employer-mode side panels (traits, heat map, notes)
-  (function createEmployerPanels(){
-    const aside = document.querySelector('aside.col-span-4'); if(!aside) return;
-    const mk = (title, inner)=>{
-      const wrap = document.createElement('div'); wrap.className='mt-6';
-      const h = document.createElement('div'); h.className='text-sm font-semibold text-gray-700'; h.innerText=title; wrap.appendChild(h);
-      wrap.appendChild(inner); aside.appendChild(wrap);
-    };
-    const traits = document.createElement('div'); traits.id='traitList'; traits.className='mt-2 text-sm text-gray-700'; traits.innerText='Neutral';
-    mk('Live Traits & Reactions', traits);
-    const heat = document.createElement('div'); heat.id='heatMap'; heat.className='mt-2 flex flex-wrap gap-2'; mk('Heat Map', heat);
-    const notes = document.createElement('ul'); notes.id='notesPanel'; notes.className='mt-2 space-y-1 text-sm text-gray-700'; mk('AI Notes', notes);
-  })();
-
-  // Chat boot
-  const chatArea = document.getElementById('chatArea');
-  const typingEl = document.getElementById('typing');
-  function addMsg(author, text){
-    const wrap = document.createElement('div');
-    wrap.className = 'mb-3 flex ' + (author==='AI' ? 'justify-start' : 'justify-end');
-    wrap.innerHTML = `
-      <div class="max-w-[70%] px-3 py-2 rounded ${author==='AI' ? 'bg-indigo-50 text-indigo-800' : 'bg-gray-100 text-gray-800'}">
-        <div class="text-xs font-semibold mb-1">${author}</div>
-        <div class="text-sm">${text}</div>
-      </div>
-    `;
-    chatArea.appendChild(wrap); chatArea.scrollTop = chatArea.scrollHeight;
-    session.messages.push({ author, text, ts: Date.now() });
-  }
-  function aiThinking(on){ typingEl.classList[on?'remove':'add']('hidden'); }
-
-  function personalityFromSkills(sk){
-    const s = (sk||[]).map(x=>x.toLowerCase());
-    const traits = [];
-    if(s.includes('leadership')||s.includes('strategy')) traits.push('Strategic');
-    if(s.includes('react')||s.includes('ui')||s.includes('design')) traits.push('Detail-Oriented');
-    if(s.includes('python')||s.includes('ml')||s.includes('data')) traits.push('Analytical');
-    if(s.includes('customer')||s.includes('support')) traits.push('Empathetic');
-    return traits.length? traits.join(', ') : 'Generalist';
-  }
-
-  function nextQuestion(){
-    if(!window.questions){ buildQuestionBank(); }
-    const qi = window.qIndex || 0;
-    if(qi >= window.questions.length){ return 'Thanks — that concludes the interview. Any final thoughts?'; }
-    const q = window.questions[qi].q; window.qIndex = qi+1; return q;
-  }
-
-  function analyze(text){
-    const t = text.toLowerCase();
-    let tech = session.metrics.tech, comm = session.metrics.comm, conf = session.metrics.conf;
-    const techWords = ['react','next','tailwind','api','roadmap','analytics','python','ml','pandas','compliance','payroll'];
-    const commWords = ['clearly','explain','structured','communication','stakeholder','collaboration'];
-    const confWords = ['led','own','delivered','success','confident','comfortable'];
-    const negWords = ['unsure','maybe','think','not sure','confused'];
-    const weakSignals = ['um','uh','hmm','kind of','sort of'];
-
-    const techHits = techWords.filter(w=>t.includes(w)).length;
-    const commHits = commWords.filter(w=>t.includes(w)).length;
-    const confHits = confWords.filter(w=>t.includes(w)).length;
-    const negHits = negWords.filter(w=>t.includes(w)).length + weakSignals.filter(w=>t.includes(w)).length;
-
-    tech = clamp(tech + techHits * 12, 0, 100);
-    comm = clamp(comm + commHits * 10, 0, 100);
-    conf = clamp(conf + confHits * 10 - negHits * 8, 0, 100);
-
-    session.metrics = { tech, comm, conf };
-    renderMetrics();
-    session.recommendation = recommend();
-  }
-
-  function renderMetrics(){
-    document.getElementById('mTech').innerText = Math.round(session.metrics.tech)+'%';
-    document.getElementById('mComm').innerText = Math.round(session.metrics.comm)+'%';
-    document.getElementById('mConf').innerText = Math.round(session.metrics.conf)+'%';
-    document.getElementById('barTech').style.width = session.metrics.tech+'%';
-    document.getElementById('barComm').style.width = session.metrics.comm+'%';
-    document.getElementById('barConf').style.width = session.metrics.conf+'%';
-  }
-
-  function recommend(){
-    const { tech, comm, conf } = session.metrics;
-    const score = tech*0.5 + comm*0.3 + conf*0.2;
-    if(score >= 75) return 'Hire';
-    if(score >= 55) return 'Review';
-    return 'Decline';
-  }
-
-  // Bias detection (simple heuristic)
-  function biasCheck(text){
-    const lower = text.toLowerCase();
-    const flagged = [];
-    const patterns = [
-      { k:'gender', re:/\b(male|female)\b/ },
-      { k:'age', re:/\b(young|old|older|younger)\b/ },
-      { k:'region', re:/\b(nigerian|ghanaian|kenyan|african)\b/ }
-    ];
-    patterns.forEach(p=>{ if(p.re.test(lower)) flagged.push(p.k); });
-    if(flagged.length){
-      addMsg('AI','Note: Detected potentially biased phrasing ('+flagged.join(', ')+'). Consider neutral wording.');
-    }
-  }
-
-  function suggestFollowUps(text){
-    const lower = text.toLowerCase();
-    if(lower.includes('react')) return 'Follow-up: Which state management approach do you prefer and why?';
-    if(lower.includes('python')||lower.includes('ml')) return 'Follow-up: How did you validate your model and measure performance?';
-    if(lower.includes('stakeholder')) return 'Follow-up: How do you resolve conflicts between stakeholders?';
-    return 'Follow-up: What was the most challenging part and how did you overcome it?';
-  }
-
-  // Initialize employer-mode greeting; interview starts when triggered
-  addMsg('AI', `Welcome. This cockpit will lead and analyze the interview for ${session.candName} (${session.jobTitle}). Click Start Interview to begin.`);
-
-  // Build question bank with 5+ randomized answers per question
-  function buildQuestionBank(){
-    const role = (session.jobTitle||'').toLowerCase();
-    const general = [
-      { q:'Could you share a project you’re proud of and your role?', answers:[
-        'I led the migration, owning planning and rollout.',
-        'I contributed small fixes, mostly following guidance.',
-        'I improved performance by 30% with profiling.',
-        'I joined late and observed most decisions.',
-        'I designed the approach but struggled with deadlines.'
-      ]},
-      { q:'What was the most challenging part and how did you overcome it?', answers:[
-        'Stakeholder alignment; I set clear goals and cadences.',
-        'Debugging took weeks; I asked for help eventually.',
-        'Scaling issues; I introduced caching and pagination.',
-        'I wasn’t sure; others mainly solved it.',
-        'Ambiguity; I created a decision doc with options.'
-      ]},
-      { q:'How do you measure success for your work?', answers:[
-        'Impact metrics like conversions and latency.',
-        'We didn’t measure; it looked fine.',
-        'User satisfaction and defect rates.',
-        'I prefer qualitative feedback only.',
-        'Team goals and OKRs tied to outcomes.'
-      ]}
-    ];
-    const frontend = [
-      { q:'Walk through a complex React component you built.', answers:[
-        'Composed hooks; memoized heavy subtrees; lazy loaded routes.',
-        'Used lots of state; it became hard to manage.',
-        'Leveraged context and Suspense with error boundaries.',
-        'I mostly copied snippets from blogs.',
-        'Refactored to reduce re-renders by 40%.'
-      ]},
-      { q:'State management approach and why?', answers:[
-        'Colocation + server cache (RTK Query).',
-        'Global store everywhere; not ideal.',
-        'Signals/Context for light state; Redux for complex.',
-        'I’m unsure; I usually guess.',
-        'Event-driven patterns reduce prop drilling.'
-      ]}
-    ];
-    const data = [
-      { q:'Tell me about an ML model you deployed.', answers:[
-        'XGBoost with SHAP; monitored drift and retrained weekly.',
-        'Simple linear regression; no monitoring.',
-        'Transformer fine-tune; robust eval and A/B test.',
-        'I only ran notebooks locally.',
-        'Feature store reduced leakage and improved stability.'
-      ]}
-    ];
-    const product = [
-      { q:'How do you prioritize a roadmap?', answers:[
-        'Outcomes-first with ICE; align stakeholders via RFCs.',
-        'Whatever is most requested on Slack.',
-        'North star metrics + guardrails + discovery.',
-        'I let engineering decide entirely.',
-        'Trade-off docs with impact and risks.'
-      ]}
-    ];
-    const hr = [
-      { q:'Handle a sensitive ER case?', answers:[
-        'Document facts; neutrality; follow policy; support parties.',
-        'I choose a side early to move fast.',
-        'Escalation and mediation with clear timelines.',
-        'I rely on hearsay mostly.',
-        'Consult legal and maintain confidentiality.'
-      ]}
-    ];
-    const payroll = [
-      { q:'Ensure multi-country payroll compliance?', answers:[
-        'Localized rules; audits; reconciliations monthly.',
-        'Spreadsheet updates ad-hoc.',
-        'Integrate statutory APIs; automated checks.',
-        'Manual inputs only; error-prone.',
-        'Cross-border tax tables with validations.'
-      ]}
-    ];
-    let bank = general.slice();
-    if(role.includes('frontend')) bank = bank.concat(frontend);
-    if(role.includes('data')) bank = bank.concat(data);
-    if(role.includes('product')) bank = bank.concat(product);
-    if(role.includes('hr')) bank = bank.concat(hr);
-    if(role.includes('payroll')) bank = bank.concat(payroll);
-    window.questions = bank; window.qIndex = 0;
-  }
-
-  function askNext(){
-    const q = nextQuestion();
-    addMsg('AI', q);
-    // Simulate candidate answer with random pick for realism
-    const prevIndex = (window.qIndex||1) - 1;
-    const entry = window.questions && window.questions[prevIndex];
-    if(entry && entry.answers && entry.answers.length){
-      const a = entry.answers[Math.floor(Math.random()*entry.answers.length)];
-      setTimeout(()=>{ addMsg('Candidate', a); processCandidateReply(a); }, 700);
-    }
-  }
-
-  // Send handler — candidate answers only (AI asks questions)
-  const inputEl = document.getElementById('chatInput');
-  document.getElementById('sendBtn').onclick = ()=>{
-    const v = (inputEl.value||'').trim(); if(!v) return;
-    addMsg('Candidate', v);
-    biasCheck(v);
-    aiThinking(true);
-    setTimeout(()=>{ aiThinking(false); processCandidateReply(v); askNext(); }, 350);
-    inputEl.value='';
-  };
-
-  // Voice mode (Web Speech API fallback)
-  const voiceBtn = document.getElementById('voiceBtn');
-  let recognition = null; let listening = false;
-  function initSpeech(){
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(!SR) { showToast('Speech recognition not supported in this browser'); return null; }
-    const r = new SR(); r.lang = 'en-US'; r.interimResults = false; r.maxAlternatives = 1;
-    r.onresult = (e)=>{ const txt = e.results[0][0].transcript; inputEl.value = txt; };
-    r.onend = ()=>{ listening=false; statusRecording.className='px-2 py-1 rounded bg-red-100 text-red-700'; };
-    return r;
-  }
-  voiceBtn.onclick = ()=>{
-    const enabled = document.getElementById('voiceMode').checked;
-    if(!enabled){ showToast('Enable Voice Mode first'); return; }
-    if(!recognition) recognition = initSpeech();
-    if(!recognition) return;
-    if(!listening){ recognition.start(); listening=true; statusRecording.className='px-2 py-1 rounded bg-green-100 text-green-700'; }
-    else { recognition.stop(); }
-  };
-
-  // Recording controls (MediaRecorder)
-  const recordToggle = document.getElementById('recordToggle');
-  let mediaRecorder = null; let chunks = []; let recording = false;
-  recordToggle.onclick = async ()=>{
-    try {
-      if(!recording){
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        chunks = [];
-        mediaRecorder.ondataavailable = (e)=>{ if(e.data.size>0) chunks.push(e.data); };
-        mediaRecorder.onstop = ()=>{
-          const blob = new Blob(chunks, { type: 'audio/webm' });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement('a'); a.href=url; a.download=`interview_${session.id}.webm`; a.textContent='Download Recording';
-          a.className='mt-2 inline-block text-indigo-600 underline';
-          document.querySelector('nav .flex.items-center.gap-3').appendChild(a);
-          showToast('Recording saved');
-        };
-        mediaRecorder.start(); recording = true;
-        recordToggle.innerText = 'Stop Recording';
-        statusRecording.className='px-2 py-1 rounded bg-green-100 text-green-700';
-      } else {
-        mediaRecorder.stop(); recording = false;
-        recordToggle.innerText = 'Start Recording';
-        statusRecording.className='px-2 py-1 rounded bg-red-100 text-red-700';
-      }
-    } catch(err){ console.error(err); showToast('Recording failed'); }
-  };
-
-  // Coach feedback
-  function coachFeedback(text){
-    const t = text.toLowerCase();
-    const tips = [];
-    if(!/\b(i|my|me)\b/.test(t)) tips.push('Use first-person to show ownership.');
-    if(!/\b(impact|result|increased|reduced|saved|improved)\b/.test(t)) tips.push('Quantify outcomes with impact metrics.');
-    if(t.length < 40) tips.push('Add more detail and context for clarity.');
-    return tips.length ? tips.join(' ') : 'Strong answer; consider highlighting key metrics and challenges.';
-  }
-
-  // Guidance hints for interviewer questions
-  function guidanceHint(text, role){
-    const t = text.toLowerCase(); const r = (role||'').toLowerCase();
-    if(r.includes('frontend')) return 'Probe for state management, performance, accessibility.';
-    if(r.includes('product')) return 'Ask about discovery, stakeholder trade-offs, outcome metrics.';
-    if(r.includes('data')) return 'Discuss validation, deployment, and monitoring of models.';
-    if(r.includes('hr')) return 'Explore ER frameworks, compliance, and change management.';
-    if(r.includes('payroll')) return 'Clarify multi-country compliance and reconciliation.';
-    return t.includes('project') ? 'Ask for goals, constraints, and measurable results.' : 'Ask for scope, constraints, and metrics.';
-  }
-
-  // Candidate reply processing: analysis, notes, traits, heat map, next
-  function processCandidateReply(text){
-    analyze(text);
-    const keypoints = extractKeyPhrases(text);
-    addNotes(keypoints);
-    updateTraits(text);
-    addHeatPoint(session.metrics);
-    // Auto-advance to the next question for streamlined employer-only flow
-    setTimeout(()=> { askNext(); }, 600);
-  }
-
-  function extractKeyPhrases(text){
-    const t = text.replace(/\s+/g,' ').trim(); const phrases = [];
-    const re = /(led [^.,;]+|optimized [^.,;]+|increased [^.,;]+|reduced [^.,;]+|built [^.,;]+|designed [^.,;]+|managed [^.,;]+|deployed [^.,;]+)/gi;
-    let m; while((m = re.exec(t))){ phrases.push(m[0]); }
-    return phrases.length? phrases : [t.split('.').filter(Boolean)[0] || t.slice(0,80)+'...'];
-  }
-
-  function addNotes(items){
-    const ul = document.getElementById('notesPanel');
-    if(!ul) return;
-    items.forEach(it=>{ const li=document.createElement('li'); li.innerText=it; ul.appendChild(li); });
-    statusNotes.className = 'px-2 py-1 rounded bg-amber-200 text-amber-800';
-  }
-
-  function updateTraits(text){
-    const t = text.toLowerCase(); const traits = [];
-    const fillers = ['um','uh','hmm','like','you know','kind of','sort of'];
-    const fillerCount = fillers.reduce((acc,w)=> acc + (t.split(w).length-1), 0);
-    if(fillerCount>=2) traits.push('Hesitation');
-    if(/\b(led|owned|delivered|initiated)\b/.test(t)) traits.push('Ownership');
-    if(/\b(clear|structured|organized)\b/.test(t)) traits.push('Clarity');
-    if(/\b(collaborat|stakeholder|team)\b/.test(t)) traits.push('Collaboration');
-    const el = document.getElementById('traitList'); if(el) el.innerText = traits.length ? traits.join(', ') : 'Neutral';
-  }
-
-  function addHeatPoint(m){
-    const dot = document.createElement('div');
-    const score = m.tech*0.5 + m.comm*0.3 + m.conf*0.2;
-    let color = 'bg-gray-300';
-    if(score>=75) color='bg-emerald-500'; else if(score>=55) color='bg-amber-400'; else color='bg-red-400';
-    dot.className = `w-3 h-3 rounded-full ${color}`;
-    const hm = document.getElementById('heatMap'); if(hm) hm.appendChild(dot);
-  }
-
-  // Summarize / Insights
-  document.getElementById('summarizeBtn').onclick = ()=>{
-    const { tech, comm, conf } = session.metrics;
-    const summary = `Summary\n\nTechnical Fit: ${Math.round(tech)}%\nCommunication Clarity: ${Math.round(comm)}%\nConfidence Index: ${Math.round(conf)}%\nRecommendation: ${session.recommendation}`;
-    addMsg('AI', summary);
-    addMsg('AI', insights());
-  };
-
-  function insights(){
-    const textAll = session.messages.map(m=>m.text.toLowerCase()).join(' ');
-    const topSkills = Array.from(new Set((session.skills||[]).map(s=>s.toLowerCase()).filter(s=> textAll.includes(s)))).slice(0,5);
-    const stressSignals = ['overwork','burnout','deadline','overtime','late nights'].filter(k=> textAll.includes(k));
-    const personality = personalityFromSkills(session.skills);
-    const prob = clamp(Math.round((session.metrics.tech*0.5 + session.metrics.comm*0.3 + session.metrics.conf*0.2)), 0, 100);
-    return `Top Skills Mentioned: ${topSkills.join(', ') || '—'}\nHiring Probability: ${prob}%\nPersonality Fit: ${personality}\nAI Detected Stress/Burnout Risk: ${stressSignals.length? 'Possible' : 'Low'}`;
-  }
-
-  // Save & Export
-  function persist(){
-    try {
-      const list = JSON.parse(localStorage.getItem('lumion_interviews')||'[]');
-      list.push(session);
-      localStorage.setItem('lumion_interviews', JSON.stringify(list));
-      showToast('Session saved');
-    } catch { showToast('Failed to save'); }
-  }
-  document.getElementById('saveSessionBtn').onclick = persist;
-  document.getElementById('exportSessionBtn').onclick = ()=>{
-    const blob = new Blob([JSON.stringify(session, null, 2)], {type:'application/json'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=`interview_${session.id}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-  };
-
-  // Bubble toggling (for microinteraction feel)
-  const floatBubble = document.getElementById('floatBubble');
-  let cockpitVisible = true;
-  function setCockpit(visible){ document.querySelector('main').classList[visible?'remove':'add']('hidden'); cockpitVisible = visible; floatBubble.innerText = visible ? 'Close Cockpit' : 'Open Interview Cockpit'; }
-  floatBubble.onclick = ()=> setCockpit(!cockpitVisible);
-  setCockpit(true);
-
-  // Status badges react to modes
-  const statusRecording = document.getElementById('statusRecording');
-  document.getElementById('voiceMode').addEventListener('change', (e)=>{
-    statusRecording.className = 'px-2 py-1 rounded ' + (e.target.checked ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700');
-  });
-  const statusNotes = document.getElementById('statusNotes');
-  const statusInsights = document.getElementById('statusInsights');
-  statusNotes.className = 'px-2 py-1 rounded bg-amber-100 text-amber-700';
-  statusInsights.className = 'px-2 py-1 rounded bg-emerald-100 text-emerald-700';
-
-  // Start interview sequence
-  document.getElementById('startInterviewBtn').onclick = ()=>{
-    addMsg('AI', `Hi ${session.candName} 👋, I’ll lead this interview for the ${session.jobTitle} role.`);
-    askNext();
-  };
-
-  // Start camera feed; hide avatar when active
-  const videoEl = document.getElementById('videoFeed');
-  const avatarEl = document.getElementById('avatarFace');
-  document.getElementById('startCameraBtn').onclick = async ()=>{
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
-      videoEl.srcObject = stream; videoEl.classList.remove('hidden'); avatarEl.classList.add('hidden');
-    } catch(err){ console.error(err); showToast('Camera access failed'); }
-  };
-
-  // Render minimalistic human-like face (male/female)
-  function renderFace(gender){
-    const isFemale = (gender==='female');
-    avatarEl.innerHTML = `
-      <svg viewBox="0 0 120 90" width="120" height="90">
-        <rect x="0" y="0" width="120" height="90" rx="12" fill="url(#bg)" />
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#f3f4f6"/>
-            <stop offset="100%" stop-color="#e5e7eb"/>
-          </linearGradient>
-        </defs>
-        ${isFemale? '<path d="10,20 q50,-25 100,20" fill="#6b7280" />' : '<rect x="20" y="12" width="80" height="18" rx="9" fill="#6b7280" />'}
-        <circle cx="60" cy="45" r="26" fill="#fef3c7" stroke="#f59e0b" stroke-width="1" />
-        <circle cx="48" cy="44" r="4" fill="#111827" />
-        <circle cx="72" cy="44" r="4" fill="#111827" />
-        <path d="M48,60 q12,8 24,0" stroke="#ef4444" stroke-width="2" fill="none" />
-        ${isFemale? '<path d="M40,35 q20,-10 40,0" stroke="#6b7280" stroke-width="3" />' : ''}
-      </svg>`;
-  }
-  renderFace('male');
-  Array.from(document.querySelectorAll('input[name="avatarGender"]')).forEach(r=>{
-    r.addEventListener('change', (e)=>{ renderFace(e.target.value); });
-  });
-
-  // Meet/Zoom quick actions
-  document.getElementById('meetBtn').onclick = ()=>{
-    const url = 'https://meet.google.com/new';
-    session.meetingLink = url; window.open(url, '_blank'); showToast('Opening Google Meet');
-  };
-  document.getElementById('zoomBtn').onclick = ()=>{
-    const url = 'https://zoom.us/start/videomeeting';
-    session.meetingLink = url; window.open(url, '_blank'); showToast('Opening Zoom');
-  };
-
-  // Calendar invite (ICS)
-  document.getElementById('inviteBtn').onclick = ()=>{
-    const now = new Date(); const start = new Date(now.getTime()+60*60*1000); const end = new Date(start.getTime()+30*60*1000);
-    const fmt = (d)=> d.toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
-    const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Lumion//AI Interview//EN\nBEGIN:VEVENT\nUID:${session.id}@lumion\nDTSTAMP:${fmt(now)}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nSUMMARY:Interview — ${session.candName} (${session.jobTitle})\nDESCRIPTION:Interview link: ${session.meetingLink||'Add conferencing in the event'}\nLOCATION:${session.meetingLink? session.meetingLink : 'Video Conference'}\nEND:VEVENT\nEND:VCALENDAR`;
-    const blob = new Blob([ics], {type:'text/calendar'}); const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href=url; a.download=`invite_${session.id}.ics`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    showToast('Calendar invite downloaded');
-  };
-  </script>
+    <script>
+        // Initialize hiring score animation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Simulate chat updates
+            setTimeout(() => {
+                const chatContainer = document.getElementById('chat-container');
+                const typingIndicator = chatContainer.querySelector('.typing-dots').parentElement;
+                typingIndicator.remove();
+                
+                const newMessage = document.createElement('div');
+                newMessage.className = 'message-bubble ai-message slide-in';
+                newMessage.innerHTML = `
+                    <div class="flex items-center space-x-2 mb-2">
+                        <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
+                            <i class="fas fa-robot text-white text-xs"></i>
+                        </div>
+                        <span class="text-sm font-medium">Lumion AI</span>
+                        <span class="text-xs text-gray-400">2:21 PM</span>
+                    </div>
+                    <p class="mb-3">Excellent! That's a sophisticated approach. How did you handle performance optimization in such a complex component?</p>
+                    
+                    <div class="mt-3 pt-3 border-t border-indigo-500/30">
+                        <div class="flex items-center space-x-2 text-sm">
+                            <i class="fas fa-chart-bar text-indigo-400"></i>
+                            <span class="font-medium">AI Analysis:</span>
+                            <span class="sentiment-positive">Strong problem-solving skills detected</span>
+                        </div>
+                    </div>
+                `;
+                chatContainer.appendChild(newMessage);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }, 3000);
+        });
+    </script>
 </body>
 </html>
