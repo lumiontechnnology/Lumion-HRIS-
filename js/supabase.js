@@ -30,6 +30,20 @@
         await fetch(api + '/api/employees', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(emp) });
       }catch(e){}
     };
+    window.loadJobsList = async function(){
+      try{
+        const r = await fetch(api + '/api/jobs');
+        if(!r.ok) return [];
+        return await r.json();
+      }catch(e){ return []; }
+    };
+    window.loadEmployeesList = async function(){
+      try{
+        const r = await fetch(api + '/api/employees');
+        if(!r.ok) return [];
+        return await r.json();
+      }catch(e){ return []; }
+    };
     return;
   }
 
@@ -90,5 +104,19 @@
         source_company: emp.source_company || null
       });
     }catch(e){}
+  };
+  window.loadJobsList = async function(){
+    try{
+      const r = await client.from('jobs').select('*').order('created_at', { ascending: false });
+      if(r.error) return [];
+      return r.data || [];
+    }catch(e){ return []; }
+  };
+  window.loadEmployeesList = async function(){
+    try{
+      const r = await client.from('employees').select('*').order('created_at', { ascending: false });
+      if(r.error) return [];
+      return r.data || [];
+    }catch(e){ return []; }
   };
 })();

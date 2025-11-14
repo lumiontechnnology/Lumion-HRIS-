@@ -146,3 +146,21 @@ ensureSchema().then(() => {
     console.log(`API listening on http://localhost:${port}`);
   });
 });
+
+app.get('/api/jobs', async (req, res) => {
+  try {
+    const q = await pool.query('select job_id, title, location, type, openings, team, description, created_at from public.jobs order by created_at desc');
+    res.json(q.rows);
+  } catch (e) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});
+
+app.get('/api/employees', async (req, res) => {
+  try {
+    const q = await pool.query('select id, employee_id, name, job_id, job_title, status, notes, years, skills, certs, source_company, created_at from public.employees order by created_at desc');
+    res.json(q.rows);
+  } catch (e) {
+    res.status(500).json({ error: 'server_error' });
+  }
+});

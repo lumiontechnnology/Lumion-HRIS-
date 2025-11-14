@@ -36,6 +36,7 @@
       <div class="flex items-center gap-4">
         <div class="text-sm text-gray-600">Acme Corp • Admin</div>
         <button id="inviteBtn" class="px-3 py-2 bg-indigo-600 text-white rounded-md shadow">Invite Team</button>
+        <button id="viewEmployeesBtn" class="px-3 py-2 border rounded">Employees</button>
       </div>
     </div>
   </nav>
@@ -185,6 +186,19 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div id="employeesModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 p-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-xl font-bold">Employees</h3>
+          <div class="text-sm text-gray-600" id="employeesCount"></div>
+        </div>
+        <button id="closeEmployeesBtn" class="px-3 py-1 rounded border">Close</button>
+      </div>
+      <div id="employeesList" class="mt-4 grid grid-cols-1 gap-3"></div>
     </div>
   </div>
 
@@ -795,6 +809,16 @@ document.getElementById('candidateModal').addEventListener('click', (e)=>{
   if(e.target.id === 'candidateModal') closeModal();
 });
 
+document.getElementById('viewEmployeesBtn').addEventListener('click', async ()=>{
+  await openEmployees();
+});
+document.getElementById('closeEmployeesBtn').addEventListener('click', ()=>{
+  closeEmployees();
+});
+document.getElementById('employeesModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'employeesModal') closeEmployees();
+});
+
 function gotoInterview(jobId, candId){
   try {
     const job = state.jobs.find(j=>j.id===jobId);
@@ -816,6 +840,53 @@ function gotoTest(jobId, candId){
   } catch {}
   window.location.href = `interview-tests.html?jobId=${encodeURIComponent(jobId)}&candId=${encodeURIComponent(candId)}`;
 }
+
+async function openEmployees(){
+  try {
+    let list = [];
+    if(window.loadEmployeesList){
+      list = await window.loadEmployeesList();
+    }
+    if(!Array.isArray(list) || list.length===0){
+      const out = [];
+      (state.jobs||[]).forEach(function(j){
+        (j.candidates||[]).forEach(function(c){
+          if(c && (c.hired || c.status==='Onboarding')){
+            out.push({ name: c.name, job_title: j.title, years: c.years||0, source_company: c.company||'', skills: c.skills||[] });
+          }
+        });
+      });
+      list = out;
+    }
+    const countEl = document.getElementById('employeesCount');
+    countEl.innerText = String(list.length) + ' total';
+    const wrap = document.getElementById('employeesList');
+    wrap.innerHTML = '';
+    list.forEach(function(e){
+      const card = document.createElement('div');
+      card.className = 'p-4 bg-white rounded-lg border';
+      const initials = String(e.name||'').split(' ').map(function(n){return n[0]}).slice(0,2).join('') || 'E';
+      card.innerHTML = '<div class="flex items-start gap-4">\
+        <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-700 font-bold">' + initials + '</div>\
+        <div class="flex-1">\
+          <div class="font-semibold">' + (e.name||'') + ' <span class="text-sm text-gray-500">• ' + (e.job_title||'') + '</span></div>\
+          <div class="text-xs text-gray-500">' + (e.source_company||'') + ' • ' + (e.years||0) + ' yrs</div>\
+          <div class="mt-2 flex items-center gap-2 flex-wrap">' + (Array.isArray(e.skills)? e.skills.slice(0,5).map(function(s){ return '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">' + s + '</span>'; }).join('') : '') + '</div>\
+        </div>\
+      </div>';
+      wrap.appendChild(card);
+    });
+    const modal = document.getElementById('employeesModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } catch {}
+}
+
+function closeEmployees(){
+  const modal = document.getElementById('employeesModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
 </script>
 <script>
 (async function(){
@@ -827,6 +898,34 @@ function gotoTest(jobId, candId){
       renderJobDetail();
     }
   }
+  try {
+    if(Array.isArray(state.jobs)){
+      for(var i=0;i<state.jobs.length;i++){
+        var j = state.jobs[i];
+        if(window.saveJob) await window.saveJob(j);
+        var hired = (j.candidates||[]).filter(function(c){ return c && (c.hired || c.status==='Onboarding'); });
+        for(var k=0;k<hired.length;k++){
+          var c = hired[k];
+          if(window.saveEmployee) await window.saveEmployee({ employee_id: c.id, name: c.name, job_id: j.id, job_title: j.title, status: c.status, notes: c.notes||'', years: c.years||0, skills: c.skills||[], certs: c.certs||[], source_company: c.company||'' });
+        }
+      }
+    }
+  } catch(e){}
+  try {
+    if(window.loadJobsList){
+      var cloudJobs = await window.loadJobsList();
+      if(Array.isArray(cloudJobs) && cloudJobs.length){
+        cloudJobs.forEach(function(rj){
+          var exists = state.jobs.some(function(j){ return j && j.id === rj.job_id; });
+          if(!exists){
+            state.jobs.push({ id: rj.job_id, title: rj.title, location: rj.location, type: rj.type, openings: rj.openings||0, team: rj.team, description: rj.description||'', candidates: [] });
+          }
+        });
+        saveState(state);
+        renderJobs();
+      }
+    }
+  } catch(e){}
 })();
 </script>
 </body>
