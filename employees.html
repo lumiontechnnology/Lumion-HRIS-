@@ -71,6 +71,7 @@
 
   <div id="modalRoot"></div>
 
+  <script src="js/supabase.js"></script>
   <script type="module">
   import { Store } from './js/store.js';
   import { requireAuth, renderUserMenu } from './js/auth.js';
@@ -557,7 +558,9 @@
   function exitEmployeeQuick(emp){
     const dateStr = prompt('Exit date (YYYY-MM-DD)?');
     if(!dateStr) return;
-    const iso = new Date(dateStr).toISOString().slice(0,10);
+    const fullIso = new Date(dateStr).toISOString();
+    const iso = fullIso.slice(0,10);
+    if(window.updateEmployee){ try { await window.updateEmployee(emp.id, { status: 'Exited', exit_date: fullIso }); } catch {} }
     Store.updateEmployee(emp.id, { status: 'Exited', exit: iso, exit_date: iso });
     employees = Store.getEmployees();
     populateDeptFilter();
