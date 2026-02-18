@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion HR</title>
+  <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png">
+  <link rel="stylesheet" href="assets/tailwind.css">
+  <script type="module" src="js/store.js"></script>
+  <script type="module">import { requireAuth } from '/js/auth.js'; requireAuth('admin');</script>
+  <!-- Chart.js for predictive chart (guarded) -->
+  <script>
+    (function(){
+      try{
+        var s=document.createElement('script');
+        s.src='https://cdn.jsdelivr.net/npm/chart.js';
+        s.onerror=function(){ console.warn('Chart.js CDN unavailable; predictive chart will be disabled.'); };
+        document.head.appendChild(s);
+      }catch(e){ /* noop */ }
+    })();
+  </script>
+
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 6px 20px rgba(15,23,42,0.06); }
+    .ghost-btn { background: transparent; border: 1px solid #e6e9f0; padding: .45rem .75rem; border-radius: 8px; }
+    #chatWindow { display:none; width:360px; max-width:calc(100vw - 40px); position:fixed; right:20px; bottom:90px; border-radius:12px; overflow:hidden; z-index:60; box-shadow:0 10px 30px rgba(2,6,23,.15); background:white; }
+    #chatHeader{background:#4F46E5;color:white;padding:10px 12px;font-weight:700}
+    .chat-bubble{padding:8px 12px;border-radius:14px;max-width:80%}
+    .chat-ai{background:#F3F4F6;color:#111827}
+    .chat-user{background:#4F46E5;color:white; margin-left:auto;}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,.45);display:flex;align-items:center;justify-content:center;z-index:70}
+    @media (max-width:900px){ .desktop-only{display:none} }
+    .pill { padding: 6px 10px; border-radius:999px; font-size:12px; }
+    /* subtle scrollbar for chat messages */
+    #chatMessages { max-height: 320px; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:8px; }
+  </style>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/env.js"></script>
+  <script src="js/supabase.js"></script>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- NAV removed; shared site header/footer will be injected -->
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- OVERVIEW -->
+    <section id="overview" class="mb-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h1 class="text-2xl font-extrabold">Welcome, Admin</h1>
+          <p class="text-sm text-gray-500 mt-1">Manage employees, payroll, hiring pipelines, and people analytics.</p>
+        </div>
+        <div class="flex gap-3 items-center">
+          <div class="text-right">
+            <div class="text-xs text-gray-500">Today</div>
+            <div class="text-sm font-medium" id="nowDate"></div>
+          </div>
+          <button id="openFeatureSearch" class="px-3 py-2 border rounded-lg text-sm ghost-btn">Search</button>
+          <button id="exportFullCSV" class="px-3 py-2 border rounded-lg text-sm ghost-btn">Export All (CSV)</button>
+          <button id="exportAttendanceCSV" class="px-3 py-2 border rounded-lg text-sm ghost-btn">Export Attendance CSV</button>
+          <button id="exportLeavesCSV" class="px-3 py-2 border rounded-lg text-sm ghost-btn">Export Leaves CSV</button>
+        </div>
+      </div>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <a href="performance-dashboard.html" class="px-3 py-2 border rounded-lg text-sm ghost-btn">Performance Dashboard</a>
+        <a href="hr-performance.html" class="px-3 py-2 border rounded-lg text-sm ghost-btn">HR Performance (Admin)</a>
+        <a href="hr-performance.html#bsc" class="px-3 py-2 border rounded-lg text-sm ghost-btn">Balanced Scorecard (Admin)</a>
+        <a href="performance-dashboard.html#appraisal" class="px-3 py-2 border rounded-lg text-sm ghost-btn">360 Appraisal</a>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Clocked In Today</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryClockedIn">0</div>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Remote Today</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryRemote">0</div>
+      </div>
+    </section>
+
+    <!-- summary cards -->
+    <section class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Employees</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryEmployees">0</div>
+        <div class="text-xs text-green-600 mt-1">update live</div>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Payroll (monthly est)</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryPayroll">₦0</div>
+        <div class="text-xs text-gray-500 mt-1">Gross payout</div>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Active Leaves</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryLeaves">0</div>
+        <div class="text-xs text-gray-500 mt-1">Pending & active</div>
+      </div>
+      <div class="card p-5">
+        <div class="text-sm text-gray-500">Avg Match Score</div>
+        <div class="mt-2 text-2xl font-bold" id="summaryMatch">—</div>
+        <div class="text-xs text-gray-500 mt-1">AI candidate match (sim)</div>
+      </div>
+    </section>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- Employees -->
+      <section id="employees" class="lg:col-span-2">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold">Employees</h2>
+          <div class="flex gap-2 items-center">
+            <input id="searchInput" class="px-3 py-2 border rounded-lg text-sm" placeholder="Search name, department, role, manager, location..." />
+            <select id="deptFilter" class="px-3 py-2 border rounded-lg text-sm"><option value="">All Departments</option></select>
+            <select id="managerFilter" class="px-3 py-2 border rounded-lg text-sm"><option value="">All Managers</option></select>
+            <select id="locationFilter" class="px-3 py-2 border rounded-lg text-sm"><option value="">All Locations</option></select>
+            <select id="statusFilter" class="px-3 py-2 border rounded-lg text-sm"><option value="">All Status</option><option>Active</option><option>On Leave</option><option>Suspended</option><option>Exited</option></select>
+            <button id="addEmployeeBtn" class="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm">+ Add</button>
+          </div>
+        </div>
+
+        <div class="card p-4 overflow-x-auto">
+          <table class="w-full min-w-[900px] text-sm">
+            <thead class="text-left text-gray-500">
+              <tr>
+                <th class="py-2">Name</th>
+                <th class="py-2">Department</th>
+                <th class="py-2">Role</th>
+                <th class="py-2">Manager</th>
+                <th class="py-2">Location</th>
+                <th class="py-2">Status</th>
+                <th class="py-2">Salary (₦)</th>
+                <th class="py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="employeesTbody" class="divide-y"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Payroll quick -->
+      <aside id="payroll" class="card p-5">
+        <h3 class="font-semibold mb-3">Payroll — Quick Payslip</h3>
+        <p class="text-sm text-gray-500 mb-4">Select an employee to calculate & generate a payslip (prototype PAYE & pension).</p>
+
+        <label class="block text-xs text-gray-600">Choose employee</label>
+        <select id="payrollEmployee" class="w-full p-2 mt-1 border rounded mb-3"></select>
+
+        <label class="block text-xs text-gray-600">Gross salary (₦)</label>
+        <input id="grossInput" type="number" class="w-full p-2 border rounded mb-3" placeholder="e.g., 250000" />
+
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div class="text-sm">
+            <div class="text-gray-500 text-xs">PAYE (tax)</div>
+            <div id="taxVal" class="text-lg font-medium">₦0</div>
+          </div>
+          <div class="text-sm">
+            <div class="text-gray-500 text-xs">Pension (8%)</div>
+            <div id="pensionVal" class="text-lg font-medium">₦0</div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <div class="text-sm text-gray-500">Net pay</div>
+          <div id="netPay" class="text-2xl font-bold">₦0</div>
+        </div>
+
+        <div class="mt-6 flex gap-2">
+          <button id="calcBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg">Calculate</button>
+          <button id="generatePayslipBtn" class="px-4 py-2 border rounded-lg">Generate Payslip</button>
+        </div>
+
+        <hr class="my-4" />
+        <div>
+          <h4 class="text-sm font-semibold">Payroll Compliance</h4>
+          <ul class="text-xs text-gray-600 mt-2 space-y-1">
+            <li>• PAYE: prototype progressive model (adjust for local law).</li>
+            <li>• Pension: 8% employee. Employer contribution can be added.</li>
+            <li>• Payslips printable & exportable.</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+
+    <section id="policies" class="mt-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Department Payroll</h3>
+          <div class="flex items-center gap-2">
+            <div class="text-xs text-gray-500">Monthly totals</div>
+            <button id="exportDeptPayroll" class="ghost-btn text-sm">Export CSV</button>
+            <button id="printDeptSummary" class="ghost-btn text-sm">Print Summary</button>
+          </div>
+        </div>
+        <div id="deptPayrollList" class="text-sm text-gray-700"></div>
+      </div>
+    </section>
+
+    <section id="assets" class="mt-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Tomorrow Planner — Team Readiness</h3>
+          <div class="flex items-center gap-3">
+            <select id="teamFilterDept" class="border rounded text-xs p-1">
+              <option value="">All depts</option>
+            </select>
+            <div class="flex items-center gap-1 text-xs">
+              <span>Min readiness</span>
+              <input id="teamFilterReady" type="number" min="0" max="100" value="0" class="border rounded p-1 w-16" />
+            </div>
+          </div>
+        </div>
+        <div id="teamPlansList" class="text-sm text-gray-700"></div>
+      </div>
+    </section>
+
+    <section id="reqs" class="mt-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Managers — Team Directs</h3>
+          <div class="text-xs text-gray-500">Click to view directs</div>
+        </div>
+        <div id="managersSummaryList" class="text-sm text-gray-700"></div>
+      </div>
+    </section>
+
+    <!-- JOBS + PIPELINE -->
+    <section id="jobs" class="mt-8">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">Open Positions & Candidate Pipeline</h2>
+        <div class="flex gap-2">
+          <button id="autoMatchAll" class="px-3 py-2 bg-indigo-600 text-white rounded text-sm">Auto-match all (simulate)</button>
+          <button id="exportCandidatesCSV" class="px-3 py-2 border rounded text-sm ghost-btn">Export Candidates CSV</button>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <!-- left: jobs list -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-3">Open Roles (<span id="jobsCount">0</span>)</h4>
+          <div id="jobsList" class="space-y-4"></div>
+        </div>
+
+        <!-- right: selected job detail -->
+        <div class="card p-4">
+          <h4 class="font-semibold mb-3" id="selectedJobTitle">Select a job to view candidates</h4>
+          <div id="selectedJobMeta" class="text-sm text-gray-500 mb-3"></div>
+          <div id="candidatesPanel" class="space-y-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Predictive Analytics -->
+    <section id="predictive" class="mt-8">
+      <div class="card p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold">Predictive Analytics (simulated)</h3>
+          <div class="text-sm text-gray-500">AI estimates & trends</div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div class="p-4 bg-indigo-50 rounded">
+            <div class="text-xs text-gray-600">Predicted avg time-to-fill</div>
+            <div class="text-2xl font-bold" id="predTime">12 days</div>
+          </div>
+          <div class="p-4 bg-indigo-50 rounded">
+            <div class="text-xs text-gray-600">Top channel (sim)</div>
+            <div class="text-2xl font-bold" id="predChannel">LinkedIn</div>
+          </div>
+          <div class="p-4 bg-indigo-50 rounded">
+            <div class="text-xs text-gray-600">Avg match score</div>
+            <div class="text-2xl font-bold" id="predScore">86%</div>
+          </div>
+        </div>
+
+        <canvas id="predictiveChart" height="120"></canvas>
+      </div>
+    </section>
+
+    <!-- Policies & Compliance -->
+    <section id="leaves" class="mt-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Policies & Compliance</h3>
+          <div class="flex items-center gap-2">
+            <button id="addPolicyBtn" class="ghost-btn text-sm">+ Add Policy</button>
+            <button id="exportPoliciesCSV" class="ghost-btn text-sm">Export CSV</button>
+            <button id="sendPolicyReminders" class="ghost-btn text-sm">Send Reminders</button>
+          </div>
+        </div>
+        <div id="policiesList" class="text-sm text-gray-700"></div>
+      </div>
+    </section>
+
+    <!-- Assets Management -->
+    <section class="mt-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Assets Management</h3>
+          <div class="flex items-center gap-2">
+            <button id="addAssetBtn" class="ghost-btn text-sm">+ Add Asset</button>
+            <button id="exportAssetsCSV" class="ghost-btn text-sm">Export CSV</button>
+          </div>
+        </div>
+        <div id="assetsList" class="text-sm text-gray-700"></div>
+      </div>
+    </section>
+
+    <!-- Requisitions & Approvals -->
+    <section class="mt-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Requisitions & Approvals</h3>
+          <div class="flex items-center gap-2">
+            <button id="exportReqCSV" class="ghost-btn text-sm">Export CSV</button>
+          </div>
+        </div>
+        <div id="reqAdminList" class="text-sm text-gray-700"></div>
+      </div>
+    </section>
+
+    <!-- Leave Approvals -->
+    <section class="mt-8">
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-2">
+          <h3 class="font-semibold">Leave Approvals</h3>
+          <div class="text-sm text-gray-500">Approve or reject pending requests</div>
+        </div>
+        <div id="leaveAdminList" class="text-sm text-gray-700"></div>
+      </div>
+    </section>
+
+    <!-- recent activity -->
+    <section class="mt-8">
+      <div class="card p-6">
+        <h3 class="text-lg font-semibold">Recent Activity</h3>
+        <ul class="mt-3 text-sm text-gray-600 space-y-2" id="activityLog"></ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="mt-12 pb-12">
+    <div class="max-w-7xl mx-auto px-6 text-sm text-gray-500 text-center">
+      &copy; 2025 Lumion Technology — HRIS Prototype. All rights reserved.
+    </div>
+  </footer>
+
+  <!-- Chat widget -->
+  <div id="chatbot" style="position:fixed; right:20px; bottom:20px; z-index:80;">
+    <button onclick="toggleChat()" class="p-4 bg-indigo-600 rounded-full text-white shadow-lg">💬</button>
+  </div>
+  <div id="chatWindow" aria-hidden="true">
+    <div id="chatHeader">Lumion Assistant</div>
+    <div id="chatMessages">
+      <div class="chat-bubble chat-ai">Hi 👋 I'm Lumion Assistant. Ask me about employees, payroll, or hiring.</div>
+    </div>
+    <div style="padding:10px; border-top:1px solid #eee; display:flex; gap:8px; align-items:center;">
+      <input id="chatInput" placeholder="Ask Lumion..." class="flex-1 p-2 border rounded" />
+      <button id="chatSend" class="px-3 py-2 bg-indigo-600 text-white rounded">Send</button>
+    </div>
+  </div>
+
+  <div id="modalRoot"></div>
+
+  <script>
+  /***********************
+   * Data & bootstrapping
+   ***********************/
+  document.addEventListener('DOMContentLoaded', () => {
+    // date
+    document.getElementById('nowDate').textContent = new Date().toLocaleDateString();
+
+    let employees = [];
+    try {
+      const raw = (window.Store ? Store.getEmployees() : []);
+      employees = (raw || []).map(e => ({ id: e.id, name: e.name, dept: e.dept || e.department || 'Admin', role: e.role || 'Staff', manager: e.manager || '', location: e.location || '', salary: e.salary || 0, status: e.status || 'Active', start: e.start || '', exit: e.exit || e.exit_date || '' }));
+    } catch {}
+    if (!employees.length) {
+      const pick = a => a[Math.floor(Math.random()*a.length)];
+      const first = ["Ada","Chike","Ifeanyi","Nkechi","James","Seyi","Amaka","Tunde","Zainab","Michael","Fatima","Peter","Rose","David","Sade","Bayo","Ngozi","Umar","Lilian","Joel","Kofi","Amina","Kwame","Lerato","Ahmed","Youssef","Fatou","Abebe","Halima","Yara","Noah","Emma","Liam","Olivia","Lucas","Mia"];
+      const last = ["Bello","Okoro","Nwosu","Uzo","Adeyemi","Ogunleye","Okafor","Rasheed","Kehinde","Lawal","Musa","Sani","Adeniran","Ibrahim","Ojo","Eze","Abubakar","Danladi","Ogun","Kareem","Mensah","Boateng","Mohamed","Benali","Diop","Fekadu","Hassan","Williams","Smith","Johnson","Brown","Garcia","Martins"];
+      const depts = ["Engineering","Sales","HR","Product","Finance","Design","Customer Success","Legal","Operations","IT Ops","Marketing","Admin"];
+      const roles = {
+        "Engineering":["Software Engineer","Backend Engineer","Frontend Engineer","DevOps Engineer"],
+        "Sales":["Sales Lead","Account Exec","BD"],
+        "HR":["HRBP","Recruiter"],
+        "Product":["Product Manager","Data Analyst"],
+        "Finance":["Finance Manager","Payroll Exec"],
+        "Design":["UI/UX Designer","Motion Designer"],
+        "Customer Success":["CS Manager","Support"],
+        "Legal":["Legal Counsel"],
+        "Operations":["Ops Lead"],
+        "IT Ops":["IT Support","SysAdmin"],
+        "Marketing":["Social Manager","Content Specialist"],
+        "Admin":["Admin Officer"]
+      };
+      const locs = ["Lagos, Nigeria","Abuja, Nigeria","Accra, Ghana","Nairobi, Kenya","Johannesburg, South Africa","Cape Town, South Africa","Cairo, Egypt","Casablanca, Morocco","Kigali, Rwanda","Kampala, Uganda","Dar es Salaam, Tanzania","Abidjan, Côte d’Ivoire","Dakar, Senegal","Addis Ababa, Ethiopia","Algiers, Algeria","Tunis, Tunisia","Gaborone, Botswana","London, UK","Berlin, Germany","Amsterdam, Netherlands","Paris, France","Madrid, Spain","Milan, Italy","Toronto, Canada","New York, USA","San Francisco, USA","Dubai, UAE","Bangalore, India","Tokyo, Japan","Sydney, Australia","Shanghai, China","São Paulo, Brazil"];
+      const managers = ["Admin User","Joel A.","Bayo K.","Ada Bello","Chike Okoro","Zainab Musa","Maryam Sani","Ridwan Salami","Fatima Abubakar","Yusuf Danjuma"];
+      const today = new Date();
+      employees = Array.from({length:100}).map((_,i)=>{
+        const dept = pick(depts);
+        const role = pick(roles[dept]);
+        const name = pick(first) + " " + pick(last);
+        const id = "EMP" + String(100 + i).padStart(3,'0');
+        const salary = Math.round((150 + Math.random()*250) * 1000);
+        const status = Math.random()<0.08 ? "On Leave" : (Math.random()<0.03 ? "Suspended" : "Active");
+        const start = new Date(today.getFullYear()-Math.floor(Math.random()*7+1), Math.floor(Math.random()*12), Math.floor(Math.random()*28)+1).toISOString().slice(0,10);
+        const location = pick(locs);
+        const manager = pick(managers);
+        return { id, name, dept, role, salary, status, start, location, manager };
+      });
+      if (window.Store) { try { employees.forEach(e => Store.addEmployee(e)); } catch {} }
+    }
+
+    // jobs (5)
+    const jobs = [
+      { id:"JOB001", title:"Frontend Engineer", team:"Engineering", location:"Lagos", salaryRange:"₦180k-₦300k", description:"React/Next, 3+ years", candidates:[] },
+      { id:"JOB002", title:"HR Manager", team:"HR", location:"Remote", salaryRange:"₦200k-₦350k", description:"HRIS, Talent mgmt", candidates:[] },
+      { id:"JOB003", title:"Product Manager", team:"Product", location:"VI, Lagos", salaryRange:"₦280k-₦450k", description:"Fintech product, 5+ yrs", candidates:[] },
+      { id:"JOB004", title:"Backend Engineer", team:"Engineering", location:"Lagos", salaryRange:"₦200k-₦350k", description:"Node/Python, APIs", candidates:[] },
+      { id:"JOB005", title:"Sales Executive", team:"Sales", location:"Remote", salaryRange:"₦100k-₦220k", description:"B2B sales, target-driven", candidates:[] }
+    ];
+
+    // sample candidate generator
+    const sampleNames = ["Tosin A.","Kemi O.","Ibrahim S.","Nkechi O.","David M.","Aisha L.","Chinedu E.","Ngozi R.","Samuel B.","Maryam H.","Adewale O.","Ruth I.","Emeka C.","Doris U.","Femi K."];
+    function randPick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function genCandidate(){
+      const name = randPick(sampleNames);
+      const years = Math.floor(Math.random()*8)+1;
+      const exp = `${years} yrs`;
+      const expected = Math.round((Math.random()*200 + 80) * 1000);
+      const match = Math.round(Math.random()*25 + 70); // 70-95
+      return { id: "CAND" + Math.floor(Math.random()*90000), name, exp, expected, match, status: "Applied", source: randPick(["LinkedIn","Indeed","Glassdoor","Lumion AI"]) };
+    }
+
+    // activity log
+    const activityLog = [];
+    function logActivity(txt){
+      activityLog.unshift({ t: new Date().toLocaleString(), txt });
+      const ul = document.getElementById('activityLog');
+      ul.innerHTML = activityLog.slice(0,8).map(a => `<li>• ${a.txt} <span class="text-xs text-gray-400">(${a.t})</span></li>`).join('');
+    }
+
+    /***********************
+     * render helpers
+     ***********************/
+    const tbody = document.getElementById("employeesTbody");
+    const payrollSelect = document.getElementById("payrollEmployee");
+    const searchInput = document.getElementById("searchInput");
+    const deptFilter = document.getElementById("deptFilter");
+    const managerFilter = document.getElementById("managerFilter");
+    const locationFilter = document.getElementById("locationFilter");
+    const statusFilter = document.getElementById("statusFilter");
+    const jobsListEl = document.getElementById("jobsList");
+    const candidatesPanel = document.getElementById("candidatesPanel");
+    const selectedJobTitle = document.getElementById("selectedJobTitle");
+    const selectedJobMeta = document.getElementById("selectedJobMeta");
+    const jobsCountEl = document.getElementById("jobsCount");
+
+    function formatN(amount){ return "₦" + Number(amount).toLocaleString(); }
+
+    function renderTable(list = employees){
+      tbody.innerHTML = "";
+      list.forEach(emp => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td class="py-3">
+            <div class="font-medium">${emp.name}</div>
+            <div class="text-xs text-gray-500">${emp.id}</div>
+          </td>
+          <td class="py-3">${emp.dept}</td>
+          <td class="py-3">${emp.role}</td>
+          <td class="py-3">${emp.manager || '—'}</td>
+          <td class="py-3">${emp.location || '—'}</td>
+          <td class="py-3 text-sm">
+            <span class="${emp.status === 'Active' ? 'text-green-600' : 'text-yellow-600'}">${emp.status}${emp.status==='Exited' && emp.exit ? ' (' + emp.exit + ')' : ''}</span>
+          </td>
+          <td class="py-3">${formatN(emp.salary)}</td>
+          <td class="py-3 text-right">
+            <button class="viewBtn px-3 py-1 mr-2 text-sm text-indigo-600">View</button>
+            <button class="editBtn px-3 py-1 mr-2 text-sm border rounded">Edit</button>
+            <button class="delBtn px-3 py-1 text-sm text-red-600">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+
+        // bind
+        tr.querySelector(".viewBtn").addEventListener("click", ()=> openView(emp));
+        tr.querySelector(".editBtn").addEventListener("click", ()=> openEdit(emp));
+        tr.querySelector(".delBtn").addEventListener("click", ()=> removeEmployee(emp.id));
+      });
+    }
+
+    function uniqueDepts(){
+      const s = new Set(employees.map(e=>e.dept));
+      return Array.from(s).sort();
+    }
+
+    function populateDeptFilter(){
+      if(!deptFilter) return;
+      const depts = uniqueDepts();
+      deptFilter.innerHTML = "<option value=''>All Departments</option>" + depts.map(d=>`<option>${d}</option>`).join('');
+    }
+    function uniqueManagers(){
+      const s = new Set(employees.map(e=> e.manager).filter(Boolean));
+      return Array.from(s).sort();
+    }
+    function populateManagerFilter(){
+      if(!managerFilter) return;
+      const mgrs = uniqueManagers();
+      managerFilter.innerHTML = "<option value=''>All Managers</option>" + mgrs.map(m=>`<option>${m}</option>`).join('');
+    }
+    function uniqueLocations(){
+      const s = new Set(employees.map(e=> e.location).filter(Boolean));
+      return Array.from(s).sort();
+    }
+    function populateLocationFilter(){
+      if(!locationFilter) return;
+      const locs = uniqueLocations();
+      locationFilter.innerHTML = "<option value=''>All Locations</option>" + locs.map(l=>`<option>${l}</option>`).join('');
+    }
+
+    function filterAndRender(){
+      const q = (searchInput.value||'').trim().toLowerCase();
+      const d = deptFilter ? deptFilter.value : '';
+      const m = managerFilter ? managerFilter.value : '';
+      const loc = locationFilter ? locationFilter.value : '';
+      const s = statusFilter ? statusFilter.value : '';
+      const filtered = employees.filter(e =>
+        (!d || e.dept === d) &&
+        (!m || (e.manager||'') === m) &&
+        (!loc || (e.location||'') === loc) &&
+        (!s || e.status === s) &&
+        (!q || e.name.toLowerCase().includes(q) || e.dept.toLowerCase().includes(q) || e.role.toLowerCase().includes(q) || (e.manager||'').toLowerCase().includes(q) || (e.location||'').toLowerCase().includes(q))
+      );
+      renderTable(filtered);
+    }
+
+    function populatePayrollSelect(){
+      payrollSelect.innerHTML = "<option value=''>-- choose --</option>";
+      employees.forEach(e => {
+        const opt = document.createElement("option");
+        opt.value = e.id;
+        opt.textContent = `${e.name} — ${e.role}`;
+        payrollSelect.appendChild(opt);
+      });
+    }
+
+    // jobs list
+    function renderJobs(){
+      jobsListEl.innerHTML = "";
+      jobs.forEach(job => {
+        const div = document.createElement("div");
+        div.className = "p-3 border rounded flex justify-between items-start";
+        div.innerHTML = `
+          <div>
+            <div class="font-semibold">${job.title}</div>
+            <div class="text-xs text-gray-500">${job.team} • ${job.location} • ${job.salaryRange}</div>
+            <div class="text-sm mt-1 text-gray-600">${job.description}</div>
+          </div>
+          <div class="flex flex-col items-end gap-2">
+            <div class="text-xs text-gray-500">${job.candidates.length} candidates</div>
+            <div class="flex gap-2">
+              <button class="autoMatchBtn px-3 py-1 bg-indigo-600 text-white rounded text-sm">Auto-match</button>
+              <button class="viewJobBtn px-3 py-1 border rounded text-sm">Open</button>
+            </div>
+          </div>
+        `;
+        jobsListEl.appendChild(div);
+
+        div.querySelector(".autoMatchBtn").addEventListener("click", ()=> autoMatchJob(job.id));
+        div.querySelector(".viewJobBtn").addEventListener("click", ()=> selectJob(job.id));
+      });
+      jobsCountEl.textContent = jobs.length;
+    }
+
+    function selectJob(jobId){
+      const job = jobs.find(j=>j.id===jobId);
+      if(!job) return;
+      selectedJobTitle.textContent = `${job.title} — Pipeline`;
+      selectedJobMeta.innerHTML = `<div class="text-sm text-gray-500">${job.team} • ${job.location} • ${job.salaryRange}</div>`;
+      renderCandidatesForJob(job);
+    }
+
+    function renderCandidatesForJob(job){
+      candidatesPanel.innerHTML = "";
+      if(job.candidates.length === 0){
+        candidatesPanel.innerHTML = `<div class="text-sm text-gray-500">No candidates yet. Click <strong>Auto-match</strong> to simulate candidates from LinkedIn/Indeed.</div>`;
+        return;
+      }
+      job.candidates.forEach(c => {
+        const card = document.createElement("div");
+        card.className = "p-3 border rounded flex justify-between items-center";
+        card.innerHTML = `
+          <div>
+            <div class="font-medium">${c.name}</div>
+            <div class="text-xs text-gray-500">${c.exp} • Expected ${formatN(c.expected)} • Source: ${c.source}</div>
+            <div class="text-xs text-gray-600 mt-1">Match: <span class="font-semibold">${c.match}%</span></div>
+            ${c.interview ? `<div class="text-xs text-green-700 mt-1">Interview: ${new Date(c.interview.datetime).toLocaleString()} • ${c.interview.location}</div>` : ''}
+            ${c.interview && c.interview.joinLink ? `<div class="text-xs mt-1"><a href="${c.interview.joinLink}" target="_blank" class="text-blue-600 underline">Join Link</a></div>` : ''}
+            ${c.interview && c.interview.scores ? `<div class="text-xs text-gray-700 mt-1">Role fit: ${c.interview.scores.role}% • Culture fit: ${c.interview.scores.culture}%</div>` : ''}
+          </div>
+          <div class="flex items-center gap-2">
+            <select class="candStatus border p-2 rounded text-sm">
+              <option ${c.status==='Applied'?'selected':''}>Applied</option>
+              <option ${c.status==='Interview'?'selected':''}>Interview</option>
+              <option ${c.status==='Offer'?'selected':''}>Offer</option>
+              <option ${c.status==='Hired'?'selected':''}>Hired</option>
+              <option ${c.status==='Rejected'?'selected':''}>Rejected</option>
+            </select>
+            <button class="messageBtn px-3 py-1 bg-blue-100 text-blue-800 rounded text-sm">Message</button>
+            <button class="interviewBtn px-3 py-1 bg-green-100 text-green-800 rounded text-sm">Interview</button>
+          </div>
+        `;
+        candidatesPanel.appendChild(card);
+
+        // status change
+        card.querySelector(".candStatus").addEventListener("change", (ev)=>{
+          c.status = ev.target.value;
+          logActivity(`Candidate ${c.name} status set to ${c.status} for ${job.title}`);
+          updatePredictions();
+        });
+        // message
+        card.querySelector(".messageBtn").addEventListener("click", ()=> {
+          alert(`Open messaging with ${c.name} (placeholder).`);
+        });
+
+        // interview scheduling
+        card.querySelector(".interviewBtn").addEventListener("click", ()=> openInterviewScheduler(job, c));
+      });
+    }
+
+    // auto-match simulation (3-5 candidates)
+    function autoMatchJob(jobId){
+      const job = jobs.find(j=>j.id===jobId);
+      if(!job) return;
+      const count = Math.floor(Math.random()*3) + 3;
+      const newCands = Array.from({length:count}, () => genCandidate());
+      job.candidates = job.candidates.concat(newCands);
+      renderJobs();
+      if(document.getElementById('selectedJobTitle').textContent.includes(job.title)) renderCandidatesForJob(job);
+      logActivity(`Auto-matched ${newCands.length} candidates for ${job.title} (simulated).`);
+      updatePredictions();
+    }
+
+    document.getElementById('autoMatchAll').addEventListener('click', () => {
+      jobs.forEach(j => autoMatchJob(j.id));
+    });
+
+    /***********************
+     * CRUD & modals for employees
+     ***********************/
+    function openView(emp){
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[760px] max-w-[95%]">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="text-lg font-bold">${emp.name}</h3>
+              <div class="text-sm text-gray-600">${emp.role} — ${emp.dept}</div>
+              <div class="text-xs text-gray-500 mt-2">Start date: ${emp.start}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-medium">${formatN(emp.salary)}</div>
+              <div class="text-xs text-gray-500">Status: ${emp.status}</div>
+            </div>
+          </div>
+          <div class="mt-6 grid grid-cols-2 gap-4">
+            <div>
+              <h4 class="text-sm font-semibold">Contact</h4>
+              <p class="text-sm text-gray-600 mt-2">Email: ${emp.name.split(" ").join(".").toLowerCase()}@lumion.com</p>
+              <p class="text-sm text-gray-600">Phone: +234 800 ${Math.floor(100000 + Math.random()*899999)}</p>
+            </div>
+            <div>
+              <h4 class="text-sm font-semibold">Notes</h4>
+              <p class="text-sm text-gray-600 mt-2">Performance: Strong contributor. Eligible for promotion review.</p>
+            </div>
+          </div>
+          <div class="mt-6 text-right">
+            <button class="px-4 py-2 mr-2 border rounded" id="closeView">Close</button>
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" id="printProfile">Print</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("modalRoot").appendChild(modal);
+      modal.querySelector("#closeView").addEventListener("click", ()=> modal.remove());
+      modal.querySelector("#printProfile").addEventListener("click", () => {
+        const w = window.open("", "_blank");
+        w.document.write(`<h2>${emp.name}</h2><p>${emp.role} — ${emp.dept}</p><p>Salary: ${formatN(emp.salary)}</p>`);
+        w.print(); w.close();
+      });
+    }
+
+    function openEdit(emp = null){
+      const isNew = !emp;
+      const data = emp ? {...emp} : { id: "EMP" + String(100 + Math.floor(Math.random()*900)), name:"", dept:"", role:"", salary:0, status:"Active", start:new Date().toISOString().slice(0,10) };
+      const modal = document.createElement("div");
+      modal.className = "modal-backdrop";
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[720px] max-w-[95%]">
+          <h3 class="text-lg font-bold">${isNew ? 'Add New Employee' : 'Edit Employee'}</h3>
+          <div class="grid grid-cols-2 gap-4 mt-4">
+            <div><label class="text-xs text-gray-600">Full name</label><input id="ed_name" class="w-full p-2 border rounded" value="${data.name}"></div>
+            <div><label class="text-xs text-gray-600">Department</label><input id="ed_dept" class="w-full p-2 border rounded" value="${data.dept}"></div>
+            <div><label class="text-xs text-gray-600">Role</label><input id="ed_role" class="w-full p-2 border rounded" value="${data.role}"></div>
+            <div><label class="text-xs text-gray-600">Status</label>
+              <select id="ed_status" class="w-full p-2 border rounded">
+                <option ${data.status==='Active'?'selected':''}>Active</option>
+                <option ${data.status==='On Leave'?'selected':''}>On Leave</option>
+                <option ${data.status==='Suspended'?'selected':''}>Suspended</option>
+              </select>
+            </div>
+            <div><label class="text-xs text-gray-600">Salary (₦)</label><input id="ed_salary" type="number" class="w-full p-2 border rounded" value="${data.salary}"></div>
+            <div><label class="text-xs text-gray-600">Start date</label><input id="ed_start" type="date" class="w-full p-2 border rounded" value="${data.start}"></div>
+          </div>
+          <div class="mt-6 text-right">
+            <button class="px-4 py-2 mr-2 border rounded" id="cancelEdit">Cancel</button>
+            <button class="px-4 py-2 bg-indigo-600 text-white rounded" id="saveEdit">${isNew ? 'Create' : 'Save'}</button>
+          </div>
+        </div>
+      `;
+      document.getElementById("modalRoot").appendChild(modal);
+      modal.querySelector("#cancelEdit").addEventListener("click", ()=> modal.remove());
+      modal.querySelector("#saveEdit").addEventListener("click", ()=>{
+        const name = modal.querySelector("#ed_name").value.trim();
+        const dept = modal.querySelector("#ed_dept").value.trim();
+        const role = modal.querySelector("#ed_role").value.trim();
+        const status = modal.querySelector("#ed_status").value;
+        const salary = Number(modal.querySelector("#ed_salary").value) || 0;
+        const start = modal.querySelector("#ed_start").value;
+        if(!name){ alert("Name required"); return; }
+        if(isNew){
+          if (window.Store) { try { Store.addEmployee({ id:data.id, name, dept, role, salary, status, start }); } catch {} }
+          employees.push({ id:data.id, name, dept, role, salary, status, start });
+        } else {
+          if (window.Store) { try { Store.updateEmployee(data.id, { name, dept, role, salary, status, start }); } catch {} }
+          const idx = employees.findIndex(e => e.id === data.id);
+          if(idx>=0) employees[idx] = { ...employees[idx], name, dept, role, salary, status, start };
+        }
+        modal.remove(); renderTable(); populatePayrollSelect(); updateSummary(); renderDeptPayroll();
+        logActivity(isNew ? `Employee ${name} added` : `Employee ${name} updated`);
+      });
+    }
+
+    function removeEmployee(id){
+      if(!confirm("Delete this employee? This action cannot be undone.")) return;
+      if (window.Store) { try { Store.removeEmployee(id); } catch {} }
+      const idx = employees.findIndex(e=> e.id === id);
+      if(idx>=0) employees.splice(idx,1);
+      renderTable(); populatePayrollSelect(); updateSummary(); renderDeptPayroll();
+      logActivity(`Employee ${id} removed`);
+    }
+
+    /***********************
+     * PAYROLL logic
+     ***********************/
+    function calculateTax(gross){
+      // prototype progressive tax model (simple). Replace with local rules when ready.
+      let tax = 0;
+      if(gross <= 30000) return 0;
+      if(gross > 30000){
+        const tier1 = Math.min(gross - 30000, 70000);
+        tax += tier1 * 0.10;
+      }
+      if(gross > 100000){
+        tax += (gross - 100000) * 0.20;
+      }
+      return Math.round(tax);
+    }
+
+    document.getElementById("calcBtn").addEventListener("click", ()=> {
+      const id = payrollSelect.value;
+      const gross = Number(document.getElementById("grossInput").value || 0);
+      if(!id){ alert("Choose an employee first"); return; }
+      if(gross <= 0){ alert("Enter gross salary"); return; }
+      const tax = calculateTax(gross);
+      const pension = Math.round(gross * 0.08);
+      const net = gross - tax - pension;
+      document.getElementById("taxVal").textContent = formatN(tax);
+      document.getElementById("pensionVal").textContent = formatN(pension);
+      document.getElementById("netPay").textContent = formatN(net);
+    });
+
+    payrollSelect.addEventListener("change", ()=> {
+      const id = payrollSelect.value;
+      if(!id) return;
+      const emp = employees.find(e => e.id === id);
+      if(emp) document.getElementById("grossInput").value = emp.salary;
+    });
+
+    document.getElementById("generatePayslipBtn").addEventListener("click", ()=>{
+      const id = payrollSelect.value;
+      const gross = Number(document.getElementById("grossInput").value || 0);
+      if(!id || gross <= 0){ alert("Select employee and valid gross salary first"); return; }
+      const emp = employees.find(e => e.id === id);
+      const tax = calculateTax(gross);
+      const pension = Math.round(gross * 0.08);
+      const net = gross - tax - pension;
+      const payDate = new Date().toLocaleDateString();
+      const html = `
+        <html><head><title>Payslip — ${emp.name}</title>
+        <style>body{font-family:Inter,Arial;padding:24px;color:#111} .header{display:flex;justify-content:space-between;align-items:center} .box{border:1px solid #eee;padding:12px;border-radius:8px;margin-top:12px}</style></head>
+        <body>
+          <div class="header">
+            <div><img src="https://i.ibb.co/XfRLzWwy/Logo.png" style="height:36px"></div>
+            <div><strong>Payslip</strong><div style="font-size:12px;color:#666">Date: ${payDate}</div></div>
+          </div>
+          <h2>${emp.name}</h2><div style="color:#666">${emp.role} — ${emp.dept}</div>
+          <div class="box">
+            <div><strong>Gross salary:</strong> ${formatN(gross)}</div>
+            <div><strong>Tax (PAYE):</strong> ${formatN(tax)}</div>
+            <div><strong>Pension (8%):</strong> ${formatN(pension)}</div>
+            <div style="margin-top:8px;font-size:18px"><strong>Net Pay:</strong> ${formatN(net)}</div>
+          </div>
+          <div style="margin-top:18px;font-size:12px;color:#666">System-generated payslip (prototype).</div>
+        </body></html>
+      `;
+      const w = window.open("", "_blank");
+      w.document.write(html);
+      w.document.close();
+      w.print();
+      logActivity(`Payslip generated for ${emp.name}`);
+    });
+
+    /***********************
+     * CSV exports
+     ***********************/
+    function exportEmployeesCSV(){
+      const rows = [["id","name","department","role","salary","status","start"]].concat(
+        employees.map(e => [e.id,e.name,e.dept,e.role,e.salary,e.status,e.start])
+      );
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "lumion_employees.csv"; a.click(); URL.revokeObjectURL(url);
+      logActivity("Exported employees CSV");
+    }
+    document.getElementById('exportFullCSV').addEventListener('click', exportEmployeesCSV);
+
+    function exportCandidatesCSV(){
+      const all = jobs.flatMap(j => j.candidates.map(c => [j.id,j.title,c.id,c.name,c.exp,c.expected,c.match,c.status,c.source]));
+      const rows = [["jobId","jobTitle","candId","name","experience","expectedSalary","match","status","source"],].concat(all);
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "lumion_candidates.csv"; a.click(); URL.revokeObjectURL(url);
+      logActivity("Exported candidates CSV");
+    }
+    document.getElementById('exportCandidatesCSV').addEventListener('click', exportCandidatesCSV);
+
+    function exportDeptPayrollCSV(){
+      const map = {};
+      employees.forEach(e => { const k = e.dept; map[k] = (map[k]||0) + Number(e.salary||0); });
+      const rows = [["department","totalSalary"]].concat(Object.entries(map).sort((a,b)=> b[1]-a[1]));
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "lumion_dept_payroll.csv"; a.click(); URL.revokeObjectURL(url);
+      logActivity("Exported department payroll CSV");
+    }
+    document.getElementById('exportDeptPayroll').addEventListener('click', exportDeptPayrollCSV);
+
+    function exportAttendanceCSV(){
+      const s = window.Store ? Store.getState() : { attendance: [], users: [], employees: [] };
+      const byUser = new Map((s.users||[]).map(u=>[u.id,u]));
+      const byEmailEmp = new Map((s.employees||[]).map(e=>[e.email,e]));
+      const rows = [["userId","name","department","date","clockIn","clockOut","mode","officeMatch"]];
+      (s.attendance||[]).forEach(a => {
+        const u = byUser.get(a.userId);
+        const e = u ? byEmailEmp.get(u.email) : null;
+        rows.push([
+          a.userId || '',
+          u?.name || '',
+          (e?.department || e?.dept || '') ,
+          a.date || '',
+          a.clockIn || '',
+          a.clockOut || '',
+          a.mode || '',
+          String(a.officeMatch ?? '')
+        ]);
+      });
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "lumion_attendance.csv"; a.click(); URL.revokeObjectURL(url);
+      logActivity("Exported attendance CSV");
+    }
+    document.getElementById('exportAttendanceCSV').addEventListener('click', exportAttendanceCSV);
+
+    function exportLeavesCSV(){
+      const s = window.Store ? Store.getState() : { leaves: [], users: [], employees: [] };
+      const byUser = new Map((s.users||[]).map(u=>[u.id,u]));
+      const byEmailEmp = new Map((s.employees||[]).map(e=>[e.email,e]));
+      const rows = [["id","userId","name","department","type","startDate","endDate","status","reason","days"]];
+      (s.leaves||[]).forEach(l => {
+        const u = byUser.get(l.userId);
+        const e = u ? byEmailEmp.get(u.email) : null;
+        const start = new Date(l.startDate || l.start || l.from || Date.now());
+        const end = new Date(l.endDate || l.end || l.to || Date.now());
+        const days = Math.max(1, Math.round((end - start) / (1000*60*60*24)) + 1);
+        rows.push([
+          l.id || '',
+          l.userId || '',
+          u?.name || '',
+          (e?.department || e?.dept || ''),
+          l.type || '',
+          (l.startDate || l.start || l.from || ''),
+          (l.endDate || l.end || l.to || ''),
+          l.status || '',
+          l.reason || '',
+          String(days)
+        ]);
+      });
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "lumion_leaves.csv"; a.click(); URL.revokeObjectURL(url);
+      logActivity("Exported leaves CSV");
+    }
+    document.getElementById('exportLeavesCSV').addEventListener('click', exportLeavesCSV);
+
+    function printDeptSummary(){
+      const map = {};
+      const head = {};
+      employees.forEach(e => { const k = e.dept; map[k] = (map[k]||0) + Number(e.salary||0); head[k] = (head[k]||0) + 1; });
+      const rows = Object.entries(map).sort((a,b)=> b[1]-a[1]).map(([d,t])=>({dept:d,total:t,headcount:head[d]||0}));
+      const html = `
+        <html><head><title>Department Summary</title>
+        <style>body{font-family:Inter,Arial;padding:24px;color:#111} table{width:100%;border-collapse:collapse} th,td{border-bottom:1px solid #eee;padding:8px;text-align:left} .hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px} .muted{color:#666}</style></head>
+        <body>
+          <div class="hdr">
+            <div style="display:flex;align-items:center;gap:8px"><img src="https://i.ibb.co/XfRLzWwy/Logo.png" style="height:32px"/><strong>Lumion — Department Summary</strong></div>
+            <div class="muted">${new Date().toLocaleString()}</div>
+          </div>
+          <table>
+            <thead><tr><th>Department</th><th>Headcount</th><th>Total Salary</th></tr></thead>
+            <tbody>
+              ${rows.map(r => `<tr><td>${r.dept}</td><td>${r.headcount}</td><td>${formatN(r.total)}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </body></html>`;
+      const w = window.open("", "_blank");
+      w.document.write(html);
+      w.document.close();
+      w.print();
+    }
+    document.getElementById('printDeptSummary').addEventListener('click', printDeptSummary);
+
+    /***********************
+     * Predictive chart (Chart.js)
+     ***********************/
+    let predictiveChart = null;
+    (function initPredictiveChart(){
+      const canvas = document.getElementById('predictiveChart');
+      if (!canvas) return;
+      if (typeof window.Chart === 'undefined') {
+        console.warn('Chart.js not loaded; skipping predictive chart.');
+        return;
+      }
+      const ctx = canvas.getContext('2d');
+      predictiveChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Week 1','Week 2','Week 3','Week 4','Week 5','Week 6'],
+          datasets: [{
+            label: 'Avg Match Score (%)',
+            data: [82,84,86,85,87,88],
+            borderColor: '#4F46E5',
+            backgroundColor: 'rgba(79,70,229,0.08)',
+            tension: 0.3,
+            fill: true,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend:{ display:false }},
+          scales: { y: { beginAtZero:false, min:60, max:100 } }
+        }
+      });
+    })();
+
+    function updatePredictions(){
+      const allMatches = jobs.flatMap(j => j.candidates.map(c => c.match));
+      const avgMatch = allMatches.length ? Math.round(allMatches.reduce((a,b)=>a+b,0)/allMatches.length) : 0;
+      document.getElementById('summaryMatch').textContent = avgMatch ? avgMatch + '%' : '—';
+      document.getElementById('predScore').textContent = avgMatch ? avgMatch + '%' : '—';
+      const predDays = avgMatch ? Math.max(6, Math.round(20 - (avgMatch-60)/3)) : 12;
+      document.getElementById('predTime').textContent = predDays + ' days';
+      const sources = jobs.flatMap(j => j.candidates.map(c => c.source));
+      const counts = {}; sources.forEach(s => counts[s] = (counts[s]||0)+1);
+      const top = Object.keys(counts).length ? Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0] : 'LinkedIn';
+      document.getElementById('predChannel').textContent = top;
+      if (predictiveChart) {
+        predictiveChart.data.datasets[0].data.shift();
+        predictiveChart.data.datasets[0].data.push(avgMatch || 82);
+        predictiveChart.update();
+      }
+    }
+
+    /***********************
+     * Interview Assistant
+     ***********************/
+    function formatICSDate(dt){
+      const d = new Date(dt);
+      const pad = n => String(n).padStart(2,'0');
+      const y = d.getUTCFullYear();
+      const m = pad(d.getUTCMonth()+1);
+      const day = pad(d.getUTCDate());
+      const hh = pad(d.getUTCHours());
+      const mm = pad(d.getUTCMinutes());
+      const ss = pad(d.getUTCSeconds());
+      return `${y}${m}${day}T${hh}${mm}${ss}Z`;
+    }
+
+    function generateICS({summary, description, location, startISO, durationMin}){
+      const start = new Date(startISO);
+      const end = new Date(start.getTime() + durationMin*60000);
+      const uid = 'lumion-' + Math.random().toString(36).slice(2) + '@lumion.com';
+      const dtstamp = formatICSDate(new Date());
+      const dtstart = formatICSDate(start);
+      const dtend = formatICSDate(end);
+      return `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Lumion HR//EN\nBEGIN:VEVENT\nUID:${uid}\nDTSTAMP:${dtstamp}\nDTSTART:${dtstart}\nDTEND:${dtend}\nSUMMARY:${summary}\nDESCRIPTION:${description}\nLOCATION:${location}\nEND:VEVENT\nEND:VCALENDAR`;
+    }
+
+    function openInterviewScheduler(job, cand){
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop';
+      const defaultWhen = new Date(); defaultWhen.setDate(defaultWhen.getDate()+2); defaultWhen.setHours(10,0,0,0);
+      const defaultValue = new Date(defaultWhen.getTime() - defaultWhen.getTimezoneOffset()*60000).toISOString().slice(0,16);
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[780px] max-w-[95%]">
+          <div class="flex justify-between items-start">
+            <div>
+              <h3 class="text-lg font-bold">Interview — ${cand.name}</h3>
+              <div class="text-sm text-gray-600">Role: ${job.title} • ${job.team}</div>
+            </div>
+            <button class="px-3 py-1 border rounded" id="intvClose">Close</button>
+          </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <label class="text-xs text-gray-600">Date & Time</label>
+                <input id="intv_dt" type="datetime-local" class="w-full p-2 border rounded" value="${defaultValue}" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Duration (minutes)</label>
+                <input id="intv_dur" type="number" class="w-full p-2 border rounded" value="45" />
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Location</label>
+                <input id="intv_loc" class="w-full p-2 border rounded" value="Video: Lumion Meet" />
+                <div class="text-xs text-gray-500 mt-1">Use video or physical location</div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Quick Suggestions</label>
+                <div id="intv_suggestions" class="flex gap-2 mt-1"></div>
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Meeting Provider</label>
+                <select id="intv_provider" class="w-full p-2 border rounded mt-1">
+                  <option value="google">Google Meet</option>
+                  <option value="zoom">Zoom</option>
+                  <option value="custom">Custom Link</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-gray-600">Join Link</label>
+                <div class="flex gap-2">
+                  <input id="intv_join" class="flex-1 p-2 border rounded" placeholder="Paste meeting URL here" />
+                  <button id="openProvider" class="px-2 py-1 border rounded text-xs">Open Provider</button>
+                </div>
+                <div class="text-xs text-gray-500 mt-1">Open provider to create meeting and paste link.</div>
+              </div>
+            </div>
+
+          <div class="mt-6">
+            <h4 class="text-sm font-semibold">AI Prescreen (first-level)</h4>
+            <div class="text-xs text-gray-500">Suggested questions based on role; capture notes and set preliminary score.</div>
+            <div class="mt-2 p-3 border rounded">
+              <div id="intv_questions" class="text-sm text-gray-700 space-y-1"></div>
+              <textarea id="intv_notes" class="w-full p-2 border rounded mt-2" rows="4" placeholder="Notes from prescreen"></textarea>
+              <div class="mt-2 text-sm">Preliminary score: <span id="intv_score" class="font-semibold">${cand.match}</span>%</div>
+              <div class="mt-2 flex gap-2">
+                <button id="runPrescreen" class="px-3 py-1 bg-indigo-600 text-white rounded">Generate Questions</button>
+                <button id="nudgeScoreUp" class="px-3 py-1 border rounded">+5%</button>
+                <button id="nudgeScoreDown" class="px-3 py-1 border rounded">-5%</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <h4 class="text-sm font-semibold">Recording (browser)</h4>
+            <div class="text-xs text-gray-500">Record audio locally during the interview. Consent required.</div>
+            <div class="mt-2 p-3 border rounded flex items-center gap-2">
+              <button id="recStart" class="px-3 py-1 bg-gray-800 text-white rounded">Start Recording</button>
+              <button id="recStop" class="px-3 py-1 border rounded" disabled>Stop</button>
+              <span id="recStatus" class="text-xs text-gray-600">Idle</span>
+              <a id="recDownload" class="text-xs text-blue-600 underline hidden" download>Download audio</a>
+            </div>
+          </div>
+
+          <div class="mt-6">
+            <h4 class="text-sm font-semibold">Transcript & Rating</h4>
+            <div class="text-xs text-gray-500">Paste interview transcript to evaluate role fit and culture fit.</div>
+            <textarea id="intv_transcript" class="w-full p-2 border rounded mt-2" rows="6" placeholder="Paste transcript here..."></textarea>
+            <div class="mt-2 flex gap-2">
+              <button id="evalTranscript" class="px-3 py-1 bg-indigo-600 text-white rounded">Evaluate</button>
+              <span id="evalResult" class="text-sm text-gray-700"></span>
+            </div>
+          </div>
+
+          <div class="mt-6 flex gap-2 justify-end">
+            <button id="genICS" class="px-4 py-2 border rounded">Generate Calendar Invite</button>
+            <button id="saveIntv" class="px-4 py-2 bg-green-600 text-white rounded">Save & Set Interview</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('modalRoot').appendChild(modal);
+
+      // suggestions: next 3 weekdays at 10:00, 13:00
+      const sugEl = modal.querySelector('#intv_suggestions');
+      const makeSlot = (d,h) => {
+        const dt = new Date(); dt.setDate(dt.getDate()+d); dt.setHours(h,0,0,0);
+        const val = new Date(dt.getTime() - dt.getTimezoneOffset()*60000).toISOString().slice(0,16);
+        const btn = document.createElement('button');
+        btn.className = 'px-2 py-1 text-xs border rounded';
+        btn.textContent = new Date(dt).toLocaleString();
+        btn.addEventListener('click', ()=> modal.querySelector('#intv_dt').value = val);
+        return btn;
+      };
+      [1,2,3].forEach(d => { sugEl.appendChild(makeSlot(d,10)); sugEl.appendChild(makeSlot(d,13)); });
+
+      // meeting provider open
+      modal.querySelector('#openProvider').addEventListener('click', ()=>{
+        const provider = modal.querySelector('#intv_provider').value;
+        if(provider === 'google') window.open('https://meet.google.com/new','_blank');
+        else if(provider === 'zoom') window.open('https://zoom.us/','_blank');
+        else alert('Paste your custom meeting link in the field.');
+      });
+
+      // AI prescreen questions
+      const qEl = modal.querySelector('#intv_questions');
+      const genQs = () => {
+        const base = [
+          `Walk me through a recent project relevant to ${job.title}.`,
+          'What trade-offs did you make and why?',
+          'Tell me about a challenging stakeholder or teammate and how you handled it.',
+          'What do you expect in your next role and why Lumion?'
+        ];
+        const roleExtras = {
+          'Frontend': ['How do you ensure accessibility and performance?', 'Explain a tricky state management problem you solved.'],
+          'Backend': ['Describe a scalable API you designed.', 'How do you approach data modeling and consistency?'],
+          'Product': ['How do you define success metrics?', 'Tell me about prioritization across conflicting requests.'],
+          'HR': ['Describe how you assess culture fit fairly.', 'What’s your approach to structured interviews?'],
+          'Sales': ['How do you qualify leads effectively?', 'Tell me about handling objections and closing.']
+        };
+        const extras = Object.entries(roleExtras).find(([k]) => job.title.toLowerCase().includes(k.toLowerCase()));
+        const list = extras ? base.concat(extras[1]) : base;
+        qEl.innerHTML = list.map(q => `<div>• ${q}</div>`).join('');
+      };
+      modal.querySelector('#runPrescreen').addEventListener('click', genQs);
+      genQs();
+
+      // score nudges
+      const scoreEl = modal.querySelector('#intv_score');
+      modal.querySelector('#nudgeScoreUp').addEventListener('click', ()=> scoreEl.textContent = Math.min(100, Number(scoreEl.textContent)+5));
+      modal.querySelector('#nudgeScoreDown').addEventListener('click', ()=> scoreEl.textContent = Math.max(0, Number(scoreEl.textContent)-5));
+
+      // audio recording (MediaRecorder)
+      let mediaRecorder = null; let recChunks = []; let recUrl = null;
+      const recStartBtn = modal.querySelector('#recStart');
+      const recStopBtn = modal.querySelector('#recStop');
+      const recStatus = modal.querySelector('#recStatus');
+      const recDl = modal.querySelector('#recDownload');
+      recStartBtn.addEventListener('click', async ()=>{
+        try{
+          const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+          recChunks = []; recUrl = null; recDl.classList.add('hidden');
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = e => { if(e.data.size>0) recChunks.push(e.data); };
+          mediaRecorder.onstop = ()=>{
+            const blob = new Blob(recChunks, { type:'audio/webm' });
+            recUrl = URL.createObjectURL(blob);
+            recDl.href = recUrl; recDl.textContent = 'Download audio'; recDl.classList.remove('hidden');
+            recStatus.textContent = 'Recorded';
+          };
+          mediaRecorder.start();
+          recStatus.textContent = 'Recording…';
+          recStartBtn.disabled = true; recStopBtn.disabled = false;
+        }catch(err){
+          alert('Microphone access denied or unavailable.');
+        }
+      });
+      recStopBtn.addEventListener('click', ()=>{
+        try{ mediaRecorder && mediaRecorder.stop(); }catch{}
+        recStartBtn.disabled = false; recStopBtn.disabled = true;
+      });
+
+      // transcript evaluation
+      function evalTextForRoleAndCulture(txt, job){
+        const t = (txt||'').toLowerCase();
+        const words = t.split(/\s+/).filter(Boolean);
+        const lenScore = Math.min(100, Math.round(words.length/10)*5); // more content -> higher up to 100
+        const posWords = ['teamwork','collaborate','ownership','learning','growth','respect','integrity','communication','inclusive','empathy','impact'];
+        const negWords = ['late','conflict','toxic','blame','rigid','dishonest'];
+        const posHits = posWords.reduce((s,w)=> s + (t.includes(w)?1:0), 0);
+        const negHits = negWords.reduce((s,w)=> s + (t.includes(w)?1:0), 0);
+        const culture = Math.max(0, Math.min(100, 50 + posHits*8 - negHits*12));
+        const roleKey = job.title.toLowerCase().includes('front') ? ['react','accessibility','performance','state','ui'] :
+                        job.title.toLowerCase().includes('back') ? ['api','scalable','database','consistency','security'] :
+                        job.title.toLowerCase().includes('product') ? ['metrics','prioritization','roadmap','stakeholder','hypothesis'] :
+                        job.title.toLowerCase().includes('hr') ? ['talent','culture','policy','fair','structure'] :
+                        job.title.toLowerCase().includes('sales') ? ['pipeline','quota','close','objection','negotiation'] : ['experience','skills'];
+        const roleHits = roleKey.reduce((s,w)=> s + (t.includes(w)?1:0), 0);
+        const role = Math.max(0, Math.min(100, Math.round(lenScore*0.4 + roleHits*12 + posHits*3)));
+        return { role, culture };
+      }
+      modal.querySelector('#evalTranscript').addEventListener('click', ()=>{
+        const txt = modal.querySelector('#intv_transcript').value;
+        const scores = evalTextForRoleAndCulture(txt, job);
+        modal.querySelector('#evalResult').textContent = `Role fit: ${scores.role}% • Culture fit: ${scores.culture}%`;
+      });
+
+      // generate ICS
+      modal.querySelector('#genICS').addEventListener('click', ()=>{
+        const startISO = modal.querySelector('#intv_dt').value;
+        const durationMin = Number(modal.querySelector('#intv_dur').value)||45;
+        const location = modal.querySelector('#intv_loc').value||'Video: Lumion Meet';
+        const joinLink = modal.querySelector('#intv_join').value||'';
+        if(!startISO){ alert('Select date & time first'); return; }
+        const ics = generateICS({
+          summary: `Interview: ${job.title} — ${cand.name}`,
+          description: `First-level interview for ${job.title}.\nJoin: ${joinLink}\nNotes: ${modal.querySelector('#intv_notes').value || ''}`,
+          location,
+          startISO,
+          durationMin,
+        });
+        const blob = new Blob([ics], { type:'text/calendar' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `Interview_${cand.name.replace(/\s+/g,'_')}.ics`; a.click(); URL.revokeObjectURL(url);
+        logActivity(`Calendar invite generated for ${cand.name} (${job.title})`);
+      });
+
+      // save
+      modal.querySelector('#saveIntv').addEventListener('click', ()=>{
+        const startISO = modal.querySelector('#intv_dt').value;
+        const durationMin = Number(modal.querySelector('#intv_dur').value)||45;
+        const location = modal.querySelector('#intv_loc').value||'Video: Lumion Meet';
+        const notes = modal.querySelector('#intv_notes').value||'';
+        const preScore = Number(modal.querySelector('#intv_score').textContent)||cand.match;
+        const joinLink = modal.querySelector('#intv_join').value||'';
+        const txt = modal.querySelector('#intv_transcript').value||'';
+        const scores = evalTextForRoleAndCulture(txt, job);
+        if(!startISO){ alert('Please select date & time'); return; }
+        cand.interview = { datetime: new Date(startISO).toISOString(), durationMin, location, joinLink, notes, preScore, scores };
+        if(recUrl) cand.interview.recordingUrl = recUrl;
+        cand.status = 'Interview';
+        logActivity(`Interview scheduled for ${cand.name} on ${new Date(startISO).toLocaleString()} (${job.title})`);
+        renderCandidatesForJob(job);
+        modal.remove();
+        updatePredictions();
+      });
+
+      modal.querySelector('#intvClose').addEventListener('click', ()=> modal.remove());
+    }
+
+    /***********************
+     * UI wiring & boot
+     ***********************/
+    function updateSummary(){
+      document.getElementById("summaryEmployees").textContent = employees.length;
+      const totalPayroll = employees.reduce((s,e)=> s + Number(e.salary || 0), 0);
+      document.getElementById("summaryPayroll").textContent = formatN(totalPayroll);
+      document.getElementById("summaryLeaves").textContent = employees.filter(e => e.status === "On Leave").length;
+      try {
+        const s = window.Store ? Store.getState() : { attendance: [] };
+        const today = window.Store ? Store.todayStr() : new Date().toISOString().slice(0,10);
+        const todays = (s.attendance||[]).filter(a => a.date === today);
+        const clockedIn = todays.filter(a => !!a.clockIn).length;
+        const remote = todays.filter(a => (a.mode === 'remote') || (a.mode === 'office' && a.officeMatch === false)).length;
+        const ciEl = document.getElementById("summaryClockedIn"); if (ciEl) ciEl.textContent = String(clockedIn);
+        const rEl = document.getElementById("summaryRemote"); if (rEl) rEl.textContent = String(remote);
+      } catch {}
+    }
+
+    // initial
+    renderTable();
+    populatePayrollSelect();
+    renderJobs();
+    updateSummary();
+    function renderDeptPayroll(){
+      const el = document.getElementById('deptPayrollList');
+      if(!el) return;
+      const map = {};
+      employees.forEach(e => { const k = e.dept; map[k] = (map[k]||0) + Number(e.salary||0); });
+      const rows = Object.entries(map).sort((a,b)=> b[1]-a[1]);
+      el.innerHTML = rows.map(([d,t]) => `<div class="flex justify-between"><div>${d}</div><div class="font-medium">₦${Number(t).toLocaleString()}</div></div>`).join('') || '<div class="text-gray-500">No data</div>';
+    }
+    renderDeptPayroll();
+
+    function renderManagersSummary(){
+      const el = document.getElementById('managersSummaryList'); if(!el) return;
+      const counts = {};
+      employees.forEach(e => { const m = e.manager||'—'; counts[m] = (counts[m]||0)+1; });
+      const rows = Object.entries(counts).sort((a,b)=> b[1]-a[1]).map(([m,c])=>{
+        return `<div class="flex justify-between py-2 border-b">
+          <div>${m}</div>
+          <div class="flex items-center gap-2">
+            <span class="font-medium">${c} directs</span>
+            <button class="ghost-btn text-xs" data-mgr="${m}">View directs</button>
+          </div>
+        </div>`;
+      }).join('');
+      el.innerHTML = rows || '<div class="text-gray-500">No data</div>';
+      el.querySelectorAll('button[data-mgr]').forEach(btn => {
+        btn.addEventListener('click', ()=>{
+          const m = btn.getAttribute('data-mgr');
+          if (managerFilter) managerFilter.value = m;
+          filterAndRender();
+        });
+      });
+    }
+    renderManagersSummary();
+
+    function tomorrowStr(){ const d = new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); }
+    function computeAttendanceConsistencyFor(userId, lastDays){
+      const all = (window.Store ? Store.getAttendance(userId) : []);
+      const today = new Date(); let present=0, total=0;
+      for(let i=0;i<lastDays;i++){
+        const d = new Date(today); d.setDate(today.getDate()-i); const wd=d.getDay(); if(wd===0||wd===6) continue;
+        const ds = d.toISOString().slice(0,10);
+        const rec = all.find(a=>a.date===ds);
+        const st = (!rec ? (ds < (window.Store?Store.todayStr():ds) ? 'Absent' : 'Not clocked in') : ((rec.clockIn||rec.clockOut)?'Present':'Absent'));
+        if(st!=='—') total++; if(st==='Present' || st==='Late') present++;
+      }
+      return total ? Math.round(present/total*100) : 0;
+    }
+    function renderTeamPlans(){
+      const s = window.Store ? Store.getState() : { users:[], employees:[], pulses:[], attendance:[], plans:{} };
+      const users = (s.users||[]).filter(u => u.role==='user');
+      const byEmailEmp = new Map((s.employees||[]).map(e=>[e.email,e]));
+      const el = document.getElementById('teamPlansList'); if(!el) return;
+      const deptSel = document.getElementById('teamFilterDept');
+      const minReadyEl = document.getElementById('teamFilterReady');
+      const deptFilter = deptSel ? deptSel.value : '';
+      const minReady = minReadyEl ? Number(minReadyEl.value||0) : 0;
+      const rows = users.map(u => {
+        const e = byEmailEmp.get(u.email);
+        const dept = e?.department || e?.dept || '—';
+        const eng = window.Store ? Store.computeEngagementFromPulses(u.id, 7) : { avg:0 };
+        const attendance = computeAttendanceConsistencyFor(u.id, 14);
+        const readiness = Math.round(0.6*(eng?.avg||0) + 0.4*attendance);
+        const plan = (window.Store ? Store.getPlan(u.id, tomorrowStr()) : null) || {};
+        const mode = plan.mode || '—'; const start = plan.start || '—'; const focus = plan.focus || '—';
+        const shared = plan.share ? true : false;
+        const badge = shared ? '<span class="text-xs ml-2 px-2 py-1 rounded bg-blue-100 text-blue-800">Shared</span>' : '';
+        return { u, dept, readiness, mode, start, focus, badge };
+      }).filter(r => (!deptFilter || r.dept === deptFilter) && (r.readiness >= minReady))
+        .sort((a,b)=> b.readiness - a.readiness)
+        .map(r => `<div class="flex justify-between py-2 border-b ${r.badge ? 'bg-blue-50' : ''}">
+          <div>
+            <div class="font-medium">${r.u.name}${r.badge}</div>
+            <div class="text-xs text-gray-500">${r.dept}</div>
+          </div>
+          <div class="text-right">
+            <div>Readiness: <span class="font-medium">${r.readiness}%</span></div>
+            <div class="text-xs text-gray-500">${r.mode} • ${r.start} • ${r.focus}</div>
+          </div>
+        </div>`).join('');
+      el.innerHTML = rows || '<div class="text-gray-500">No team data</div>';
+    }
+    function populateTeamFilters(){
+      const s = window.Store ? Store.getState() : { employees:[] };
+      const el = document.getElementById('teamFilterDept'); if(!el) return;
+      const depts = Array.from(new Set((s.employees||[]).map(e=> e.department || e.dept).filter(Boolean))).sort();
+      el.innerHTML = '<option value="">All depts</option>' + depts.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+    populateTeamFilters();
+    renderTeamPlans();
+    const deptSel = document.getElementById('teamFilterDept');
+    const minReadyEl = document.getElementById('teamFilterReady');
+    if (deptSel) deptSel.addEventListener('change', renderTeamPlans);
+    if (minReadyEl) minReadyEl.addEventListener('input', renderTeamPlans);
+
+    // filters & search
+    populateDeptFilter();
+    populateManagerFilter();
+    populateLocationFilter();
+    searchInput.addEventListener("input", filterAndRender);
+    if(deptFilter) deptFilter.addEventListener("change", filterAndRender);
+    if(statusFilter) statusFilter.addEventListener("change", filterAndRender);
+    if(managerFilter) managerFilter.addEventListener("change", filterAndRender);
+    if(locationFilter) locationFilter.addEventListener("change", filterAndRender);
+
+    document.getElementById("addEmployeeBtn").addEventListener("click", ()=> openEdit());
+
+    // select default job
+    selectJob(jobs[0].id);
+
+    // chat functionality
+    function toggleChat(){
+      const win = document.getElementById("chatWindow");
+      if(win.style.display === "block"){ win.style.display = "none"; }
+      else { win.style.display = "block"; document.getElementById("chatInput").focus(); }
+    }
+    window.toggleChat = toggleChat;
+
+    // simple rule-based assistant using local data
+    function generateAssistantResponse(raw){
+      const q = raw.trim();
+      const text = q.toLowerCase();
+
+      // helpers
+      const listJobs = () => {
+        if(!jobs.length) return "No open roles right now.";
+        const summary = jobs.map(j => `${j.title} (${j.candidates.length} candidates)`).join(', ');
+        return `Open roles: ${jobs.length} — ${summary}.`;
+      };
+
+      const highestMatch = () => {
+        const all = jobs.flatMap(j => j.candidates.map(c => ({...c, jobTitle: j.title})));
+        if(!all.length) return "No candidates yet. Click 'Auto-match all' to simulate candidates.";
+        const best = all.reduce((m,c)=> c.match > m.match ? c : m, all[0]);
+        return `Highest match is ${best.name} for ${best.jobTitle} at ${best.match}%.`;
+      };
+
+      const employeesInDept = (dept) => {
+        const list = employees.filter(e => e.dept.toLowerCase() === dept.toLowerCase());
+        if(!list.length) return `No employees found in ${dept}.`;
+        return `Employees in ${dept}: ` + list.map(e => e.name).join(', ') + '.';
+      };
+
+      const totalPayrollStr = () => {
+        const total = employees.reduce((s,e)=> s + Number(e.salary || 0), 0);
+        return `Estimated monthly gross payroll: ₦${Number(total).toLocaleString()}.`;
+      };
+
+      const onLeaveStr = () => {
+        const list = employees.filter(e => e.status === 'On Leave');
+        if(!list.length) return 'No employees are currently on leave.';
+        return 'On leave: ' + list.map(e => e.name + ' (' + e.dept + ')').join(', ') + '.';
+      };
+
+      // intents
+      if(text.includes('open role') || text.includes('jobs')) return listJobs();
+      if(text.includes('highest match') || text.includes('top candidate')) return highestMatch();
+      if(text.includes('total payroll') || (text.includes('payroll') && text.includes('total'))) return totalPayrollStr();
+      if(text.includes('on leave')) return onLeaveStr();
+
+      // "employees in <dept>"
+      const inIdx = text.indexOf('employees in ');
+      if(inIdx !== -1){
+        const dept = q.slice(inIdx + 'employees in '.length).trim();
+        if(dept) return employeesInDept(dept);
+      }
+
+      // actions
+      if(text.includes('export employees')){ exportEmployeesCSV(); return 'Exported employees CSV to your browser downloads.'; }
+      if(text.includes('auto-match all')){ jobs.forEach(j => autoMatchJob(j.id)); return 'Auto-matching candidates across all open roles…'; }
+
+      return "I can help with: 'show open roles', 'who has the highest match score?', 'employees in Sales', 'total payroll', 'who is on leave', 'export employees'.";
+    }
+
+    document.getElementById("chatSend").addEventListener("click", ()=> {
+      const inputEl = document.getElementById("chatInput");
+      const text = inputEl.value.trim();
+      if(!text) return;
+      const c = document.getElementById("chatMessages");
+      const user = document.createElement("div"); user.className = 'chat-bubble chat-user'; user.textContent = text;
+      c.appendChild(user);
+      inputEl.value = "";
+      c.scrollTop = c.scrollHeight;
+      setTimeout(()=> {
+        const ai = document.createElement("div"); ai.className='chat-bubble chat-ai'; ai.textContent = generateAssistantResponse(text);
+        c.appendChild(ai); c.scrollTop = c.scrollHeight;
+      }, 400);
+    });
+
+    logActivity("Dashboard initialized");
+
+    // Policies & Compliance
+    function renderPolicies(){
+      const s = window.Store ? Store.getState() : { policies:[], acknowledgments:{}, users:[] };
+      const users = (s.users||[]).filter(u => u.role==='user');
+      if (!s.policies || s.policies.length === 0){
+        try {
+          Store.addPolicy({ title:'Code of Conduct', version:'v1', category:'HR', required:true, url:'#' });
+          Store.addPolicy({ title:'Data Protection & Privacy', version:'v2', category:'Legal', required:true, url:'#' });
+          Store.addPolicy({ title:'Remote Work Guidelines', version:'v1', category:'Operations', required:false, url:'#' });
+        } catch {}
+      }
+      const items = (Store.getPolicies ? Store.getPolicies() : (s.policies||[]));
+      const byIdAck = s.acknowledgments || {};
+      const listEl = document.getElementById('policiesList'); if(!listEl) return;
+      listEl.innerHTML = items.map(p => {
+        const ackCount = users.filter(u => (byIdAck[u.id]||[]).includes(p.id)).length;
+        const total = users.length;
+        const pct = total ? Math.round(ackCount/total*100) : 0;
+        return `<div class="flex justify-between py-2 border-b">
+          <div>
+            <div class="font-medium">${p.title} <span class="text-xs text-gray-500">${p.version}</span></div>
+            <div class="text-xs text-gray-500">${p.category} • Published ${p.publishedAt}</div>
+          </div>
+          <div class="text-right">
+            <div>${ackCount}/${total} acknowledged</div>
+            <div class="text-xs text-gray-500">${pct}% • ${p.required ? 'Required' : 'Optional'}</div>
+          </div>
+        </div>`;
+      }).join('') || '<div class="text-gray-500">No policies yet</div>';
+    }
+    function openAddPolicy(){
+      const modal = document.createElement('div'); modal.className='modal-backdrop';
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[680px] max-w-[95%]">
+          <div class="flex justify-between items-center"><h3 class="text-lg font-bold">Add Policy</h3><button id="polClose" class="border rounded px-3 py-1">Close</button></div>
+          <div class="grid grid-cols-2 gap-4 mt-4">
+            <div><label class="text-xs text-gray-600">Title</label><input id="pol_title" class="w-full p-2 border rounded" placeholder="Policy title"></div>
+            <div><label class="text-xs text-gray-600">Version</label><input id="pol_version" class="w-full p-2 border rounded" value="v1"></div>
+            <div><label class="text-xs text-gray-600">Category</label><input id="pol_cat" class="w-full p-2 border rounded" placeholder="HR, Legal, Ops"></div>
+            <div><label class="text-xs text-gray-600">Published</label><input id="pol_pub" type="date" class="w-full p-2 border rounded" value="${new Date().toISOString().slice(0,10)}"></div>
+            <div class="col-span-2"><label class="text-xs text-gray-600">URL</label><input id="pol_url" class="w-full p-2 border rounded" placeholder="Link to document"></div>
+            <div><label class="text-xs text-gray-600"><input id="pol_req" type="checkbox" checked> Required</label></div>
+          </div>
+          <div class="mt-6 text-right"><button id="polSave" class="px-4 py-2 bg-indigo-600 text-white rounded">Save</button></div>
+        </div>`;
+      document.getElementById('modalRoot').appendChild(modal);
+      modal.querySelector('#polClose').addEventListener('click', ()=> modal.remove());
+      modal.querySelector('#polSave').addEventListener('click', ()=>{
+        const title = modal.querySelector('#pol_title').value.trim(); if(!title){ alert('Title required'); return; }
+        const version = modal.querySelector('#pol_version').value.trim()||'v1';
+        const category = modal.querySelector('#pol_cat').value.trim()||'General';
+        const publishedAt = modal.querySelector('#pol_pub').value || new Date().toISOString().slice(0,10);
+        const url = modal.querySelector('#pol_url').value.trim();
+        const required = !!modal.querySelector('#pol_req').checked;
+        try { Store.addPolicy({ title, version, category, publishedAt, url, required }); } catch {}
+        modal.remove(); renderPolicies(); logActivity(`Policy added: ${title}`);
+      });
+    }
+    document.getElementById('addPolicyBtn')?.addEventListener('click', openAddPolicy);
+    function exportPoliciesCSV(){
+      const s = window.Store ? Store.getState() : { policies:[], acknowledgments:{}, users:[] };
+      const users = (s.users||[]).filter(u=>u.role==='user');
+      const rows = [['id','title','version','category','publishedAt','required','acknowledged']].concat((s.policies||[]).map(p => {
+        const ack = users.filter(u => ((s.acknowledgments||{})[u.id]||[]).includes(p.id)).length;
+        return [p.id||'', p.title||'', p.version||'', p.category||'', p.publishedAt||'', String(!!p.required), String(ack)];
+      }));
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='lumion_policies.csv'; a.click(); URL.revokeObjectURL(url);
+      logActivity('Exported policies CSV');
+    }
+    document.getElementById('exportPoliciesCSV')?.addEventListener('click', exportPoliciesCSV);
+    function sendPolicyReminders(){
+      const s = window.Store ? Store.getState() : { users:[], acknowledgments:{}, policies:[] };
+      const users = (s.users||[]).filter(u=>u.role==='user');
+      let count = 0;
+      users.forEach(u => {
+        const pending = Store.getPendingPoliciesForUser ? Store.getPendingPoliciesForUser(u.id) : [];
+        pending.forEach(p => { try { Store.addNotification({ type:'policy_reminder', userId:u.id, date:Store.todayStr(), message:`Please acknowledge policy: ${p.title}` }); count++; } catch {} });
+      });
+      logActivity(`Sent ${count} policy reminders`);
+      alert(`Policy reminders sent: ${count}`);
+    }
+    document.getElementById('sendPolicyReminders')?.addEventListener('click', sendPolicyReminders);
+
+    // Assets Management
+    function renderAssets(){
+      const s = window.Store ? Store.getState() : { assets:[], users:[] };
+      const listEl = document.getElementById('assetsList'); if(!listEl) return;
+      if (!s.assets || s.assets.length === 0){
+        try {
+          Store.addAsset({ tag:'LAP-ENG-001', type:'Laptop', status:'available' });
+          Store.addAsset({ tag:'MON-ENG-007', type:'Monitor', status:'available' });
+          Store.addAsset({ tag:'PHN-SALES-003', type:'Phone', status:'available' });
+        } catch {}
+      }
+      const users = (s.users||[]).filter(u=>u.role==='user');
+      const userOpts = users.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+      const rows = (Store.getAssets ? Store.getAssets() : (s.assets||[])).map(a => {
+        const assigned = a.assignedTo ? (users.find(u=>u.id===a.assignedTo)?.name || a.assignedTo) : '—';
+        return `<div class="flex justify-between items-center py-2 border-b">
+          <div>
+            <div class="font-medium">${a.tag} <span class="text-xs text-gray-500">${a.type}</span></div>
+            <div class="text-xs text-gray-500">Status: ${a.status}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="text-sm">Assigned: <span class="font-medium">${assigned}</span></div>
+            <select class="border rounded text-xs p-1" data-asset="${a.id}"><option value="">Assign to…</option>${userOpts}</select>
+          </div>
+        </div>`;
+      }).join('') || '<div class="text-gray-500">No assets yet</div>';
+      listEl.innerHTML = rows;
+      listEl.querySelectorAll('select[data-asset]')?.forEach(sel => {
+        sel.addEventListener('change', ()=>{
+          const id = sel.getAttribute('data-asset'); const uid = sel.value;
+          if (!id || !uid) return;
+          try { Store.assignAsset(id, uid); } catch {}
+          renderAssets(); logActivity(`Asset ${id} assigned to ${users.find(u=>u.id===uid)?.name || uid}`);
+        });
+      });
+    }
+    function openAddAsset(){
+      const modal = document.createElement('div'); modal.className='modal-backdrop';
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg w-[640px] max-w-[95%]">
+          <div class="flex justify-between items-center"><h3 class="text-lg font-bold">Add Asset</h3><button id="assetClose" class="border rounded px-3 py-1">Close</button></div>
+          <div class="grid grid-cols-2 gap-4 mt-4">
+            <div><label class="text-xs text-gray-600">Tag</label><input id="asset_tag" class="w-full p-2 border rounded" placeholder="e.g., LAP-ENG-001"></div>
+            <div><label class="text-xs text-gray-600">Type</label><input id="asset_type" class="w-full p-2 border rounded" placeholder="Laptop, Monitor"></div>
+            <div class="col-span-2"><label class="text-xs text-gray-600">Notes</label><input id="asset_notes" class="w-full p-2 border rounded" placeholder="Specs, warranty, etc."></div>
+          </div>
+          <div class="mt-6 text-right"><button id="assetSave" class="px-4 py-2 bg-indigo-600 text-white rounded">Save</button></div>
+        </div>`;
+      document.getElementById('modalRoot').appendChild(modal);
+      modal.querySelector('#assetClose').addEventListener('click', ()=> modal.remove());
+      modal.querySelector('#assetSave').addEventListener('click', ()=>{
+        const tag = modal.querySelector('#asset_tag').value.trim(); if(!tag){ alert('Tag required'); return; }
+        const type = modal.querySelector('#asset_type').value.trim()||'Device';
+        const notes = modal.querySelector('#asset_notes').value.trim();
+        try { Store.addAsset({ tag, type, notes }); } catch {}
+        modal.remove(); renderAssets(); logActivity(`Asset added: ${tag}`);
+      });
+    }
+    document.getElementById('addAssetBtn')?.addEventListener('click', openAddAsset);
+    function exportAssetsCSV(){
+      const s = window.Store ? Store.getState() : { assets:[], users:[] };
+      const rows = [['id','tag','type','status','assignedTo','notes']].concat((s.assets||[]).map(a => [a.id||'', a.tag||'', a.type||'', a.status||'', a.assignedTo||'', a.notes||'']));
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' }); const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href=url; a.download='lumion_assets.csv'; a.click(); URL.revokeObjectURL(url);
+      logActivity('Exported assets CSV');
+    }
+    document.getElementById('exportAssetsCSV')?.addEventListener('click', exportAssetsCSV);
+
+    renderPolicies();
+    renderAssets();
+    
+    function renderAdminRequisitions(){
+      const s = window.Store ? Store.getState() : { requests:[], users:[] };
+      const listEl = document.getElementById('reqAdminList'); if(!listEl) return;
+      const byIdUser = new Map((s.users||[]).map(u=>[u.id,u]));
+      const rows = (s.requests||[]).sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||'')).map(r => {
+        const u = byIdUser.get(r.userId);
+        return `<div class="flex justify-between items-center py-2 border-b">
+          <div>
+            <div class="font-medium">${u?.name || r.userId} — ${r.type}</div>
+            <div class="text-xs text-gray-500">₦${Number(r.amount||0).toLocaleString()} • ${new Date(r.createdAt||Date.now()).toLocaleString()}</div>
+            <div class="text-xs text-gray-700">${r.description||''}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs ${r.status==='approved'?'text-green-600':(r.status==='rejected'?'text-red-600':'text-gray-600')}">${r.status}</span>
+            <button class="ghost-btn text-xs" data-approve="${r.id}">Approve</button>
+            <button class="ghost-btn text-xs" data-reject="${r.id}">Reject</button>
+          </div>
+        </div>`;
+      }).join('') || '<div class="text-gray-500">No requisitions</div>';
+      listEl.innerHTML = rows;
+      listEl.querySelectorAll('button[data-approve]')?.forEach(btn => btn.addEventListener('click', ()=>{ try { Store.updateRequestStatus(btn.getAttribute('data-approve'), 'approved'); } catch {} renderAdminRequisitions(); logActivity('Requisition approved'); }));
+      listEl.querySelectorAll('button[data-reject]')?.forEach(btn => btn.addEventListener('click', ()=>{ try { Store.updateRequestStatus(btn.getAttribute('data-reject'), 'rejected'); } catch {} renderAdminRequisitions(); logActivity('Requisition rejected'); }));
+    }
+    function exportReqCSV(){
+      const s = window.Store ? Store.getState() : { requests:[], users:[] };
+      const byIdUser = new Map((s.users||[]).map(u=>[u.id,u]));
+      const rows = [['id','userId','name','type','amount','status','createdAt','description']].concat((s.requests||[]).map(r => [r.id||'', r.userId||'', (byIdUser.get(r.userId)?.name||''), r.type||'', String(r.amount||0), r.status||'', r.createdAt||'', r.description||'']));
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type:'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='lumion_requisitions.csv'; a.click(); URL.revokeObjectURL(url);
+      logActivity('Exported requisitions CSV');
+    }
+    document.getElementById('exportReqCSV')?.addEventListener('click', exportReqCSV);
+    renderAdminRequisitions();
+    
+    function renderAdminLeaves(){
+      const s = window.Store ? Store.getState() : { leaves:[], users:[] };
+      const listEl = document.getElementById('leaveAdminList'); if(!listEl) return;
+      const byIdUser = new Map((s.users||[]).map(u=>[u.id,u]));
+      const rows = (s.leaves||[]).filter(l => (l.status||'pending')==='pending').sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||'')).map(l => {
+        const u = byIdUser.get(l.userId);
+        const days = Math.max(1, Math.round((new Date(l.endDate)-new Date(l.startDate))/(1000*60*60*24))+1);
+        return `<div class="flex justify-between items-center py-2 border-b">
+          <div>
+            <div class="font-medium">${u?.name || l.userId} — ${l.type} (${days}d)</div>
+            <div class="text-xs text-gray-500">${l.startDate} → ${l.endDate}${l.reason? ' • '+l.reason : ''}</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="ghost-btn text-xs" data-approve-leave="${l.id}">Approve</button>
+            <button class="ghost-btn text-xs" data-reject-leave="${l.id}">Reject</button>
+          </div>
+        </div>`;
+      }).join('') || '<div class="text-gray-500">No pending leaves</div>';
+      listEl.innerHTML = rows;
+      listEl.querySelectorAll('button[data-approve-leave]')?.forEach(btn => btn.addEventListener('click', ()=>{ const id = btn.getAttribute('data-approve-leave'); try { Store.updateLeaveStatus(id,'approved'); } catch {} renderAdminLeaves(); logActivity('Leave approved'); }));
+      listEl.querySelectorAll('button[data-reject-leave]')?.forEach(btn => btn.addEventListener('click', ()=>{ const id = btn.getAttribute('data-reject-leave'); try { Store.updateLeaveStatus(id,'rejected'); } catch {} renderAdminLeaves(); logActivity('Leave rejected'); }));
+    }
+    renderAdminLeaves();
+
+    // Global Feature Search (Command Palette)
+    (function(){
+      const modal = document.createElement('div'); modal.id='featureSearchModal'; modal.className='modal-backdrop'; modal.style.display='none';
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg w-[720px] max-w-[95%] p-4">
+          <div class="flex items-center justify-between mb-2"><div class="font-semibold">Search Features</div><button id="fsClose" class="border rounded px-3 py-1">Close</button></div>
+          <input id="fsInput" class="w-full p-2 border rounded" placeholder="Search actions, sections, exports, analytics... (Ctrl+K)" />
+          <div id="fsResults" class="mt-3" style="max-height:50vh; overflow:auto"></div>
+        </div>`;
+      document.getElementById('modalRoot').appendChild(modal);
+      const open = ()=> { modal.style.display='flex'; setTimeout(()=> document.getElementById('fsInput').focus(), 50); };
+      const close = ()=> { modal.style.display='none'; };
+      document.getElementById('openFeatureSearch').addEventListener('click', open);
+      modal.querySelector('#fsClose').addEventListener('click', close);
+      document.addEventListener('keydown', (e)=>{ if ((e.ctrlKey||e.metaKey) && e.key.toLowerCase()==='k'){ e.preventDefault(); open(); } });
+      const features = [
+        { name:'Employees', anchor:'#employees' },
+        { name:'Policies & Compliance', anchor:'#policies' },
+        { name:'Assets Management', anchor:'#assets' },
+        { name:'Requisitions & Approvals', anchor:'#reqs' },
+        { name:'Leave Approvals', anchor:'#leaves' },
+        { name:'Export All CSV', action: ()=> document.getElementById('exportFullCSV').click() },
+        { name:'Export Attendance CSV', action: ()=> document.getElementById('exportAttendanceCSV').click() },
+        { name:'Export Leaves CSV', action: ()=> document.getElementById('exportLeavesCSV').click() },
+        { name:'Performance Dashboard', action: ()=> location.href='performance-dashboard.html' },
+        { name:'HR Performance (Admin)', action: ()=> location.href='hr-performance.html' }
+      ];
+      // Ensure anchors exist
+      // anchors are set on sections above
+      const resultsEl = document.getElementById('fsResults');
+      function search(q){
+        const tokens = (q||'').toLowerCase().split(/\s+/).filter(Boolean);
+        const scored = features.map(f => {
+          const hay = f.name.toLowerCase();
+          const score = tokens.reduce((acc,t)=> acc + (hay.includes(t)?1:0), 0) + (hay.startsWith(tokens[0]||'')?1:0);
+          return { f, score };
+        }).filter(x => x.score>0).sort((a,b)=> b.score - a.score).slice(0, 10);
+        resultsEl.innerHTML = scored.map(x => `<div class="flex justify-between items-center py-2 border-b">
+          <div><div class="font-medium">${x.f.name}</div><div class="text-xs text-gray-500">${x.f.anchor ? x.f.anchor : 'action'}</div></div>
+          <button class="ghost-btn text-xs" data-run="${x.f.name}">Go</button>
+        </div>`).join('') || '<div class="text-gray-500">No matches</div>';
+        resultsEl.querySelectorAll('button[data-run]')?.forEach(btn => btn.addEventListener('click', ()=>{
+          const it = features.find(y => y.name === btn.getAttribute('data-run'));
+          if (!it) return;
+          if (it.anchor){ location.hash = it.anchor; close(); }
+          else if (typeof it.action === 'function'){ it.action(); close(); }
+        }));
+      }
+      document.getElementById('fsInput').addEventListener('input', (e)=> search(e.target.value));
+      search('');
+    })();
+  }); // domContentLoaded end
+  </script>
+</body>
+<script type="module">
+  import '/js/header-footer.js';
+</script>
+</html>
+
+
+

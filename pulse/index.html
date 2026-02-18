@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emotional Pulse System — Prototype</title>
+  <link rel="stylesheet" href="./style.css" />
+  <!-- Load Chart.js early so modules can access global Chart -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">Emotional Pulse</div>
+    <!-- Navigation removed: time-based flow auto-selects morning/evening, and users are redirected after submission. -->
+  </header>
+
+  <!-- Screens -->
+  <main class="container">
+    <!-- Login Screen -->
+    <section id="screen-login" class="screen">
+      <div class="card">
+        <h2>Login</h2>
+        <p>Select an employee to continue.</p>
+        <div class="form-row">
+          <label for="login-employee">Employee</label>
+          <select id="login-employee"></select>
+        </div>
+        <button id="login-btn" class="primary">Login</button>
+      </div>
+      <div class="muted tiny">This is a demo-only login without passwords. Data persists in localStorage.</div>
+    </section>
+
+    <!-- Morning Pulse Screen -->
+    <section id="screen-morning" class="screen">
+      <div class="card">
+        <h2>Morning Check-in</h2>
+        <p>How do you feel this morning?</p>
+        <div class="mood-grid" id="morning-moods"></div>
+        <div class="form-row">
+          <label>Intensity</label>
+          <input id="morning-intensity" type="range" min="1" max="5" step="1" value="3" />
+        </div>
+        <div class="form-row">
+          <label>Notes (optional)</label>
+          <textarea id="morning-notes" rows="2" placeholder="Context (e.g., slept well, tight deadline)"></textarea>
+        </div>
+        <button id="morning-submit" class="primary">Record Morning Mood</button>
+      </div>
+    </section>
+
+    <!-- Dashboard Screen -->
+    <section id="screen-dashboard" class="screen">
+      <div class="grid-2">
+        <div class="card">
+          <h2>Personal Mood Trend</h2>
+          <canvas id="personalMoodChart" height="160"></canvas>
+        </div>
+        <div class="card">
+          <h2>Department Comparison</h2>
+          <canvas id="deptRadarChart" height="160"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Team Heatmap</h2>
+        <div id="teamHeatmap" class="heatmap"></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h2>Predictive Insights</h2>
+          <ul id="predictiveInsights" class="list"></ul>
+        </div>
+        <div class="card">
+          <h2>HR Alerts</h2>
+          <ul id="hrAlerts" class="list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Evening Reflection Screen -->
+    <section id="screen-evening" class="screen">
+      <div class="card">
+        <h2>Evening Reflection</h2>
+        <p>How did your day feel overall?</p>
+        <div class="mood-grid" id="evening-moods"></div>
+        <div class="form-row">
+          <label>Intensity</label>
+          <input id="evening-intensity" type="range" min="1" max="5" step="1" value="3" />
+        </div>
+        <div class="form-row">
+          <label>Notes (optional)</label>
+          <textarea id="evening-notes" rows="2" placeholder="Highlights, blockers, teamwork"></textarea>
+        </div>
+        <button id="evening-submit" class="primary">Record Evening Mood</button>
+      </div>
+      <div class="card tiny">
+        <div id="delta-summary"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div>Prototype • Emotional Pulse System</div>
+    <div id="userBadge" class="pill"></div>
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+  <script type="module" src="./mood-analytics.js"></script>
+</body>
+</html>

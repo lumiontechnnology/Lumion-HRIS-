@@ -1,0 +1,860 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion HR — Employees</title>
+  <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png">
+  <link rel="stylesheet" href="assets/tailwind.css">
+  <style>
+    body {
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 30px rgba(2, 6, 23, 0.06);
+    }
+
+    .small {
+      font-size: 0.9rem
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 6, 23, .45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 70
+    }
+
+    .input {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 10px;
+      padding: 8px 12px;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .input:focus {
+      outline: none;
+      border-color: #6366F1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      background: #F3F4F6;
+      color: #374151;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      background: #EEF2FF;
+      color: #4F46E5;
+    }
+  </style>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/env.js"></script>
+  <script src="js/supabase.js"></script>
+</head>
+
+<body class="bg-gray-50 text-gray-800">
+
+  <!-- Header / Nav -->
+  <header class="bg-white border-b sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="https://i.ibb.co/XfRLzWwy/Logo.png" alt="Lumion" class="h-10" />
+        <div>
+          <div class="text-lg font-semibold">Lumion HR — Employees</div>
+          <div class="text-xs text-gray-500">Employee management & personnel files (local prototype)</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <a class="text-indigo-600 font-semibold" href="hris-dashboard-admin.html">Back to dashboard</a>
+        <button id="exportCSV" class="px-3 py-2 bg-gray-800 text-white rounded">Export CSV</button>
+        <button id="addEmpBtn" class="px-3 py-2 bg-indigo-600 text-white rounded">+ Add Employee</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 py-8">
+    <!-- controls -->
+    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div class="flex gap-3 items-center">
+        <input id="searchInput" placeholder="Search name, id, dept, role, manager, location..." class="input w-72" />
+        <select id="deptFilter" class="input">
+          <option value="">All Departments</option>
+        </select>
+        <select id="managerFilter" class="input">
+          <option value="">All Managers</option>
+        </select>
+        <select id="locationFilter" class="input">
+          <option value="">All Locations</option>
+        </select>
+        <select id="statusFilter" class="input">
+          <option value="">All Status</option>
+          <option>Active</option>
+          <option>On Leave</option>
+          <option>Suspended</option>
+          <option>Exited</option>
+        </select>
+      </div>
+      <div class="text-sm text-gray-500">Showing <span id="visibleCount">0</span> employees</div>
+    </div>
+
+    <!-- table -->
+    <div class="card p-4 overflow-x-auto">
+      <table class="w-full min-w-[1000px] text-sm">
+        <thead class="text-left text-gray-500 sticky top-0 bg-white shadow-sm">
+          <tr>
+            <th class="py-2">Name</th>
+            <th class="py-2">ID</th>
+            <th class="py-2">Department</th>
+            <th class="py-2">Role</th>
+            <th class="py-2">Line Manager</th>
+            <th class="py-2">Location</th>
+            <th class="py-2">Status</th>
+            <th class="py-2">Salary (₦)</th>
+            <th class="py-2 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="employeesTbody" class="divide-y bg-white"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <div id="modalRoot"></div>
+
+  <script type="module">
+    import { Store } from './js/store.js';
+    import { requireAuth, renderUserMenu } from './js/auth.js';
+    // requireAuth('admin');
+    renderUserMenu();
+    /***************************
+     * Sample employees dataset
+     * Nigerian-style sample data + details
+     ***************************/
+    // Initialize employees from Store, seed on first load
+    const initialEmployees = [
+      {
+        id: "EMP001", name: "Ada Bello", dept: "Engineering", role: "Software Engineer",
+        salary: 220000, status: "Active", start: "2024-02-01", manager: "Bayo K.",
+        contact: { email: "ada.bello@lumion.com", phone: "+234801000001" },
+        files: ["Employment_Letter.pdf", "NYSC_Certificate.pdf", "Degree.pdf", "CV.pdf"],
+        history: {
+          resumption: "2024-02-01",
+          promotions: [{ date: "2024-07-01", title: "Senior SWE" }],
+          transfers: [],
+          performance: [{ date: "2024-08-01", rating: 4, notes: "Solid contributor" }],
+          salaryReviews: [{ date: "2024-07-01", old: 180000, new: 220000 }],
+          warnings: []
+        }
+      },
+      {
+        id: "EMP002", name: "Chike Okoro", dept: "Sales", role: "Sales Lead", salary: 200000, status: "Active", start: "2023-09-12", manager: "Joel A.",
+        contact: { email: "chike.okoro@lumion.com", phone: "+234801000002" },
+        files: ["Employment_Letter.pdf", "CV.pdf"], history: { resumption: "2023-09-12", promotions: [], transfers: [], performance: [{ date: "2024-05-10", rating: 3, notes: "Meets expectations" }], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP003", name: "Ifeanyi N.", dept: "HR", role: "HRBP", salary: 180000, status: "Active", start: "2022-04-17", manager: "Umar B.",
+        contact: { email: "ifeanyi.n@lumion.com", phone: "+234801000003" },
+        files: ["Employment_Letter.pdf", "Certificates.pdf"], history: { resumption: "2022-04-17", promotions: [], transfers: [], performance: [{ date: "2024-02-15", rating: 4, notes: "Excellent stakeholder" }], salaryReviews: [{ date: "2023-12-01", old: 150000, new: 180000 }], warnings: [] }
+      },
+      {
+        id: "EMP004", name: "Nkechi U.", dept: "Product", role: "Product Manager", salary: 350000, status: "Active", start: "2021-11-03", manager: "Nkechi U.",
+        contact: { email: "nkechi.u@lumion.com", phone: "+234801000004" },
+        files: ["Employment_Letter.pdf", "CV.pdf"], history: { resumption: "2021-11-03", promotions: [{ date: "2023-07-01", title: "Lead PM" }], transfers: [], performance: [{ date: "2024-06-01", rating: 5, notes: "Outstanding" }], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP005", name: "James A.", dept: "Finance", role: "Finance Manager", salary: 300000, status: "Active", start: "2020-06-25", manager: "Umar B.",
+        contact: { email: "james.a@lumion.com", phone: "+234801000005" },
+        files: ["Employment_Letter.pdf", "ACA.pdf"], history: { resumption: "2020-06-25", promotions: [], transfers: [], performance: [{ date: "2024-03-01", rating: 4, notes: "Reliable" }], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP006", name: "Seyi O.", dept: "Design", role: "UI/UX Designer", salary: 150000, status: "Active", start: "2024-01-11", manager: "Nkechi U.",
+        contact: { email: "seyi.o@lumion.com", phone: "+234801000006" },
+        files: ["Employment_Letter.pdf", "Portfolio.pdf"], history: { resumption: "2024-01-11", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP007", name: "Amaka P.", dept: "Customer Success", role: "CS Manager", salary: 170000, status: "Active", start: "2023-02-14", manager: "Peter N.",
+        contact: { email: "amaka.p@lumion.com", phone: "+234801000007" },
+        files: ["Employment_Letter.pdf"], history: { resumption: "2023-02-14", promotions: [], transfers: [], performance: [{ date: "2024-07-01", rating: 4, notes: "Consistent" }], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP008", name: "Tunde R.", dept: "Engineering", role: "DevOps Engineer", salary: 240000, status: "Active", start: "2022-08-01", manager: "Bayo K.",
+        contact: { email: "tunde.r@lumion.com", phone: "+234801000008" },
+        files: ["Employment_Letter.pdf", "Certs.pdf"], history: { resumption: "2022-08-01", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP009", name: "Zainab K.", dept: "Sales", role: "Account Exec", salary: 160000, status: "On Leave", start: "2021-07-09", manager: "Chike Okoro",
+        contact: { email: "zainab.k@lumion.com", phone: "+234801000009" },
+        files: ["Employment_Letter.pdf"], history: { resumption: "2021-07-09", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP010", name: "Michael L.", dept: "HR", role: "Recruiter", salary: 130000, status: "Active", start: "2023-12-01", manager: "Ifeanyi N.",
+        contact: { email: "michael.l@lumion.com", phone: "+234801000010" },
+        files: ["Employment_Letter.pdf", "CV.pdf"], history: { resumption: "2023-12-01", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP011", name: "Fatima U.", dept: "Engineering", role: "Backend Engineer", salary: 210000, status: "Active", start: "2020-03-15", manager: "Bayo K.",
+        contact: { email: "fatima.u@lumion.com", phone: "+234801000011" },
+        files: ["Employment_Letter.pdf", "Certs.pdf"], history: { resumption: "2020-03-15", promotions: [{ date: "2022-05-01", title: "Senior Backend" }], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP012", name: "Peter N.", dept: "Product", role: "Data Analyst", salary: 190000, status: "Active", start: "2024-06-20", manager: "Nkechi U.",
+        contact: { email: "peter.n@lumion.com", phone: "+234801000012" },
+        files: ["Employment_Letter.pdf", "Degree.pdf"], history: { resumption: "2024-06-20", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP013", name: "Rose M.", dept: "Operations", role: "Ops Lead", salary: 160000, status: "Active", start: "2019-10-30", manager: "James A.",
+        contact: { email: "rose.m@lumion.com", phone: "+234801000013" },
+        files: ["Employment_Letter.pdf"], history: { resumption: "2019-10-30", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP014", name: "David O.", dept: "Finance", role: "Payroll Exec", salary: 140000, status: "Active", start: "2021-05-18", manager: "James A.",
+        contact: { email: "david.o@lumion.com", phone: "+234801000014" },
+        files: ["Employment_Letter.pdf"], history: { resumption: "2021-05-18", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP015", name: "Sade A.", dept: "Marketing", role: "Social Manager", salary: 120000, status: "Active", start: "2022-01-08", manager: "Amaka P.",
+        contact: { email: "sade.a@lumion.com", phone: "+234801000015" },
+        files: ["Employment_Letter.pdf"], history: { resumption: "2022-01-08", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP016", name: "Bayo K.", dept: "Engineering", role: "Frontend Engineer", salary: 200000, status: "Active", start: "2023-07-07", manager: "Nkechi U.",
+        contact: { email: "bayo.k@lumion.com", phone: "+234801000016" },
+        files: ["Employment_Letter.pdf"], history: { resumption: "2023-07-07", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP017", name: "Ngozi C.", dept: "Customer Success", role: "Support", salary: 100000, status: "Active", start: "2020-12-12", manager: "Amaka P.",
+        contact: { email: "ngozi.c@lumion.com", phone: "+234801000017" },
+        files: ["Employment_Letter.pdf"], history: { resumption: "2020-12-12", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP018", name: "Umar B.", dept: "Legal", role: "Legal Counsel", salary: 280000, status: "Active", start: "2018-09-21", manager: "James A.",
+        contact: { email: "umar.b@lumion.com", phone: "+234801000018" },
+        files: ["Employment_Letter.pdf", "LawCert.pdf"], history: { resumption: "2018-09-21", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP019", name: "Lilian T.", dept: "Design", role: "Motion Designer", salary: 155000, status: "Active", start: "2024-04-02", manager: "Seyi O.",
+        contact: { email: "lilian.t@lumion.com", phone: "+234801000019" },
+        files: ["Employment_Letter.pdf"], history: { resumption: "2024-04-02", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      },
+      {
+        id: "EMP020", name: "Joel A.", dept: "Sales", role: "BD", salary: 145000, status: "Active", start: "2023-03-03", manager: "Chike Okoro",
+        contact: { email: "joel.a@lumion.com", phone: "+234801000020" },
+        files: ["Employment_Letter.pdf", "CV.pdf"], history: { resumption: "2023-03-03", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      }
+    ];
+    let employees = Store.getEmployees();
+    if (!employees || employees.length === 0) {
+      initialEmployees.forEach(e => Store.addEmployee(e));
+      employees = Store.getEmployees();
+    }
+
+    async function syncRemoteEmployees() {
+      try {
+        if (window.loadEmployeesList) {
+          const rows = await window.loadEmployeesList();
+          if (Array.isArray(rows) && rows.length) {
+            rows.forEach(r => {
+              const emp = {
+                id: (typeof r.employee_id === 'number' ? ('EMP' + String(r.employee_id).padStart(3, '0')) : (r.id || r.name)),
+                name: r.name || 'Unnamed',
+                dept: r.department || 'Admin',
+                role: r.role || r.job_title || 'Staff',
+                manager: r.manager || '',
+                location: r.location || '',
+                salary: Number(r.salary || 0),
+                status: r.status || 'Active',
+                start: r.start || r.start_date || new Date().toISOString().slice(0, 10),
+                contact: { email: r.contact_email || '', phone: r.contact_phone || '' },
+                exit: r.exit_date || '',
+                files: r.files || [],
+                history: r.history || { resumption: r.start || '', promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+              };
+              const existing = employees.find(e => e.id === emp.id);
+              if (existing) Store.updateEmployee(existing.id, emp); else { Store.addEmployee(emp); employees.push(emp); }
+            });
+          }
+        }
+      } catch { }
+    }
+    syncRemoteEmployees();
+
+    // utility
+    function formatN(n) { return "₦" + Number(n).toLocaleString(); }
+
+    /***********************
+     * Render & UI helpers
+     ***********************/
+    const tbody = document.getElementById('employeesTbody');
+    const deptFilter = document.getElementById('deptFilter');
+    const managerFilter = document.getElementById('managerFilter');
+    const locationFilter = document.getElementById('locationFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const searchInput = document.getElementById('searchInput');
+    const visibleCount = document.getElementById('visibleCount');
+
+    function uniqueDepts() {
+      const s = new Set(employees.map(e => e.dept));
+      return Array.from(s).sort();
+    }
+
+    function populateDeptFilter() {
+      const depts = uniqueDepts();
+      deptFilter.innerHTML = '<option value="">All Departments</option>' + depts.map(d => `<option>${d}</option>`).join('');
+    }
+    function uniqueManagers() {
+      const s = new Set(employees.map(e => e.manager).filter(Boolean));
+      return Array.from(s).sort();
+    }
+    function populateManagerFilter() {
+      const mgrs = uniqueManagers();
+      managerFilter.innerHTML = '<option value="">All Managers</option>' + mgrs.map(m => `<option>${m}</option>`).join('');
+    }
+    function uniqueLocations() {
+      const s = new Set(employees.map(e => e.location).filter(Boolean));
+      return Array.from(s).sort();
+    }
+    function populateLocationFilter() {
+      const locs = uniqueLocations();
+      locationFilter.innerHTML = '<option value="">All Locations</option>' + locs.map(l => `<option>${l}</option>`).join('');
+    }
+
+    function renderTable(list = employees) {
+      tbody.innerHTML = '';
+      list.forEach(emp => {
+        const tr = document.createElement('tr');
+        const initials = String(emp.name || '').split(' ').slice(0, 2).map(s => s[0] || '').join('').toUpperCase();
+        const st = String(emp.status || 'Active');
+        const stClass = st === 'Active' ? 'bg-green-100 text-green-700' : st === 'On Leave' ? 'bg-yellow-100 text-yellow-700' : st === 'Suspended' ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-700';
+        tr.className = 'hover:bg-indigo-50/40';
+        tr.innerHTML = `
+        <td class="py-3">
+          <div class="flex items-center gap-3">
+            <span class="avatar">${initials || '?'}</span>
+            <div>
+              <div class="font-medium">${emp.name}</div>
+              <div class="text-xs text-gray-500">${emp.id}</div>
+            </div>
+          </div>
+        </td>
+        <td class="py-3">${emp.id}</td>
+        <td class="py-3">${emp.dept}</td>
+        <td class="py-3">${emp.role}</td>
+        <td class="py-3"><span class="chip">${emp.manager || '-'}</span></td>
+        <td class="py-3"><span class="chip">${emp.location || '-'}</span></td>
+        <td class="py-3"><span class="badge ${stClass}">${st}${st === 'Exited' && (emp.exit || emp.exit_date) ? ' (' + (emp.exit || emp.exit_date) + ')' : ''}</span></td>
+        <td class="py-3 font-medium">${formatN(emp.salary)}</td>
+        <td class="py-3 text-right">
+          <button class="viewBtn px-3 py-1 mr-2 text-sm text-indigo-600">View</button>
+          <button class="perfBtn px-3 py-1 mr-2 text-sm bg-indigo-50 text-indigo-700 border rounded">Performance</button>
+          <button class="editBtn px-3 py-1 mr-2 text-sm border rounded">Edit</button>
+          <button class="exitBtn px-3 py-1 mr-2 text-sm border rounded">Exit</button>
+          <button class="delBtn px-3 py-1 text-sm text-red-600">Delete</button>
+        </td>
+      `;
+        tbody.appendChild(tr);
+
+        tr.querySelector('.viewBtn').addEventListener('click', () => openView(emp));
+        tr.querySelector('.perfBtn').addEventListener('click', () => openPerformance(emp));
+        tr.querySelector('.editBtn').addEventListener('click', () => openEdit(emp));
+        tr.querySelector('.exitBtn').addEventListener('click', () => exitEmployeeQuick(emp));
+        tr.querySelector('.delBtn').addEventListener('click', () => removeEmployee(emp.id));
+      });
+      visibleCount.textContent = list.length;
+    }
+
+    function filterAndRender() {
+      const q = searchInput.value.trim().toLowerCase();
+      const d = deptFilter.value;
+      const m = managerFilter ? managerFilter.value : '';
+      const loc = locationFilter ? locationFilter.value : '';
+      const s = statusFilter.value;
+      let filtered = employees.filter(e => {
+        return (!d || e.dept === d) && (!m || (e.manager || '') === m) && (!loc || (e.location || '') === loc) && (!s || e.status === s) &&
+          (!q || e.name.toLowerCase().includes(q) || e.id.toLowerCase().includes(q) || e.role.toLowerCase().includes(q) || e.dept.toLowerCase().includes(q) || (e.manager || '').toLowerCase().includes(q) || (e.location || '').toLowerCase().includes(q));
+      });
+      renderTable(filtered);
+    }
+
+    /***********************
+     * Modals (View / Edit / Add)
+     ***********************/
+    function openView(emp) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop';
+      // compute simulated attrition risk & engagement for profile
+      const risk = Math.random() > 0.85 ? 'High' : Math.random() > 0.7 ? 'Medium' : 'Low';
+      const eng = Math.round(60 + Math.random() * 35);
+      modal.innerHTML = `
+      <div class="bg-white p-6 rounded-lg w-[900px] max-w-[95%]">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="text-lg font-bold">${emp.name} <span class="text-xs text-gray-500">(${emp.id})</span></h3>
+            <div class="text-sm text-gray-600">${emp.role} — ${emp.dept}</div>
+            <div class="text-xs text-gray-500 mt-2">Start date: ${emp.start}</div>
+            <div class="mt-2 text-xs text-gray-500">Line Manager: ${emp.manager || '-'}</div>
+            <div class="mt-1 text-xs text-gray-500">Location: ${emp.location || '-'}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm font-medium">${formatN(emp.salary)}</div>
+            <div class="text-xs text-gray-500">Status: ${emp.status}</div>
+            <div class="mt-3 text-sm">Attrition risk: <span class="${risk === 'High' ? 'text-red-600' : risk === 'Medium' ? 'text-yellow-600' : 'text-green-600'} font-semibold">${risk}</span></div>
+            <div class="text-sm mt-1">Engagement: <span class="font-semibold">${eng}%</span></div>
+          </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <h4 class="text-sm font-semibold">Contact</h4>
+            <p class="text-sm text-gray-600 mt-2">Email: ${emp.contact?.email || '-'}<br/>Phone: ${emp.contact?.phone || '-'}</p>
+
+            <h4 class="text-sm font-semibold mt-4">Employment History</h4>
+            <div class="text-sm text-gray-600 mt-2">
+              <div><strong>Resumption:</strong> ${emp.history?.resumption || emp.start || '-'}</div>
+              <div class="mt-2"><strong>Promotions:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.promotions || []).map(p => `<li>${p.date} — ${p.title}</li>`).join('') || '<li>None</li>'}</ul>
+              </div>
+              <div class="mt-2"><strong>Transfers:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.transfers || []).map(t => `<li>${t.date} — ${t.note}</li>`).join('') || '<li>None</li>'}</ul>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 class="text-sm font-semibold">Performance & Warnings</h4>
+            <div class="text-sm text-gray-600 mt-2">
+              <div><strong>Performance history:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.performance || []).map(p => `<li>${p.date} — Rating: ${p.rating} — ${p.notes || ''}</li>`).join('') || '<li>No records</li>'}</ul>
+              </div>
+              <div class="mt-2"><strong>Salary reviews:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.salaryReviews || []).map(s => `<li>${s.date} — ${formatN(s.old)} → ${formatN(s.new)}</li>`).join('') || '<li>No reviews</li>'}</ul>
+              </div>
+              <div class="mt-2"><strong>Warning letters:</strong>
+                <ul class="list-disc ml-5">${(emp.history?.warnings || []).map(w => `<li>${w.date} — ${w.reason}</li>`).join('') || '<li>None</li>'}</ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <h4 class="text-sm font-semibold">Documents</h4>
+          <div class="flex flex-wrap gap-2 mt-2">
+            ${(emp.files || []).map(f => `<a href="#" class="px-3 py-1 border rounded text-xs text-indigo-600" onclick="window.open('about:blank','_blank')">${f}</a>`).join('') || '<div class="text-sm text-gray-500">No documents</div>'}
+          </div>
+        </div>
+
+        <div class="mt-6 text-right">
+          <button id="printProfile" class="px-4 py-2 mr-2 border rounded">Print Profile</button>
+          <button id="closeView" class="px-4 py-2 bg-indigo-600 text-white rounded">Close</button>
+        </div>
+      </div>
+    </div>
+    `;
+      document.getElementById('modalRoot').appendChild(modal);
+      modal.querySelector('#closeView').addEventListener('click', () => modal.remove());
+      modal.querySelector('#printProfile').addEventListener('click', () => {
+        const win = window.open('', '_blank', 'width=800,height=900');
+        win.document.write(`<h2>${emp.name} (${emp.id})</h2><p>${emp.role} — ${emp.dept}</p><p>Manager: ${emp.manager || '-'}</p><p>Contact: ${emp.contact?.email || '-'} / ${emp.contact?.phone || '-'}</p><hr><h3>History</h3><pre>${JSON.stringify(emp.history, null, 2)}</pre>`);
+        win.document.close();
+        win.print();
+      });
+    }
+
+    // Performance modal
+    function openPerformance(emp) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop';
+      // Try link to a user account by email
+      const state = Store.getState();
+      const user = state.users.find(u => u.email === (emp.contact?.email || '')) || null;
+      const appraisals = user ? Store.getAppraisals(user.id) : [];
+      const headerBadge = user ? `<span class="ml-2 text-xs text-gray-500">Linked user: ${user.name}</span>` : `<span class="ml-2 text-xs text-gray-500">No linked user account</span>`;
+      const openLink = user ? `<a href="performance-dashboard.html?userId=${user.id}#appraisal" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm" target="_blank">Open Full Performance Page</a>` : `<button class="px-3 py-1 bg-gray-200 text-gray-600 rounded text-sm" disabled>Open Full Performance Page</button>`;
+      const rows = [];
+      if (appraisals.length > 0) {
+        appraisals.forEach(ap => {
+          const sum = Store.computeAndSaveAppraisalSummary(user.id, ap.period);
+          rows.push(`<div class="p-3 border rounded flex justify-between items-center">
+          <div>
+            <div class="font-semibold">${ap.period} <span class="text-xs pill">${ap.status}</span></div>
+            <div class="text-xs text-gray-500">Manager notes: ${ap.manager?.comments || '—'}</div>
+          </div>
+          <div class="flex gap-2">
+            <div class="pill">Overall: ${sum?.overall ?? '—'}%</div>
+            <div class="pill">KPI: ${sum?.kpiScore ?? '—'}%</div>
+            <div class="pill">Self: ${sum?.selfScore ?? '—'}%</div>
+            <div class="pill">Mgr: ${sum?.managerScore ?? '—'}%</div>
+          </div>
+        </div>`);
+        });
+      } else {
+        const hist = emp.history?.performance || [];
+        if (hist.length > 0) {
+          hist.forEach(h => {
+            rows.push(`<div class="p-3 border rounded flex justify-between items-center">
+            <div>
+              <div class="font-semibold">${h.period || 'Past Period'} <span class="text-xs pill">${h.status || 'Closed'}</span></div>
+              <div class="text-xs text-gray-500">Manager notes: ${h.managerComments || '—'}</div>
+            </div>
+            <div class="flex gap-2">
+              <div class="pill">Overall: ${h.overall ?? '—'}%</div>
+              <div class="pill">KPI: ${h.kpiScore ?? '—'}%</div>
+            </div>
+          </div>`);
+          });
+        }
+      }
+      const emptyState = rows.length === 0 ? '<div class="text-sm text-gray-600">No performance records found.</div>' : '';
+      modal.innerHTML = `
+      <div class="bg-white p-6 rounded-lg w-[900px] max-w-[95%]">
+        <div class="flex justify-between items-start">
+          <div>
+            <h3 class="text-lg font-bold">${emp.name} <span class="text-xs text-gray-500">(${emp.id})</span></h3>
+            <div class="text-sm text-gray-600">${emp.role} — ${emp.dept}</div>
+            ${headerBadge}
+          </div>
+          <div class="flex items-center gap-2">${openLink}<button id="closePerf" class="px-3 py-1 border rounded text-sm">Close</button></div>
+        </div>
+        <div class="mt-4">
+          <h4 class="font-semibold mb-2">Appraisal History</h4>
+          <div class="flex flex-col gap-2">${rows.join('') || emptyState}</div>
+        </div>
+      </div>
+    `;
+      document.getElementById('modalRoot').appendChild(modal);
+      modal.querySelector('#closePerf').addEventListener('click', () => modal.remove());
+      const container = modal.querySelector('.bg-white');
+      const block = document.createElement('div');
+      block.className = 'mt-6';
+      block.innerHTML = '<div class="flex items-center gap-2">\
+      <input id="perfYear" type="number" class="px-2 py-1 border rounded w-28" value="' + new Date().getFullYear() + '">\
+      <button data-q="1" class="perfQ px-3 py-1 border rounded">Q1</button>\
+      <button data-q="2" class="perfQ px-3 py-1 border rounded">Q2</button>\
+      <button data-q="3" class="perfQ px-3 py-1 border rounded">Q3</button>\
+      <button data-q="4" class="perfQ px-3 py-1 border rounded">Q4</button>\
+      <select id="perfMetric" class="px-2 py-1 border rounded">\
+        <option value="kpi_score">KPI Score</option>\
+        <option value="projects_completed">Projects Completed</option>\
+        <option value="attendance_pct">Attendance %</option>\
+        <option value="bonus_awarded">Bonus Awarded</option>\
+      </select>\
+      <button id="seedPerfYear" class="ml-auto px-3 py-1 border rounded">Generate Random Year</button>\
+    </div>\
+    <div id="perfCards" class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3"></div>\
+    <div class="mt-4"><canvas id="perfChart" width="720" height="220" class="w-full border rounded"></canvas></div>';
+      container.appendChild(block);
+      const perfYearEl = block.querySelector('#perfYear');
+      const perfMetricEl = block.querySelector('#perfMetric');
+      const perfCardsEl = block.querySelector('#perfCards');
+      const chartEl = block.querySelector('#perfChart');
+      function getQuarterData(year, q) {
+        const hist = (emp.history && emp.history.quarterly) || [];
+        const row = hist.find(r => r.year === year && r.quarter === q) || null;
+        return row;
+      }
+      function setQuarterData(year, q, data) {
+        const hist = (emp.history && emp.history.quarterly) || [];
+        const idx = hist.findIndex(r => r.year === year && r.quarter === q);
+        const next = { employee_id: emp.id, year, quarter: q, kpi_score: data.kpi_score || 0, projects_completed: data.projects_completed || 0, attendance_pct: data.attendance_pct || 0, bonus_awarded: data.bonus_awarded || 0, notes: data.notes || '' };
+        if (idx >= 0) hist[idx] = next; else hist.push(next);
+        emp.history = emp.history || { resumption: emp.start, promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] };
+        emp.history.quarterly = hist;
+        Store.updateEmployee(emp.id, { history: emp.history });
+      }
+      function renderCards(year, q) {
+        const p = getQuarterData(year, q) || { kpi_score: 0, projects_completed: 0, attendance_pct: 0, bonus_awarded: 0, notes: '' };
+        perfCardsEl.innerHTML = '';
+        const g1 = document.createElement('div'); g1.className = 'p-3 border rounded'; g1.innerHTML = '<div class="font-semibold">KPI Score</div><div class="text-2xl">' + (p.kpi_score || 0) + '</div>'; perfCardsEl.appendChild(g1);
+        const g2 = document.createElement('div'); g2.className = 'p-3 border rounded'; g2.innerHTML = '<div class="font-semibold">Projects Completed</div><div class="text-2xl">' + (p.projects_completed || 0) + '</div>'; perfCardsEl.appendChild(g2);
+        const g3 = document.createElement('div'); g3.className = 'p-3 border rounded'; g3.innerHTML = '<div class="font-semibold">Attendance</div><div class="text-2xl">' + (p.attendance_pct || 0) + '%</div>'; perfCardsEl.appendChild(g3);
+        const g4 = document.createElement('div'); g4.className = 'p-3 border rounded'; g4.innerHTML = '<div class="font-semibold">Bonus</div><div class="text-2xl">₦' + Number(p.bonus_awarded || 0).toLocaleString() + '</div>'; perfCardsEl.appendChild(g4);
+      }
+      function renderChart(year) {
+        const ctx = chartEl.getContext('2d');
+        ctx.clearRect(0, 0, chartEl.width, chartEl.height);
+        const metric = perfMetricEl.value || 'kpi_score';
+        const quarters = [1, 2, 3, 4];
+        const vals = quarters.map(q => { const r = getQuarterData(year, q); return r ? (r[metric] || 0) : 0; });
+        const max = metric === 'attendance_pct' ? 100 : Math.max(100, ...vals);
+        const padding = 40; const w = chartEl.width - padding * 2; const h = chartEl.height - padding * 2;
+        const barW = w / quarters.length - 20;
+        const x0 = padding; const y0 = padding;
+        const axis = '#E5E7EB';
+        const fill = '#4F46E5';
+        const text = '#111827';
+        const font = '12px sans-serif';
+        const ctx2 = ctx;
+        ctx2.strokeStyle = axis; ctx2.strokeRect(x0, y0, w, h);
+        quarters.forEach((q, i) => {
+          const x = x0 + i * (barW + 20) + 10;
+          const val = vals[i];
+          const bh = h * (val / Math.max(max, 1));
+          const y = y0 + (h - bh);
+          ctx2.fillStyle = fill; ctx2.fillRect(x, y, barW, bh);
+          ctx2.fillStyle = text; ctx2.font = font;
+          ctx2.fillText('Q' + q, x, y0 + h + 16);
+          let label = String(val);
+          if (metric === 'attendance_pct') label = label + '%';
+          if (metric === 'bonus_awarded') label = '₦' + Number(val).toLocaleString();
+          ctx2.fillText(label, x, y - 6);
+        });
+      }
+      function seedYear() {
+        const year = parseInt(perfYearEl.value);
+        [1, 2, 3, 4].forEach(q => {
+          const row = { kpi_score: Math.floor(60 + Math.random() * 40), projects_completed: Math.floor(1 + Math.random() * 6), attendance_pct: Math.floor(85 + Math.random() * 15), bonus_awarded: Math.floor(Math.random() * 2000), notes: 'Auto-generated' };
+          setQuarterData(year, q, row);
+        });
+        renderCards(year, 1);
+        renderChart(year);
+      }
+      block.querySelectorAll('.perfQ').forEach(btn => { btn.addEventListener('click', () => { const q = parseInt(btn.getAttribute('data-q')); renderCards(parseInt(perfYearEl.value), q); }); });
+      perfMetricEl.addEventListener('change', () => renderChart(parseInt(perfYearEl.value)));
+      block.querySelector('#seedPerfYear').addEventListener('click', seedYear);
+      renderCards(parseInt(perfYearEl.value), 1);
+      renderChart(parseInt(perfYearEl.value));
+    }
+
+    function openEdit(emp = null) {
+      const isNew = !emp;
+      const data = emp ? { ...emp } : {
+        id: "EMP" + String(100 + Math.floor(Math.random() * 900)),
+        name: "", dept: "", role: "", salary: 0, status: "Active", start: new Date().toISOString().slice(0, 10), manager: "", contact: { email: "", phone: "" }, files: [], history: { resumption: "", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      };
+
+      const modal = document.createElement('div'); modal.className = 'modal-backdrop';
+      modal.innerHTML = `
+      <div class="bg-white p-6 rounded-lg w-[760px] max-w-[95%]">
+        <h3 class="text-lg font-bold">${isNew ? 'Add Employee' : 'Edit Employee'}</h3>
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          <div><label class="text-xs text-gray-600">Full name</label><input id="ed_name" class="w-full p-2 border rounded" value="${data.name}"></div>
+          <div><label class="text-xs text-gray-600">Employee ID</label><input id="ed_id" class="w-full p-2 border rounded" value="${data.id}"></div>
+          <div><label class="text-xs text-gray-600">Department</label><input id="ed_dept" class="w-full p-2 border rounded" value="${data.dept}"></div>
+          <div><label class="text-xs text-gray-600">Role</label><input id="ed_role" class="w-full p-2 border rounded" value="${data.role}"></div>
+          <div><label class="text-xs text-gray-600">Location</label><input id="ed_location" class="w-full p-2 border rounded" value="${data.location || ''}"></div>
+          <div><label class="text-xs text-gray-600">Line Manager</label><input id="ed_manager" class="w-full p-2 border rounded" value="${data.manager || ''}"></div>
+          <div><label class="text-xs text-gray-600">Status</label><select id="ed_status" class="w-full p-2 border rounded"><option ${data.status === 'Active' ? 'selected' : ''}>Active</option><option ${data.status === 'On Leave' ? 'selected' : ''}>On Leave</option><option ${data.status === 'Suspended' ? 'selected' : ''}>Suspended</option><option ${data.status === 'Exited' ? 'selected' : ''}>Exited</option></select></div>
+          <div><label class="text-xs text-gray-600">Exit date</label><input id="ed_exit" type="date" class="w-full p-2 border rounded" value="${data.exit || data.exit_date || ''}"></div>
+          <div><label class="text-xs text-gray-600">Salary (₦)</label><input id="ed_salary" type="number" class="w-full p-2 border rounded" value="${data.salary}"></div>
+          <div><label class="text-xs text-gray-600">Start date</label><input id="ed_start" type="date" class="w-full p-2 border rounded" value="${data.start}"></div>
+          <div><label class="text-xs text-gray-600">Email</label><input id="ed_email" class="w-full p-2 border rounded" value="${data.contact?.email || ''}"></div>
+          <div><label class="text-xs text-gray-600">Phone</label><input id="ed_phone" class="w-full p-2 border rounded" value="${data.contact?.phone || ''}"></div>
+        </div>
+        <div class="mt-4 text-right">
+          <button id="cancelEdit" class="px-4 py-2 mr-2 border rounded">Cancel</button>
+          <button id="saveEdit" class="px-4 py-2 bg-indigo-600 text-white rounded">${isNew ? 'Create' : 'Save'}</button>
+        </div>
+      </div>
+    `;
+      document.getElementById('modalRoot').appendChild(modal);
+      modal.querySelector('#cancelEdit').addEventListener('click', () => modal.remove());
+      const statusEl = modal.querySelector('#ed_status');
+      const exitWrap = modal.querySelector('#ed_exit').parentElement;
+      function toggleExit() { exitWrap.style.display = statusEl.value === 'Exited' ? '' : 'none'; }
+      toggleExit();
+      statusEl.addEventListener('change', toggleExit);
+      modal.querySelector('#saveEdit').addEventListener('click', () => {
+        const name = modal.querySelector('#ed_name').value.trim();
+        const idv = modal.querySelector('#ed_id').value.trim();
+        const dept = modal.querySelector('#ed_dept').value.trim();
+        const role = modal.querySelector('#ed_role').value.trim();
+        const location = modal.querySelector('#ed_location').value.trim();
+        const manager = modal.querySelector('#ed_manager').value.trim();
+        const status = modal.querySelector('#ed_status').value;
+        const salary = Number(modal.querySelector('#ed_salary').value) || 0;
+        const start = modal.querySelector('#ed_start').value;
+        const email = modal.querySelector('#ed_email').value.trim();
+        const phone = modal.querySelector('#ed_phone').value.trim();
+        const exit = modal.querySelector('#ed_exit').value || '';
+        if (!name || !idv) { alert('Name and ID required'); return; }
+
+        if (isNew) {
+          const payload = { id: idv, name, dept, role, location, salary, status, start, manager, exit, exit_date: exit, contact: { email, phone }, files: [], history: { resumption: start, promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] } };
+          Store.addEmployee(payload);
+          try { if (window.saveEmployee) window.saveEmployee({ employee_id: (parseInt(String(payload.id).replace(/\D/g, ''), 10) || null), name: payload.name, department: payload.dept, role: payload.role, manager: payload.manager, location: payload.location, salary: payload.salary, status: payload.status, start: payload.start, contact_email: payload.contact.email, contact_phone: payload.contact.phone, exit_date: payload.exit || payload.exit_date || '', files: payload.files, history: payload.history }); } catch { }
+        } else {
+          Store.updateEmployee(data.id, { id: idv, name, dept, role, location, salary, status, start, manager, exit, exit_date: exit, contact: { email, phone } });
+          try { if (window.updateEmployee) window.updateEmployee((parseInt(String(idv).replace(/\D/g, ''), 10) || null), { name, department: dept, role, manager, location, salary, status, start, contact_email: email, contact_phone: phone, exit_date: exit, job_title: role }); } catch { }
+        }
+        employees = Store.getEmployees();
+        modal.remove();
+        populateDeptFilter();
+        filterAndRender();
+      });
+    }
+
+    function removeEmployee(id) {
+      if (!confirm('Delete employee and personnel file?')) return;
+      Store.removeEmployee(id);
+      employees = Store.getEmployees();
+      populateDeptFilter();
+      filterAndRender();
+    }
+
+    async function exitEmployeeQuick(emp) {
+      const dateStr = prompt('Exit date (YYYY-MM-DD)?');
+      if (!dateStr) return;
+      const fullIso = new Date(dateStr).toISOString();
+      const iso = fullIso.slice(0, 10);
+      if (window.updateEmployee) { try { await window.updateEmployee(emp.id, { status: 'Exited', exit_date: fullIso }); } catch { } }
+      Store.updateEmployee(emp.id, { status: 'Exited', exit: iso, exit_date: iso });
+      employees = Store.getEmployees();
+      populateDeptFilter();
+      filterAndRender();
+    }
+
+    /***********************
+     * Export CSV
+     ***********************/
+    function exportEmployeesCSV() {
+      const rows = [["id", "name", "department", "role", "manager", "location", "salary", "status", "start"]];
+      employees.forEach(e => rows.push([e.id, e.name, e.dept, e.role, e.manager || '', e.location || '', e.salary, e.status, e.start]));
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = 'lumion_employees.csv'; a.click(); URL.revokeObjectURL(url);
+    }
+
+    /***********************
+     * Init wiring
+     ***********************/
+    document.getElementById('addEmpBtn').addEventListener('click', () => openEdit(null));
+    document.getElementById('exportCSV').addEventListener('click', exportEmployeesCSV);
+    searchInput.addEventListener('input', filterAndRender);
+    deptFilter.addEventListener('change', filterAndRender);
+    if (managerFilter) managerFilter.addEventListener('change', filterAndRender);
+    if (locationFilter) locationFilter.addEventListener('change', filterAndRender);
+    statusFilter.addEventListener('change', filterAndRender);
+
+    // normalize employees from Store if schema differs and ensure minimum count
+    function normalizeAndSeed() {
+      employees = Store.getEmployees() || [];
+      employees = employees.map(e => ({
+        id: e.id || (e.empId || ("EMP" + Math.floor(100 + Math.random() * 900))),
+        name: e.name || e.fullName || 'Unnamed',
+        dept: e.dept || e.department || 'Admin',
+        role: e.role || 'Staff',
+        salary: e.salary || 0,
+        status: e.status || 'Active',
+        start: e.start || new Date().toISOString().slice(0, 10),
+        manager: e.manager || '',
+        location: e.location || '',
+        contact: e.contact || { email: e.email || '', phone: e.phone || '' },
+        files: e.files || [],
+        history: e.history || { resumption: e.start || '', promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+      }));
+      const need = 70 - employees.length;
+      if (need > 0) {
+        const depts = ['Engineering', 'Sales', 'Admin', 'HR', 'Finance', 'Marketing', 'Customer Success', 'Product', 'Legal', 'Operations', 'IT Ops', 'Design'];
+        const rolesByDept = {
+          Engineering: ['Software Engineer', 'Backend Engineer', 'Frontend Engineer', 'DevOps Engineer'],
+          Sales: ['Account Exec', 'Sales Lead', 'BD'],
+          Admin: ['Payroll Exec', 'Office Admin'],
+          HR: ['HRBP', 'Recruiter'],
+          Finance: ['Finance Manager', 'Accountant', 'Payroll Exec'],
+          Marketing: ['Social Manager', 'Content Lead'],
+          'Customer Success': ['CS Manager', 'Support'],
+          Product: ['Product Manager', 'Data Analyst'],
+          Legal: ['Legal Counsel'],
+          Operations: ['Ops Lead'],
+          'IT Ops': ['IT Support', 'SysAdmin'],
+          Design: ['UI/UX Designer', 'Motion Designer']
+        };
+        const locs = ["Lagos, Nigeria", "Abuja, Nigeria", "Accra, Ghana", "Nairobi, Kenya", "Johannesburg, South Africa", "Cape Town, South Africa", "Cairo, Egypt", "Casablanca, Morocco", "Kigali, Rwanda", "Kampala, Uganda", "Dar es Salaam, Tanzania", "Abidjan, Cote d'Ivoire", "Dakar, Senegal", "Addis Ababa, Ethiopia", "Algiers, Algeria", "Tunis, Tunisia", "Gaborone, Botswana", "London, UK", "Berlin, Germany", "Amsterdam, Netherlands", "Paris, France", "Madrid, Spain", "Milan, Italy", "Toronto, Canada", "New York, USA", "San Francisco, USA", "Dubai, UAE", "Bangalore, India", "Tokyo, Japan", "Sydney, Australia", "Shanghai, China", "Sao Paulo, Brazil"];
+        const managers = ["Admin User", "Joel A.", "Bayo K.", "Ada Bello", "Chike Okoro", "Zainab Musa", "Maryam Sani", "Ridwan Salami", "Fatima Abubakar", "Yusuf Danjuma"];
+        const pick = a => a[Math.floor(Math.random() * a.length)];
+        for (let i = 0; i < need; i++) {
+          const d = pick(depts);
+          const r = pick(rolesByDept[d]);
+          const id = "EMP" + String(200 + employees.length + i).padStart(3, '0');
+          const first = ['Ayo', 'Bola', 'Chika', 'Dapo', 'Emeka', 'Fola', 'Grace', 'Hassan', 'Ife', 'Jide', 'Kemi', 'Lola', 'Musa', 'Nkechi', 'Ola', 'Pius', 'Queen', 'Rashid', 'Sade', 'Tomi'][Math.floor(Math.random() * 20)];
+          const last = ['A.', 'B.', 'C.', 'D.', 'E.', 'F.', 'G.', 'H.', 'I.', 'J.', 'K.', 'L.', 'M.', 'N.', 'O.', 'P.', 'Q.', 'R.', 'S.', 'T.'][Math.floor(Math.random() * 20)];
+          const name = `${first} ${last}`;
+          const email = `${first.toLowerCase()}.${String(Math.floor(Math.random() * 900) + 100)}@lumion.com`;
+          const location = pick(locs);
+          const manager = pick(managers);
+          const emp = { id, name, dept: d, role: r, location, salary: 120000 + Math.floor(Math.random() * 180000), status: 'Active', start: '2023-02-01', manager, contact: { email, phone: '' }, files: [], history: { resumption: '2023-02-01', promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] } };
+          Store.addEmployee(emp);
+          employees.push(emp);
+        }
+      }
+
+      const hasLocalBatch = employees.some(e => String(e.id || '').startsWith('EMP5'));
+      if (!hasLocalBatch) {
+        const firsts = ['Ada', 'Chike', 'Ifeanyi', 'Nkechi', 'James', 'Seyi', 'Amaka', 'Tunde', 'Zainab', 'Michael', 'Fatima', 'Peter', 'Rose', 'David', 'Sade', 'Bayo', 'Ngozi', 'Umar', 'Lilian', 'Joel', 'Kofi', 'Amina', 'Kwame', 'Lerato', 'Ahmed'];
+        const lasts = ['Bello', 'Okoro', 'Nwosu', 'Uzo', 'Adeyemi', 'Ogunleye', 'Okafor', 'Rasheed', 'Kehinde', 'Lawal', 'Musa', 'Sani', 'Adeniran', 'Ibrahim', 'Ojo', 'Eze', 'Abubakar', 'Danladi', 'Ogun', 'Kareem', 'Mensah', 'Boateng', 'Mohamed', 'Benali'];
+        const locs2 = ["Lagos, Nigeria", "Abuja, Nigeria", "Accra, Ghana", "Nairobi, Kenya", "Johannesburg, South Africa", "Cairo, Egypt", "Casablanca, Morocco", "Kigali, Rwanda", "Kampala, Uganda", "Dakar, Senegal", "London, UK", "Berlin, Germany", "Paris, France", "Toronto, Canada", "New York, USA", "Dubai, UAE", "Bangalore, India", "Tokyo, Japan", "Sydney, Australia", "Sao Paulo, Brazil"];
+        const managers2 = ["Admin User", "Joel A.", "Bayo K.", "Ada Bello", "Chike Okoro", "Zainab Musa"];
+        const depts2 = ['Engineering', 'Sales', 'HR', 'Finance', 'Marketing', 'Customer Success', 'Product', 'Operations', 'Design', 'Legal'];
+        const rolesByDept2 = {
+          Engineering: ['Software Engineer', 'DevOps Engineer'],
+          Sales: ['Account Exec', 'Sales Lead'],
+          HR: ['HRBP', 'Recruiter'],
+          Finance: ['Finance Manager', 'Accountant'],
+          Marketing: ['Social Manager', 'Content Lead'],
+          'Customer Success': ['CS Manager', 'Support'],
+          Product: ['Product Manager', 'Data Analyst'],
+          Operations: ['Ops Lead'],
+          Design: ['UI/UX Designer', 'Motion Designer'],
+          Legal: ['Legal Counsel']
+        };
+        for (let i = 0; i < 50; i++) {
+          const id = 'EMP' + String(500 + i);
+          const name = firsts[i % firsts.length] + ' ' + lasts[i % lasts.length];
+          const dept = depts2[i % depts2.length];
+          const roleList = rolesByDept2[dept]; const role = roleList[i % roleList.length];
+          const manager = managers2[i % managers2.length];
+          const location = locs2[i % locs2.length];
+          const salary = 120000 + Math.floor(Math.random() * 180000);
+          const start = '2023-02-01';
+          const email = name.toLowerCase().replace(/\s+/g, '.') + '.' + (500 + i) + '@lumion.com';
+          const emp = { id, name, dept, role, location, salary, status: 'Active', start, manager, contact: { email, phone: '' }, files: [], history: { resumption: start, promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] } };
+          Store.addEmployee(emp);
+          employees.push(emp);
+        }
+      }
+    }
+
+    normalizeAndSeed();
+
+    // initial population
+    populateDeptFilter();
+    populateManagerFilter();
+    populateLocationFilter();
+    renderTable();
+    filterAndRender();
+
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lumion HRIS – Sign Up</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      background: #f6f7fb;
+    }
+
+    .wrap {
+      max-width: 420px;
+      margin: 8vh auto;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .08);
+      overflow: hidden;
+    }
+
+    header {
+      background: #1f2937;
+      color: #fff;
+      padding: 16px 20px;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    label {
+      display: block;
+      margin: 12px 0 6px;
+      color: #374151;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 12px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .hint {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 8px;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #374151;
+      margin-top: 12px;
+    }
+
+    .err {
+      color: #b91c1c;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    .ok {
+      color: #065f46;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+  </style>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/env.js"></script>
+  <script src="js/supabase.js"></script>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <h2>Create your Lumion HRIS account</h2>
+    </header>
+    <div class="content">
+      <form id="signup-form">
+        <label>Full Name</label>
+        <input name="name" type="text" placeholder="Your name" required />
+        <label>Email</label>
+        <input name="email" type="email" placeholder="you@company.com" required />
+        <label>Password</label>
+        <input name="password" type="password" placeholder="••••••••" required />
+        <button type="submit">Sign Up</button>
+        <div class="small"><a href="login.html">Already have an account? Login</a></div>
+        <div id="msg" class="hint"></div>
+      </form>
+    </div>
+  </div>
+  <script type="module">
+    import { signupWithSupabase } from './js/auth.js';
+    
+    const form = document.getElementById('signup-form');
+    const msg = document.getElementById('msg');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      msg.textContent = '';
+      const name = form.querySelector('input[name="name"]').value.trim();
+      const email = form.querySelector('input[name="email"]').value.trim();
+      const password = form.querySelector('input[name="password"]').value.trim();
+      
+      const btn = form.querySelector('button');
+      const originalText = btn.textContent;
+      btn.textContent = 'Signing up...';
+      btn.disabled = true;
+
+      try {
+        const res = await signupWithSupabase(email, password, name);
+        if (!res.ok) {
+          msg.className = 'err';
+          msg.textContent = 'Signup failed: ' + res.error;
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
+        }
+        
+        msg.className = 'ok';
+        msg.textContent = 'Account created! Redirecting to login...';
+        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+      } catch (err) {
+        msg.className = 'err';
+        msg.textContent = 'An unexpected error occurred';
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }
+    });
+  </script>
+  <script type="module" src="./js/header-footer.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,10 @@
+config/env.js
+.env
+.env.local
+.env.*.local
+node_modules/
+server/.env
+server/node_modules/
+diagnostic.js
+test-supabase.js
+/Users/oluchianaba/.gemini/

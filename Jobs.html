@@ -1,0 +1,1254 @@
+<script>
+  if (localStorage.getItem("isLoggedIn") !== "true") {
+    window.location.href = "index.html";
+  }
+</script>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lumion — Open Positions</title>
+  <link rel="icon" href="static/Logo__mark.png">
+  <link rel="stylesheet" href="assets/tailwind.css">
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    /* small overrides for nice cards */
+    .blur-card { backdrop-filter: blur(6px); }
+    .tiny { font-size:12px; }
+    .pointer { cursor: pointer; }
+    .status-badge { padding: 6px 10px; border-radius: 999px; font-weight:600; font-size:12px; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/env.js"></script>
+  <script src="js/supabase.js"></script>
+</head>
+<body class="bg-gray-50">
+
+  <!-- NAV -->
+  <nav class="bg-white shadow-sm sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <img src="static/Logo__mark.png" alt="Logo" class="h-8 w-8 object-contain">
+        <div class="text-lg font-bold text-indigo-700">Lumion — Employer</div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div class="text-sm text-gray-600">Acme Corp • Admin</div>
+        <button id="inviteBtn" class="px-3 py-2 bg-indigo-600 text-white rounded-md shadow">Invite Team</button>
+        <button id="viewEmployeesBtn" class="px-3 py-2 border rounded">Employees</button>
+        <button id="syncCloudBtn" class="px-3 py-2 border rounded">Sync Cloud</button>
+        <button id="performanceBtn" class="px-3 py-2 border rounded">Performance</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="max-w-7xl mx-auto px-6 py-8 grid grid-cols-12 gap-8">
+    <!-- Left column: Jobs list -->
+    <section class="col-span-4">
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex items-center justify-between">
+          <h2 class="font-semibold text-lg">Open Positions</h2>
+          <div class="text-xs text-gray-500">7 live</div>
+        </div>
+        <p class="text-sm text-gray-600 mt-2">Click a job to view candidates. Use auto-source to demo LinkedIn/Indeed/Glassdoor lookups.</p>
+
+        <div id="jobsList" class="mt-4 space-y-3"></div>
+
+        <div class="mt-6 flex gap-2">
+          <button id="newJobBtn" class="flex-1 py-2 bg-green-600 text-white rounded hover:bg-green-700">+ New Job</button>
+          <button id="exportAllJobs" class="py-2 px-4 border rounded">Export JSON</button>
+        </div>
+      </div>
+
+      <!-- Auto-source panel -->
+      <div class="bg-white rounded-lg shadow p-4 mt-6">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="font-semibold">Auto-Source (simulate)</h3>
+            <p class="text-sm text-gray-600">Simulate fetching candidates from external sources</p>
+          </div>
+        </div>
+        <div class="mt-4 grid grid-cols-2 gap-2">
+          <button class="py-2 rounded bg-blue-600 text-white" onclick="simulateSource('linkedin')">Source: LinkedIn</button>
+          <button class="py-2 rounded bg-sky-600 text-white" onclick="simulateSource('indeed')">Source: Indeed</button>
+          <button class="py-2 rounded bg-amber-500 text-white" onclick="simulateSource('glassdoor')">Source: Glassdoor</button>
+          <button class="py-2 rounded bg-indigo-600 text-white" onclick="simulateSource('lumion')">Source: Lumion DB</button>
+        </div>
+
+        <div class="mt-4">
+          <label class="inline-flex items-center gap-2">
+            <input id="autoApplyToggle" type="checkbox" class="form-checkbox h-5 w-5 text-indigo-600" />
+            <span class="text-sm">Auto-apply sourced candidates to currently selected job</span>
+          </label>
+        </div>
+
+        <!-- URL-based sourcing -->
+        <div class="mt-4">
+          <label for="sourceUrl" class="text-sm text-gray-700">Paste LinkedIn/Indeed URL</label>
+          <div class="mt-1 flex gap-2">
+            <input id="sourceUrl" type="url" placeholder="https://www.linkedin.com/in/... or https://ng.indeed.com/..." class="flex-1 px-3 py-2 border rounded" />
+            <button id="importFromUrl" class="px-3 py-2 border rounded">Import from URL</button>
+          </div>
+          <div class="tiny text-gray-500 mt-1">Prototype parses keywords and simulates candidate profiles from the URL.</div>
+        </div>
+
+        <!-- CSV import -->
+        <div class="mt-4">
+          <input id="csvFile" type="file" accept=".csv" class="hidden" />
+          <button id="importCsvBtn" class="px-3 py-2 border rounded">Import Candidates CSV</button>
+          <div class="tiny text-gray-500 mt-1">Expected headers: name,title,company,years,skills,certs,match,status,notes</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right column: Job details and candidates -->
+    <section class="col-span-8">
+      <div id="jobDetail" class="bg-white rounded-lg shadow p-6 min-h-[480px]">
+        <!-- header populated by JS -->
+        <div id="detailHeader" class="flex items-start justify-between">
+          <div>
+            <h1 id="jobTitle" class="text-2xl font-bold">Select a job to view candidates</h1>
+            <p id="jobMeta" class="text-sm text-gray-500 mt-1">Job details will appear here.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div id="jobStatusBadge" class="status-badge bg-gray-100 text-gray-800">No Job</div>
+            <button id="addCandidateBtn" class="px-4 py-2 bg-indigo-600 text-white rounded">+ Add Candidate</button>
+            <div class="px-3 py-2 border rounded text-sm text-gray-600">Open Positions: <span id="openCount">0</span></div>
+          </div>
+        </div>
+
+        <!-- controls -->
+        <div class="mt-6 flex items-center gap-3">
+          <input id="candidateSearch" type="search" placeholder="Search candidates by name, skill, company..." class="flex-1 px-4 py-2 border rounded" />
+          <select id="filterStatus" class="px-3 py-2 border rounded">
+            <option value="">All statuses</option>
+            <option>Applied</option>
+            <option>Interview</option>
+            <option>Shortlisted</option>
+            <option>Offered</option>
+            <option>Hired</option>
+            <option>Onboarding</option>
+            <option>Rejected</option>
+          </select>
+          <button id="exportCsv" class="px-4 py-2 border rounded">Export CSV</button>
+        </div>
+
+        <!-- candidate area -->
+        <div id="candidatesArea" class="mt-6 grid grid-cols-1 gap-4"></div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- Candidate Preview Modal -->
+  <div id="candidateModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 p-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 id="modalName" class="text-xl font-bold"></h3>
+          <div class="text-sm text-gray-600" id="modalHeadline"></div>
+        </div>
+        <div class="flex items-center gap-3">
+          <div id="modalMatch" class="text-sm font-semibold text-indigo-700">AI Match: 0%</div>
+          <button onclick="closeModal()" class="px-3 py-1 rounded border">Close</button>
+        </div>
+      </div>
+
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="md:col-span-2">
+          <h4 class="font-semibold text-gray-700">Experience</h4>
+          <div id="modalExperience" class="text-sm text-gray-700 mt-2"></div>
+
+          <h4 class="font-semibold text-gray-700 mt-4">Certifications</h4>
+          <div id="modalCerts" class="text-sm text-gray-700 mt-2"></div>
+
+          <h4 class="font-semibold text-gray-700 mt-4">Skills</h4>
+          <div id="modalSkills" class="flex flex-wrap gap-2 mt-2"></div>
+
+          <h4 class="font-semibold text-gray-700 mt-4">Notes</h4>
+          <div id="modalNotes" class="text-sm text-gray-700 mt-2"></div>
+        </div>
+
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="text-sm text-gray-600">Profile summary</div>
+          <div class="mt-2">
+            <div class="text-lg font-semibold" id="modalCompany"></div>
+            <div class="text-sm text-gray-600" id="modalYears"></div>
+            <a id="modalCV" class="mt-4 inline-block text-indigo-600 underline" href="#" target="_blank">Open CV</a>
+          </div>
+
+          <div class="mt-6">
+            <label class="text-sm block mb-1">Status</label>
+            <select id="modalStatus" class="w-full px-3 py-2 border rounded"></select>
+            <button id="modalShortlist" class="mt-3 w-full px-4 py-2 bg-green-600 text-white rounded">Shortlist</button>
+            <button id="modalMoveOnboard" class="mt-2 w-full px-4 py-2 bg-indigo-600 text-white rounded">Move to Onboarding (Hired)</button>
+            <button id="modalStartInterview" class="mt-2 w-full px-4 py-2 bg-emerald-600 text-white rounded">Start Interview</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="employeesModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 p-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-xl font-bold">Employees</h3>
+          <div class="text-sm text-gray-600" id="employeesCount"></div>
+        </div>
+        <button id="closeEmployeesBtn" class="px-3 py-1 rounded border">Close</button>
+      </div>
+      <div id="employeesList" class="mt-4 grid grid-cols-1 gap-3"></div>
+    </div>
+  </div>
+
+  <div id="performanceModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50">
+    <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 p-6">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-xl font-bold">Performance Dashboard</h3>
+          <div class="text-sm text-gray-600">Quarterly metrics</div>
+        </div>
+        <button id="closePerformanceBtn" class="px-3 py-1 rounded border">Close</button>
+      </div>
+      <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="text-sm">Employee</label>
+          <select id="perfEmployee" class="mt-1 w-full border rounded px-2 py-2"></select>
+        </div>
+        <div>
+          <label class="text-sm">Year</label>
+          <input id="perfYear" type="number" class="mt-1 w-full border rounded px-2 py-2" />
+        </div>
+        <div class="flex items-end gap-2">
+          <button id="seedYearBtn" class="px-3 py-2 border rounded w-full">Generate Random Year</button>
+        </div>
+      </div>
+      <div class="mt-4 flex items-center gap-2">
+        <button data-q="1" class="perfQ px-3 py-2 border rounded">Q1</button>
+        <button data-q="2" class="perfQ px-3 py-2 border rounded">Q2</button>
+        <button data-q="3" class="perfQ px-3 py-2 border rounded">Q3</button>
+        <button data-q="4" class="perfQ px-3 py-2 border rounded">Q4</button>
+        <select id="perfMetric" class="ml-2 px-3 py-2 border rounded">
+          <option value="kpi_score">KPI Score</option>
+          <option value="projects_completed">Projects Completed</option>
+          <option value="attendance_pct">Attendance %</option>
+          <option value="bonus_awarded">Bonus Awarded</option>
+        </select>
+      </div>
+      <div id="perfContent" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+      <div class="mt-6">
+        <canvas id="perfChart" width="720" height="260" class="w-full border rounded"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed right-6 bottom-6 hidden bg-gray-900 text-white px-4 py-2 rounded shadow">Saved</div>
+
+  <script>
+/* -------------------------
+   Prototype Data & Helpers
+   ------------------------- */
+
+const STATUS_COLORS = {
+  Applied: 'bg-blue-100 text-blue-800',
+  Interview: 'bg-emerald-100 text-emerald-800',
+  Shortlisted: 'bg-indigo-100 text-indigo-800',
+  Offered: 'bg-purple-100 text-purple-800',
+  Hired: 'bg-amber-100 text-amber-800',
+  Onboarding: 'bg-green-50 text-green-800',
+  Rejected: 'bg-red-100 text-red-800'
+};
+
+const initialJobs = [
+  { id: "j1", title: "Senior Product Manager", location: "Lagos, Nigeria", type: "Full-time", openings: 1, team: "Product", description: "Lead product for payments & payroll" },
+  { id: "j2", title: "Frontend Engineer (React)", location: "Remote", type: "Full-time", openings: 2, team: "Engineering", description: "Build delightful web experiences" },
+  { id: "j3", title: "Head of Talent", location: "Nairobi, Kenya", type: "Full-time", openings: 1, team: "People", description: "Lead recruiting & employer branding" },
+  { id: "j4", title: "HR Business Partner", location: "Accra, Ghana", type: "Full-time", openings: 1, team: "HR", description: "Strategic HR for business units" },
+  { id: "j5", title: "Data Scientist (ML)", location: "Remote", type: "Full-time", openings: 1, team: "Data", description: "Build matching & predictive models" },
+  { id: "j6", title: "Customer Success Lead", location: "Lagos, Nigeria", type: "Contract", openings: 1, team: "CS", description: "Support enterprise customers" },
+  { id: "j7", title: "Payroll Specialist", location: "Cape Town, S.A.", type: "Full-time", openings: 1, team: "Finance", description: "Handle payroll & PAYE compliance" }
+];
+
+const sampleCandidates = [
+  { id: 'c1', name: "Ada Bello", title:"Senior PM", company: "Flutterwave", years:6, skills:["Product","Payments","Roadmaps"], certs:["PMP"], match:92, status:"Applied", cv:"#", notes:"Strong payments background" },
+  { id: 'c2', name: "Chike Okoro", title:"Frontend Engineer", company: "Paystack", years:4, skills:["React","Next.js","Tailwind"], certs:["React Pro"], match:78, status:"Interview", cv:"#", notes:"Great UI instincts" },
+  { id: 'c3', name: "Sana Yusuf", title:"HRBP", company: "Andela", years:5, skills:["Employee Relations","Onboarding"], certs:["SHRM-CP"], match:85, status:"Shortlisted", cv:"#", notes:"Excellent people ops" },
+  { id: 'c4', name: "Kofi Mensah", title:"Data Scientist", company: "Jumia", years:3, skills:["Python","ML","Pandas"], certs:["DataX"], match:74, status:"Applied", cv:"#", notes:"Good prototyping skills" },
+  { id: 'c5', name: "Nkechi Eze", title:"Payroll Specialist", company: "SeamlessHR", years:5, skills:["Payroll","Compliance"], certs:["ACCA Module"], match:88, status:"Offered", cv:"#", notes:"Knows African payroll" },
+  { id: 'c6', name: "Samuel Ade", title:"Customer Success", company: "PayNow", years:4, skills:["CS","SaaS"], certs:[], match:70, status:"Applied", cv:"#", notes:"Strong client handling" },
+  { id: 'c7', name: "Lydia Owusu", title:"Head of Talent", company: "MTN", years:8, skills:["Hiring Strategy","Employer Brand"], certs:["HRBP"], match:95, status:"Interview", cv:"#", notes:"Very networked" }
+];
+
+function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+
+/* local storage wrapper */
+function saveState(state){
+  localStorage.setItem('lumion_jobs_state', JSON.stringify(state));
+  if(window.saveRemoteState) window.saveRemoteState(state);
+  showToast('Saved locally');
+}
+function loadState(){
+  const raw = localStorage.getItem('lumion_jobs_state');
+  if(!raw) return null;
+  try { return JSON.parse(raw); } catch(e){ return null; }
+}
+
+/* -------------------------
+   App State
+   ------------------------- */
+let state = loadState() || {
+  jobs: initialJobs.map(j => ({...j, candidates: []})),
+  pool: sampleCandidates.slice(),
+  selectedJobId: null
+};
+
+/* seed each job with 1-2 initial candidates for demo */
+if(state.jobs.every(j=>j.candidates.length===0)){
+  state.jobs[0].candidates.push({...sampleCandidates[0]});
+  state.jobs[1].candidates.push({...sampleCandidates[1]});
+  state.jobs[2].candidates.push({...sampleCandidates[6]});
+  state.jobs[6].candidates.push({...sampleCandidates[4]});
+  saveState(state);
+}
+
+/* -------------------------
+   UI RENDER
+   ------------------------- */
+
+const jobsListEl = document.getElementById('jobsList');
+const candidatesArea = document.getElementById('candidatesArea');
+const jobTitle = document.getElementById('jobTitle');
+const jobMeta = document.getElementById('jobMeta');
+const jobStatusBadge = document.getElementById('jobStatusBadge');
+const openCount = document.getElementById('openCount');
+
+function renderJobs(){
+  jobsListEl.innerHTML = '';
+  state.jobs.forEach(job=>{
+    const isSelected = state.selectedJobId === job.id;
+    const card = document.createElement('div');
+    card.className = `p-3 rounded-lg border ${isSelected?'bg-indigo-50 border-indigo-200':'bg-white border-gray-100'} pointer`;
+    card.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="font-semibold">${job.title}</div>
+          <div class="text-xs text-gray-500">${job.location} • ${job.type} • ${job.team}</div>
+        </div>
+        <div class="text-right tiny">
+          <div class="text-sm font-semibold">${job.openings}</div>
+          <div class="text-xs text-gray-500">open</div>
+        </div>
+      </div>
+    `;
+    card.onclick = ()=> selectJob(job.id);
+    jobsListEl.appendChild(card);
+  });
+
+  // update open count in header
+  openCount.textContent = state.jobs.length;
+}
+
+function selectJob(jobId){
+  state.selectedJobId = jobId;
+  saveState(state);
+  renderJobs();
+  renderJobDetail();
+}
+
+function renderJobDetail(){
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job){
+    jobTitle.textContent = 'Select a job to view candidates';
+    jobMeta.textContent = 'Job details will appear here.';
+    candidatesArea.innerHTML = '<div class="text-gray-500">No job selected.</div>';
+    jobStatusBadge.className = 'status-badge bg-gray-100 text-gray-800';
+    return;
+  }
+
+  jobTitle.textContent = job.title;
+  jobMeta.textContent = `${job.team} • ${job.location} • ${job.type} — ${job.description}`;
+  jobStatusBadge.className = 'status-badge ' + (job.openings>0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800');
+
+  // filter/search
+  const q = document.getElementById('candidateSearch').value.toLowerCase();
+  const statusFilter = document.getElementById('filterStatus').value;
+
+  let list = (job.candidates || []);
+  if(q) list = list.filter(c => (c.name + ' ' + (c.skills||[]).join(' ') + ' ' + (c.company||'')).toLowerCase().includes(q));
+  if(statusFilter) list = list.filter(c => c.status === statusFilter);
+
+  if(list.length === 0){
+    candidatesArea.innerHTML = '<div class="p-6 bg-gray-50 rounded text-gray-500">No candidates yet — use Auto-Source to add candidate profiles.</div>';
+    return;
+  }
+
+  candidatesArea.innerHTML = '';
+  list.forEach(c=>{
+    const card = document.createElement('div');
+    card.className = 'p-4 bg-white rounded-lg border flex items-start gap-4';
+    card.innerHTML = `
+      <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-700 font-bold">${(c.name.split(' ').map(n=>n[0]).slice(0,2).join(''))}</div>
+      <div class="flex-1">
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="font-semibold">${c.name} <span class="text-sm text-gray-500">• ${c.title}</span></div>
+            <div class="text-xs text-gray-500">${c.company} • ${c.years} yrs</div>
+          </div>
+          <div class="text-right">
+            <div class="text-sm font-semibold text-gray-700">${c.match || 0}%</div>
+            <div class="text-xs text-gray-500">AI Match</div>
+          </div>
+        </div>
+
+        <div class="mt-3 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-2 flex-wrap">
+            ${ (c.skills||[]).slice(0,5).map(s=>`<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">${s}</span>`).join('') }
+          </div>
+          <div class="flex items-center gap-2">
+            <select data-cid="${c.id}" class="px-2 py-1 border rounded text-sm" onchange="changeStatus('${c.id}', this.value)">
+              ${Object.keys(STATUS_COLORS).map(s => `<option ${s===c.status?'selected':''}>${s}</option>`).join('')}
+            </select>
+            <button onclick="openPreview('${c.id}')" class="px-3 py-1 border rounded text-sm">Preview</button>
+            <button onclick="gotoInterview('${state.selectedJobId}','${c.id}')" class="px-3 py-1 bg-emerald-600 text-white rounded text-sm">Interview</button>
+            <button onclick="quickActionHire('${c.id}')" class="px-3 py-1 bg-indigo-600 text-white rounded text-sm">Hire</button>
+          </div>
+        </div>
+      </div>
+    `;
+    candidatesArea.appendChild(card);
+  });
+}
+
+/* -------------------------
+   Candidate Actions
+   ------------------------- */
+
+function changeStatus(candidateId, newStatus){
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job) return;
+  const c = job.candidates.find(x=>x.id===candidateId);
+  if(!c) return;
+  c.status = newStatus;
+  saveState(state);
+  if(newStatus === 'Interview'){
+    gotoInterview(job.id, candidateId);
+    return;
+  }
+  renderJobDetail();
+}
+
+function openPreview(candidateId){
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  const c = (job ? job.candidates.find(x=>x.id===candidateId) : null) || state.pool.find(x=>x.id===candidateId);
+  if(!c) return;
+  document.getElementById('modalName').innerText = c.name;
+  document.getElementById('modalHeadline').innerText = `${c.title} • ${c.company}`;
+  document.getElementById('modalExperience').innerText = `${c.years} years — worked at ${c.company}`;
+  document.getElementById('modalCerts').innerText = (c.certs && c.certs.length) ? c.certs.join(', ') : '—';
+  document.getElementById('modalSkills').innerHTML = (c.skills||[]).map(s=>`<span class="px-2 py-1 bg-indigo-50 text-indigo-700 rounded text-xs">${s}</span>`).join(' ');
+  document.getElementById('modalNotes').innerText = c.notes || '';
+  document.getElementById('modalCompany').innerText = c.company;
+  document.getElementById('modalYears').innerText = `${c.years} years experience`;
+  document.getElementById('modalCV').href = c.cv || '#';
+  document.getElementById('modalMatch').innerText = `AI Match: ${c.match || 0}%`;
+
+  const statusSelect = document.getElementById('modalStatus');
+  statusSelect.innerHTML = Object.keys(STATUS_COLORS).map(s => `<option ${s===c.status?'selected':''}>${s}</option>`).join('');
+  statusSelect.onchange = (e) => {
+    c.status = e.target.value;
+    saveState(state);
+    if(e.target.value === 'Interview'){
+      gotoInterview(job.id, c.id);
+    } else {
+      renderJobDetail();
+    }
+  };
+
+  document.getElementById('modalShortlist').onclick = () => {
+    c.status = 'Shortlisted';
+    saveState(state);
+    renderJobDetail();
+    closeModal();
+  };
+  document.getElementById('modalMoveOnboard').onclick = () => {
+    c.status = 'Onboarding'; c.hired = true;
+    saveState(state);
+    renderJobDetail();
+    try{ const emp = { employee_id: c.id, name: c.name, job_id: job.id, job_title: job.title, status: c.status, notes: c.notes||'', years: c.years||0, skills: c.skills||[], certs: c.certs||[], source_company: c.company||'' }; if(window.saveEmployee) window.saveEmployee(emp); saveEmployeeLocal(emp); }catch{}
+    closeModal();
+  };
+
+  document.getElementById('modalStartInterview').onclick = () => {
+    c.status = 'Interview';
+    saveState(state);
+    gotoInterview(job.id, c.id);
+  };
+
+  // Inject "Send Test" button (professional flow: send role test and open dashboard)
+  try {
+    const startBtn = document.getElementById('modalStartInterview');
+    let sendBtn = document.getElementById('modalSendTest');
+    if(startBtn && !sendBtn){
+      sendBtn = document.createElement('button');
+      sendBtn.id = 'modalSendTest';
+      sendBtn.className = 'mt-2 w-full px-4 py-2 bg-gray-900 text-white rounded';
+      sendBtn.innerText = 'Send Test';
+      startBtn.parentElement.appendChild(sendBtn);
+    }
+    if(sendBtn){
+      sendBtn.onclick = ()=>{
+        try {
+          c.status = c.status || 'Applied';
+          saveState(state);
+          gotoTest(job.id, c.id);
+        } catch {}
+      };
+    }
+  } catch {}
+
+  document.getElementById('candidateModal').classList.remove('hidden');
+  document.getElementById('candidateModal').classList.add('flex');
+}
+
+function closeModal(){
+  document.getElementById('candidateModal').classList.add('hidden');
+  document.getElementById('candidateModal').classList.remove('flex');
+}
+
+function quickActionHire(candidateId){
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job) return;
+  const c = job.candidates.find(x=>x.id===candidateId);
+  if(!c) return;
+  c.status = 'Onboarding';
+  c.hired = true;
+  saveState(state);
+  renderJobDetail();
+  showToast(`${c.name} moved to onboarding`);
+  try{ const emp = { employee_id: c.id, name: c.name, job_id: job.id, job_title: job.title, status: c.status, notes: c.notes||'', years: c.years||0, skills: c.skills||[], certs: c.certs||[], source_company: c.company||'' }; if(window.saveEmployee) window.saveEmployee(emp); }catch{}
+}
+
+/* -------------------------
+   Simulate external sourcing
+   ------------------------- */
+
+function simulateSource(sourceName){
+  // create 3 fake candidates per source with slight variants
+  const pool = [];
+  for(let i=0;i<3;i++){
+    const base = state.pool[Math.floor(Math.random()*state.pool.length)];
+    const clone = {...base};
+    clone.id = uid('sim');
+    clone.name = (base.name.split(' ')[0] + ' ' + (Math.random()>0.5? 'Okafor':'Mensah'));
+    clone.company = sourceName === 'lumion' ? (base.company + ' (Lumion)') : `${sourceName.toUpperCase()} sourced`;
+    clone.match = Math.min(98, Math.max(60, base.match + Math.floor((Math.random()-0.5)*20)));
+    clone.cv = '#'; clone.status = 'Applied';
+    clone.notes = `Sourced from ${sourceName}.`;
+    clone.years = Math.max(1, base.years + Math.floor((Math.random()-0.5)*3));
+    pool.push(clone);
+  }
+
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  const autoApply = document.getElementById('autoApplyToggle').checked;
+  if(job){
+    if(autoApply){
+      job.candidates.push(...pool);
+      showToast(`Auto-applied ${pool.length} sourced candidates to ${job.title}`);
+    } else {
+      // add to candidate pool (Lumion DB) and let user add manually
+      state.pool.push(...pool);
+      showToast(`Added ${pool.length} candidates to Lumion DB`);
+    }
+    saveState(state);
+    renderJobDetail();
+  } else {
+    // if no job selected, add to pool always
+    state.pool.push(...pool);
+    saveState(state);
+    showToast(`${pool.length} candidates added to Lumion DB (no job selected)`);
+  }
+}
+
+/* -------------------------
+   URL-based sourcing (prototype)
+   ------------------------- */
+function sourceFromUrl(url){
+  if(!url || typeof url !== 'string') return [];
+  let parsed = null; try { parsed = new URL(url); } catch { parsed = null; }
+  const href = String(url);
+  const lower = href.toLowerCase();
+  let channel = 'web';
+  if(lower.includes('linkedin')) channel = 'linkedin';
+  else if(lower.includes('indeed')) channel = 'indeed';
+  else if(lower.includes('glassdoor')) channel = 'glassdoor';
+
+  // Helpers
+  const decode = (s)=> decodeURIComponent(s||'').replace(/\+/g,' ');
+  const cleanTokens = (arr)=> Array.from(new Set(arr.filter(Boolean).map(x=>x.replace(/[\d_]+/g,' ').replace(/\s{2,}/g,' ').trim())));
+
+  // Extract richer details
+  let type = 'search';
+  let name = '';
+  let title = '';
+  let location = '';
+  let keywords = [];
+
+  if(channel==='linkedin'){
+    const path = (parsed?.pathname||'').toLowerCase();
+    if(path.includes('/in/') || path.includes('/pub/')){
+      type = 'profile';
+      const slug = path.split('/').filter(Boolean).slice(-1)[0] || '';
+      const parts = slug.split('-').filter(Boolean);
+      // Guess name from first two parts
+      if(parts.length){
+        const guessName = parts.slice(0,2).map(p=> p.charAt(0).toUpperCase()+p.slice(1)).join(' ');
+        name = guessName;
+      }
+      // Try headline from query or slug extras
+      title = decode(parsed?.searchParams?.get('title') || '') || parts.slice(2,5).join(' ');
+      keywords = cleanTokens(parts.concat([title]));
+    } else if(path.includes('/jobs/')){
+      type = 'search';
+      const kw = decode(parsed?.searchParams?.get('keywords') || parsed?.searchParams?.get('title') || '');
+      const geo = decode(parsed?.searchParams?.get('location') || parsed?.searchParams?.get('geo') || '');
+      title = kw; location = geo; keywords = cleanTokens(kw.split(/[\s,]+/));
+    } else {
+      const tokens = cleanTokens((parsed?.pathname||'').split(/[\/-]+/));
+      keywords = tokens.slice(0,6);
+    }
+  }
+
+  if(channel==='indeed'){
+    const q = decode(parsed?.searchParams?.get('q') || '');
+    const l = decode(parsed?.searchParams?.get('l') || '');
+    if(q){ type='search'; title = q; location = l; keywords = cleanTokens(q.split(/[\s,]+/)); }
+    else {
+      const tokens = cleanTokens((parsed?.pathname||'').split(/[\/-]+/));
+      keywords = tokens.slice(0,6);
+    }
+  }
+
+  if(channel==='glassdoor'){
+    const p = (parsed?.pathname||'');
+    // e.g., /Job/lagos-software-engineer-jobs-SRCH_IL.0,5_IC..._KO6,23.htm
+    const tokens = cleanTokens(p.split(/[\/-_.]+/));
+    const pos = tokens.indexOf('jobs');
+    if(pos>0){ title = tokens.slice(0,pos).join(' '); }
+    keywords = tokens.slice(0,6);
+  }
+
+  // Fallback generic tokens
+  if(!keywords.length){
+    const fromPath = (parsed ? (parsed.pathname||'') : href).split(/[\/?&=#._-]+/);
+    keywords = cleanTokens(fromPath).slice(0,6);
+  }
+
+  const pool = [];
+  if(type==='profile'){
+    // Create a single, more detailed profile
+    const base = state.pool[Math.floor(Math.random()*state.pool.length)] || sampleCandidates[0];
+    const c = {...base};
+    c.id = uid('urlp');
+    c.name = name || base.name;
+    c.title = title || base.title;
+    c.company = `${channel.toUpperCase()} profile`;
+    c.skills = Array.from(new Set([...(base.skills||[]), ...keywords.slice(0,6)])).slice(0,8);
+    c.notes = `Imported from ${channel} profile URL: ${href}`;
+    c.match = Math.min(98, Math.max(60, base.match + Math.floor((Math.random()-0.5)*10)));
+    c.status = 'Applied';
+    pool.push(c);
+  } else {
+    // Create 3-5 candidates seeded by keywords
+    const count = Math.max(3, Math.min(5, keywords.length || 4));
+    for(let i=0;i<count;i++){
+      const base = state.pool[Math.floor(Math.random()*state.pool.length)] || sampleCandidates[i % sampleCandidates.length];
+      const clone = {...base};
+      clone.id = uid('urls');
+      if(title) clone.title = title;
+      if(location) clone.notes = (clone.notes||'') + (location ? ` • Location: ${location}` : '');
+      clone.company = `${channel.toUpperCase()} via URL`;
+      const kwSlice = keywords.slice(i, i+3);
+      clone.skills = Array.from(new Set([...(base.skills||[]), ...kwSlice])).slice(0,8);
+      clone.notes = `Imported from ${channel} search URL: ${href}`;
+      clone.match = Math.min(98, Math.max(60, base.match + Math.floor((Math.random()-0.5)*15)));
+      clone.status = 'Applied';
+      // Sweeten name from tokens if looks like a name
+      if(!clone.name && keywords.length>=2){ clone.name = keywords.slice(0,2).map(w=> w.charAt(0).toUpperCase()+w.slice(1)).join(' '); }
+      pool.push(clone);
+    }
+  }
+  return pool;
+}
+
+document.getElementById('importFromUrl').onclick = () => {
+  const input = document.getElementById('sourceUrl');
+  const url = (input.value||'').trim();
+  if(!url){ alert('Paste a LinkedIn/Indeed URL first'); return; }
+  const created = sourceFromUrl(url);
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  const autoApply = document.getElementById('autoApplyToggle').checked;
+  if(job && autoApply){
+    job.candidates.push(...created);
+    showToast(`Imported ${created.length} candidates from URL to ${job.title}`);
+    saveState(state); renderJobDetail();
+  } else {
+    state.pool.push(...created);
+    showToast(`Imported ${created.length} candidates to Lumion DB`);
+    saveState(state);
+  }
+  input.value='';
+};
+
+/* -------------------------
+   CSV import
+   ------------------------- */
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).filter(l=>l.trim().length>0);
+  if(lines.length===0) return { headers:[], rows:[] };
+  const parseLine = (line)=>{
+    const out = []; let cur=''; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const ch=line[i];
+      if(ch==='"'){
+        if(inQ && line[i+1]==='"'){ cur+='"'; i++; } else { inQ=!inQ; }
+      } else if(ch===',' && !inQ){ out.push(cur); cur=''; }
+      else { cur+=ch; }
+    }
+    out.push(cur);
+    return out.map(s=>s.trim());
+  };
+  const headers = parseLine(lines[0]).map(h=>h.toLowerCase());
+  const rows = lines.slice(1).map(parseLine).filter(r=>r.some(x=>x && x.length));
+  return { headers, rows };
+}
+
+function rowToCandidate(headers, row){
+  const idx = (name)=> headers.indexOf(name);
+  const val = (name)=> idx(name) >= 0 ? row[idx(name)] : '';
+  const skills = (val('skills')||'').split(/;|,|\|/).map(s=>s.trim()).filter(Boolean);
+  const certs = (val('certs')||'').split(/;|,|\|/).map(s=>s.trim()).filter(Boolean);
+  const match = Number(val('match')||'65') || 65;
+  return {
+    id: uid('csv'),
+    name: val('name') || 'Unnamed',
+    title: val('title') || 'Unknown',
+    company: val('company') || 'N/A',
+    years: Number(val('years')||0) || 0,
+    skills, certs, match,
+    status: val('status') || 'Applied',
+    notes: val('notes') || 'Imported via CSV',
+    cv: '#'
+  };
+}
+
+document.getElementById('importCsvBtn').onclick = ()=> document.getElementById('csvFile').click();
+document.getElementById('csvFile').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    try {
+      const { headers, rows } = parseCSV(String(reader.result||''));
+      if(headers.length===0 || rows.length===0){ alert('CSV seems empty'); return; }
+      const cands = rows.map(r=> rowToCandidate(headers, r));
+      const job = state.jobs.find(j=>j.id===state.selectedJobId);
+      const autoApply = document.getElementById('autoApplyToggle').checked;
+      if(job && autoApply){ job.candidates.push(...cands); saveState(state); renderJobDetail(); showToast(`Imported ${cands.length} from CSV to ${job.title}`); }
+      else { state.pool.push(...cands); saveState(state); showToast(`Imported ${cands.length} candidates to Lumion DB`); }
+    } catch(err){ console.error(err); alert('Failed to parse CSV'); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+/* -------------------------
+   Job / Candidate CRUD
+   ------------------------- */
+
+document.getElementById('newJobBtn').onclick = () => {
+  const title = prompt('New job title?','New Role at Lumion');
+  if(!title) return;
+  const j = { id: uid('j'), title, location:'Remote', type:'Full-time', openings:1, team:'General', description:'Created from prototype', candidates:[] };
+  state.jobs.unshift(j);
+  saveState(state);
+  renderJobs();
+  selectJob(j.id);
+  try{ if(window.saveJob) window.saveJob(j); }catch{}
+};
+
+document.getElementById('addCandidateBtn').onclick = () => {
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job){ alert('Select a job first'); return; }
+  const name = prompt('Candidate full name (for demo):','New Candidate');
+  if(!name) return;
+  const c = { id: uid('c'), name, title:'Unknown', company:'N/A', years:0, skills:[], certs:[], match:65, status:'Applied', cv:'#', notes:'' };
+  job.candidates.push(c);
+  saveState(state);
+  renderJobDetail();
+  showToast('Candidate added');
+};
+
+document.getElementById('exportAllJobs').onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+  const url = URL.createObjectURL(blob);
+  downloadURL(url, 'lumion-jobs-state.json');
+};
+
+document.getElementById('exportCsv').onclick = () => {
+  const job = state.jobs.find(j=>j.id===state.selectedJobId);
+  if(!job){ alert('Select a job first'); return; }
+  const rows = [ ['id','name','title','company','years','skills','certs','match','status','notes'] ];
+  job.candidates.forEach(c => rows.push([c.id, c.name, c.title, c.company, c.years, (c.skills||[]).join(';'), (c.certs||[]).join(';'), c.match, c.status, (c.notes||'')]));
+  const csv = rows.map(r => r.map(cell => `"${String(cell||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  downloadURL(url, `${job.title.replace(/\s+/g,'_')}_candidates.csv`);
+};
+
+function downloadURL(url, filename){
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.innerText = msg;
+  t.classList.remove('hidden');
+  t.classList.add('block');
+  setTimeout(()=>{ t.classList.add('hidden'); t.classList.remove('block'); }, 1800);
+}
+
+/* -------------------------
+   Search / Filters
+   ------------------------- */
+document.getElementById('candidateSearch').addEventListener('input', ()=> renderJobDetail());
+document.getElementById('filterStatus').addEventListener('change', ()=> renderJobDetail());
+
+/* -------------------------
+   Persistence & init
+   ------------------------- */
+renderJobs();
+renderJobDetail();
+
+/* optional: expose for console debugging */
+window.lumionState = state;
+window.simulateSource = simulateSource;
+window.openPreview = openPreview;
+window.changeStatus = changeStatus;
+window.quickActionHire = quickActionHire;
+window.gotoInterview = gotoInterview;
+window.gotoTest = gotoTest;
+
+/* make modal close on outside click */
+document.getElementById('candidateModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'candidateModal') closeModal();
+});
+
+document.getElementById('viewEmployeesBtn').addEventListener('click', async ()=>{
+  await openEmployees();
+});
+document.getElementById('closeEmployeesBtn').addEventListener('click', ()=>{
+  closeEmployees();
+});
+document.getElementById('employeesModal').addEventListener('click', (e)=>{
+  if(e.target.id === 'employeesModal') closeEmployees();
+});
+document.getElementById('syncCloudBtn').addEventListener('click', async ()=>{
+  await syncCloud();
+});
+document.getElementById('performanceBtn').addEventListener('click', async ()=>{
+  await openPerformance();
+});
+document.getElementById('closePerformanceBtn').addEventListener('click', ()=>{
+  closePerformance();
+});
+document.querySelectorAll('.perfQ').forEach(function(btn){
+  btn.addEventListener('click', async function(){
+    var q = parseInt(this.getAttribute('data-q'));
+    await renderPerformance(q);
+    await renderPerformanceChart();
+  });
+});
+document.getElementById('perfMetric').addEventListener('change', async ()=>{
+  await renderPerformanceChart();
+});
+document.getElementById('seedYearBtn').addEventListener('click', async ()=>{
+  await seedPerformanceYear();
+  await renderPerformanceChart();
+});
+
+function gotoInterview(jobId, candId){
+  try {
+    const job = state.jobs.find(j=>j.id===jobId);
+    const cand = job ? job.candidates.find(x=>x.id===candId) : null;
+    if(job && cand){
+      localStorage.setItem('lumion_current_interview', JSON.stringify({ jobId, candId, timestamp: Date.now() }));
+    }
+  } catch {}
+  window.location.href = `interview-dashboard.html?jobId=${encodeURIComponent(jobId)}&candId=${encodeURIComponent(candId)}`;
+}
+
+function gotoTest(jobId, candId){
+  try {
+    const job = state.jobs.find(j=>j.id===jobId);
+    const cand = job ? job.candidates.find(x=>x.id===candId) : null;
+    if(job && cand){
+      localStorage.setItem('lumion_current_test', JSON.stringify({ jobId, candId, timestamp: Date.now() }));
+    }
+  } catch {}
+  window.location.href = `interview-tests.html?jobId=${encodeURIComponent(jobId)}&candId=${encodeURIComponent(candId)}`;
+}
+
+async function openEmployees(){
+  try {
+    let list = [];
+    if(window.loadEmployeesList){
+      list = await window.loadEmployeesList();
+    }
+    const fromLocal = Array.isArray(state.employees) ? state.employees.slice() : [];
+    const fromDerived = [];
+    (state.jobs||[]).forEach(function(j){
+      (j.candidates||[]).forEach(function(c){
+        if(c && (c.hired || c.status==='Onboarding')){
+          fromDerived.push({ employee_id: c.id, name: c.name, job_title: j.title, years: c.years||0, source_company: c.company||'', skills: c.skills||[], status: c.status||'' });
+        }
+      });
+    });
+    const map = {};
+    [].concat(Array.isArray(list)?list:[], fromLocal, fromDerived).forEach(function(e){
+      const id = e.employee_id || e.id || e.name;
+      if(!id) return;
+      map[id] = Object.assign({}, map[id]||{}, e);
+    });
+    list = Object.keys(map).map(function(k){ return map[k]; });
+    const countEl = document.getElementById('employeesCount');
+    countEl.innerText = String(list.length) + ' total';
+    const wrap = document.getElementById('employeesList');
+    wrap.innerHTML = '';
+    const active = list.filter(function(e){ return (e.status||'') !== 'Exited'; });
+    const exited = list.filter(function(e){ return (e.status||'') === 'Exited'; });
+    function renderCard(e){
+      const card = document.createElement('div');
+      card.className = 'p-4 bg-white rounded-lg border';
+      const initials = String(e.name||'').split(' ').map(function(n){return n[0]}).slice(0,2).join('') || 'E';
+      const empId = e.employee_id || e.id || e.name;
+      var extra = '';
+      if(e.status==='Exited' && e.exit_date){ extra = '<div class="text-xs text-red-600 mt-1">Exited: ' + String(e.exit_date).slice(0,10) + '</div>'; }
+      card.innerHTML = '<div class="flex items-start gap-4">\
+        <div class="w-12 h-12 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-700 font-bold">' + initials + '</div>\
+        <div class="flex-1">\
+          <div class="font-semibold">' + (e.name||'') + ' <span class="text-sm text-gray-500">• ' + (e.job_title||'') + '</span></div>\
+          <div class="text-xs text-gray-500">' + (e.source_company||'') + ' • ' + (e.years||0) + ' yrs</div>\
+          <div class="mt-2 flex items-center gap-2 flex-wrap">' + (Array.isArray(e.skills)? e.skills.slice(0,5).map(function(s){ return '<span class="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">' + s + '</span>'; }).join('') : '') + '</div>\
+          ' + extra + '\
+        </div>\
+        <div>\
+          <button class="viewPerfBtn px-3 py-2 border rounded" data-empid="' + empId + '">View Performance</button>\
+          ' + ((e.status||'')!=='Exited' ? '<button class="exitBtn mt-2 px-3 py-2 border rounded" data-empid="' + empId + '">Mark Exit</button>' : '') + '\
+        </div>\
+      </div>';
+      const v = card.querySelector('.viewPerfBtn'); if(v){ v.addEventListener('click', async function(){ await openPerformanceFor(this.getAttribute('data-empid')); }); }
+      const x = card.querySelector('.exitBtn'); if(x){ x.addEventListener('click', async function(){ await exitEmployee(this.getAttribute('data-empid')); }); }
+      return card;
+    }
+    const titleA = document.createElement('div'); titleA.className = 'font-semibold'; titleA.textContent = 'Active'; wrap.appendChild(titleA);
+    active.forEach(function(e){ wrap.appendChild(renderCard(e)); });
+    const titleE = document.createElement('div'); titleE.className = 'font-semibold mt-4'; titleE.textContent = 'Exited'; wrap.appendChild(titleE);
+    exited.forEach(function(e){ wrap.appendChild(renderCard(e)); });
+    const modal = document.getElementById('employeesModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  } catch {}
+}
+
+function closeEmployees(){
+  const modal = document.getElementById('employeesModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function syncCloud(){
+  try {
+    var jobs = Array.isArray(state.jobs) ? state.jobs : [];
+    for(var i=0;i<jobs.length;i++){
+      var j = jobs[i];
+      if(window.saveJob) await window.saveJob(j);
+      var hired = (j.candidates||[]).filter(function(c){ return c && (c.hired || c.status==='Onboarding'); });
+      for(var k=0;k<hired.length;k++){
+        var c = hired[k];
+        if(window.saveEmployee) await window.saveEmployee({ employee_id: c.id, name: c.name, job_id: j.id, job_title: j.title, status: c.status, notes: c.notes||'', years: c.years||0, skills: c.skills||[], certs: c.certs||[], source_company: c.company||'' });
+      }
+    }
+    showToast('Cloud sync complete');
+  } catch(e) {
+    showToast('Cloud sync failed');
+  }
+}
+
+async function exitEmployee(empId){
+  try {
+    var dateStr = prompt('Exit date (YYYY-MM-DD)?');
+    if(!dateStr) return;
+    var iso = new Date(dateStr).toISOString();
+    var patch = { status: 'Exited', exit_date: iso };
+    if(window.updateEmployee) await window.updateEmployee(empId, patch);
+    if(!state.exits) state.exits = {};
+    state.exits[empId] = iso;
+    (state.jobs||[]).forEach(function(j){ (j.candidates||[]).forEach(function(c){ if(c && c.id===empId){ c.status = 'Exited'; c.exit_date = iso; } }); });
+    if(Array.isArray(state.employees)){
+      var idx = state.employees.findIndex(function(e){ return (e.employee_id||e.id||e.name) === empId; });
+      if(idx>=0){ state.employees[idx].status = 'Exited'; state.employees[idx].exit_date = iso; }
+    }
+    if(typeof saveState === 'function') saveState(state);
+    await openEmployees();
+    showToast('Employee exited');
+  } catch { showToast('Failed to mark exit'); }
+}
+
+async function openPerformance(){
+  try {
+    const modal = document.getElementById('performanceModal');
+    const yearEl = document.getElementById('perfYear');
+    yearEl.value = new Date().getFullYear();
+    if(!state.performance) state.performance = {};
+    let list = [];
+    if(window.loadEmployeesList){ list = await window.loadEmployeesList(); }
+    if(!Array.isArray(list) || list.length===0){
+      const out = [];
+      (state.jobs||[]).forEach(function(j){ (j.candidates||[]).forEach(function(c){ if(c && (c.hired || c.status==='Onboarding')){ out.push({ employee_id: c.id, name: c.name }); } }); });
+      list = out;
+    }
+    const sel = document.getElementById('perfEmployee');
+    sel.innerHTML = '';
+    list.forEach(function(e){ const opt = document.createElement('option'); opt.value = e.employee_id || e.id || e.name; opt.textContent = e.name || e.employee_id || 'User'; sel.appendChild(opt); });
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    await renderPerformance(1);
+    await renderPerformanceChart();
+  } catch {}
+}
+
+function closePerformance(){
+  const modal = document.getElementById('performanceModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function renderPerformance(q){
+  try {
+    const empId = document.getElementById('perfEmployee').value;
+    const year = parseInt(document.getElementById('perfYear').value);
+    let data = [];
+    if(window.loadPerformance){ data = await window.loadPerformance(empId, year, q); }
+    if((!Array.isArray(data) || data.length===0) && state.performance){
+      data = loadPerformanceLocal(empId, year, q);
+    }
+    const cont = document.getElementById('perfContent');
+    cont.innerHTML = '';
+    if(!Array.isArray(data) || data.length===0){
+      const empty = document.createElement('div');
+      empty.className = 'p-4 bg-yellow-50 border rounded';
+      empty.innerText = 'No data for selected quarter';
+      cont.appendChild(empty);
+      return;
+    }
+    const p = data[0];
+    const g1 = document.createElement('div'); g1.className = 'p-4 bg-white rounded border'; g1.innerHTML = '<div class="font-semibold">KPI Score</div><div class="text-2xl">' + (p.kpi_score||0) + '</div>';
+    const g2 = document.createElement('div'); g2.className = 'p-4 bg-white rounded border'; g2.innerHTML = '<div class="font-semibold">Projects Completed</div><div class="text-2xl">' + (p.projects_completed||0) + '</div>';
+    const g3 = document.createElement('div'); g3.className = 'p-4 bg-white rounded border'; g3.innerHTML = '<div class="font-semibold">Attendance</div><div class="text-2xl">' + (p.attendance_pct||0) + '%</div>';
+    const g4 = document.createElement('div'); g4.className = 'p-4 bg-white rounded border'; g4.innerHTML = '<div class="font-semibold">Bonus</div><div class="text-2xl">$' + (p.bonus_awarded||0) + '</div>';
+    cont.appendChild(g1); cont.appendChild(g2); cont.appendChild(g3); cont.appendChild(g4);
+    if(p.notes){ const n = document.createElement('div'); n.className = 'p-4 bg-white rounded border md:col-span-2'; n.innerHTML = '<div class="font-semibold">Notes</div><div class="text-sm text-gray-600">' + p.notes + '</div>'; cont.appendChild(n); }
+  } catch {}
+}
+
+async function renderPerformanceChart(){
+  try {
+    const empId = document.getElementById('perfEmployee').value;
+    const year = parseInt(document.getElementById('perfYear').value);
+    const metric = document.getElementById('perfMetric').value || 'kpi_score';
+    const canvas = document.getElementById('perfChart');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    const quarters = [1,2,3,4];
+    const scores = [];
+    for(var i=0;i<quarters.length;i++){
+      var q = quarters[i];
+      var rows = [];
+      if(window.loadPerformance){ rows = await window.loadPerformance(empId, year, q); }
+      if((!Array.isArray(rows) || rows.length===0) && typeof loadPerformanceLocal === 'function'){
+        rows = loadPerformanceLocal(empId, year, q);
+      }
+      var val = 0;
+      if(Array.isArray(rows) && rows.length){ val = (rows[0][metric]||0); }
+      scores.push(val);
+    }
+    var max = scores.reduce(function(a,b){ return Math.max(a,b); }, metric==='attendance_pct'?100:Math.max.apply(null, scores.concat(100)));
+    var padding = 40;
+    var w = canvas.width - padding*2;
+    var h = canvas.height - padding*2;
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.strokeStyle = '#E5E7EB';
+    ctx.strokeRect(padding, padding, w, h);
+    var barW = w/quarters.length - 20;
+    for(var j=0;j<quarters.length;j++){
+      var x = padding + j*(barW+20) + 10;
+      var barH = h * (scores[j]/Math.max(max,1));
+      var y = padding + (h - barH);
+      ctx.fillStyle = '#4F46E5';
+      ctx.fillRect(x, y, barW, barH);
+      ctx.fillStyle = '#111827';
+      ctx.font = '12px sans-serif';
+      ctx.fillText('Q'+quarters[j], x, padding + h + 16);
+      var label = String(scores[j]);
+      if(metric==='attendance_pct') label = String(scores[j]) + '%';
+      if(metric==='bonus_awarded') label = '$' + String(scores[j]);
+      ctx.fillText(label, x, y - 6);
+    }
+  } catch {}
+}
+
+async function openPerformanceFor(empId){
+  try {
+    await openPerformance();
+    const sel = document.getElementById('perfEmployee');
+    var found = false;
+    Array.prototype.slice.call(sel.options).forEach(function(o){ if(o.value === empId) found = true; });
+    if(!found){ const opt = document.createElement('option'); opt.value = empId; opt.textContent = empId; sel.appendChild(opt); }
+    sel.value = empId;
+    await renderPerformance(1);
+  } catch {}
+}
+
+function currentQuarter(){
+  var m = new Date().getMonth();
+  return (Math.floor(m/3)+1);
+}
+
+async function seedPerformanceOnHire(empId){
+  try {
+    var year = new Date().getFullYear();
+    var q = currentQuarter();
+    var p = { employee_id: empId, year: year, quarter: q, kpi_score: Math.floor(70 + Math.random()*20), projects_completed: Math.floor(1 + Math.random()*3), attendance_pct: Math.floor(90 + Math.random()*10), bonus_awarded: Math.floor(Math.random()*1500), notes: 'Initial quarter auto-seeded' };
+    savePerformanceLocal(p);
+    if(window.savePerformance) await window.savePerformance(p);
+  } catch {}
+}
+
+(function(){
+  if(window.saveEmployee){
+    var _orig = window.saveEmployee;
+    window.saveEmployee = async function(emp){
+      var ok = false;
+      try { ok = await _orig(emp); } catch {}
+      try { var id = emp && (emp.employee_id || emp.id || emp.name); if(id) await seedPerformanceOnHire(id); } catch {}
+      return ok;
+    };
+  }
+})();
+
+async function seedPerformanceYear(){
+  try {
+    const empId = document.getElementById('perfEmployee').value;
+    const year = parseInt(document.getElementById('perfYear').value);
+    for(var q=1;q<=4;q++){
+      const p = {
+        employee_id: empId,
+        year: year,
+        quarter: q,
+        kpi_score: Math.floor(60 + Math.random()*40),
+        projects_completed: Math.floor(1 + Math.random()*6),
+        attendance_pct: Math.floor(85 + Math.random()*15),
+        bonus_awarded: Math.floor(Math.random()*2000),
+        notes: 'Auto-generated'
+      };
+      if(window.savePerformance) await window.savePerformance(p);
+      savePerformanceLocal(p);
+    }
+    showToast('Performance year generated');
+    await renderPerformance(1);
+  } catch { showToast('Failed to generate'); }
+}
+
+function savePerformanceLocal(p){
+  if(!state.performance) state.performance = {};
+  var arr = state.performance[p.employee_id] || [];
+  var idx = -1;
+  for(var i=0;i<arr.length;i++){ if(arr[i].year===p.year && arr[i].quarter===p.quarter){ idx = i; break; } }
+  if(idx>=0){ arr[idx] = Object.assign({}, arr[idx], p); }
+  else { arr.push(p); }
+  state.performance[p.employee_id] = arr;
+  if(typeof saveState === 'function') saveState(state);
+}
+
+function loadPerformanceLocal(empId, year, quarter){
+  if(!state.performance) return [];
+  var arr = state.performance[empId] || [];
+  var out = arr.slice();
+  if(year) out = out.filter(function(r){ return r.year===year; });
+  if(quarter) out = out.filter(function(r){ return r.quarter===quarter; });
+  out.sort(function(a,b){ if(a.year!==b.year) return b.year - a.year; return b.quarter - a.quarter; });
+  return out;
+}
+function saveEmployeeLocal(emp){
+  if(!Array.isArray(state.employees)) state.employees = [];
+  var id = emp.employee_id || emp.id || emp.name;
+  var idx = state.employees.findIndex(function(e){ return (e.employee_id||e.id||e.name) === id; });
+  if(idx>=0){ state.employees[idx] = Object.assign({}, state.employees[idx], emp); }
+  else { state.employees.push(emp); }
+  if(typeof saveState === 'function') saveState(state);
+}
+</script>
+<script>
+(async function(){
+  if(window.loadRemoteState){
+    var remote = await window.loadRemoteState();
+    if(remote && remote.jobs){
+      state = remote;
+      renderJobs();
+      renderJobDetail();
+    }
+  }
+  try {
+    if(Array.isArray(state.jobs)){
+      for(var i=0;i<state.jobs.length;i++){
+        var j = state.jobs[i];
+        if(window.saveJob) await window.saveJob(j);
+        var hired = (j.candidates||[]).filter(function(c){ return c && (c.hired || c.status==='Onboarding'); });
+        for(var k=0;k<hired.length;k++){
+          var c = hired[k];
+          if(window.saveEmployee) await window.saveEmployee({ employee_id: c.id, name: c.name, job_id: j.id, job_title: j.title, status: c.status, notes: c.notes||'', years: c.years||0, skills: c.skills||[], certs: c.certs||[], source_company: c.company||'' });
+        }
+      }
+    }
+  } catch(e){}
+  try {
+    if(window.loadJobsList){
+      var cloudJobs = await window.loadJobsList();
+      if(Array.isArray(cloudJobs) && cloudJobs.length){
+        cloudJobs.forEach(function(rj){
+          var exists = state.jobs.some(function(j){ return j && j.id === rj.job_id; });
+          if(!exists){
+            state.jobs.push({ id: rj.job_id, title: rj.title, location: rj.location, type: rj.type, openings: rj.openings||0, team: rj.team, description: rj.description||'', candidates: [] });
+          }
+        });
+        saveState(state);
+        renderJobs();
+      }
+    }
+  } catch(e){}
+})();
+</script>
+</body>
+
+</html>

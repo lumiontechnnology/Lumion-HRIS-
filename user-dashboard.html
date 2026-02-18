@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>User Dashboard – Lumion HRIS</title>
+  <link rel="stylesheet" href="/assets/site-ui.css" />
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #fff;
+      --ink: #111827;
+      --muted: #6b7280;
+      --brand: #2563eb;
+      --teal: #0ea5e9;
+      --green: #10b981;
+      --orange: #f97316;
+      --purple: #8b5cf6;
+      --red: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, Segoe UI, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink)
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #111827;
+      color: #fff;
+      padding: 12px 18px
+    }
+
+    header h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: .3px
+    }
+
+    .container {
+      max-width: 1150px;
+      margin: 20px auto;
+      padding: 0 16px
+    }
+
+    .hero {
+      position: relative;
+      background: linear-gradient(120deg, #0b4a6f, #0d78b0);
+      border-radius: 16px;
+      color: #fff;
+      padding: 22px 22px 28px 22px;
+      overflow: hidden
+    }
+
+    .hero-inner {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start
+    }
+
+    .avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, .15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 24px;
+      transition: transform .2s ease
+    }
+
+    .avatar:hover {
+      transform: scale(1.03)
+    }
+
+    .hero-name {
+      font-size: 18px;
+      margin: 2px 0 6px 0
+    }
+
+    .empid {
+      opacity: .9;
+      font-size: 12px;
+      letter-spacing: .3px
+    }
+
+    .kpi {
+      margin-left: auto;
+      background: rgba(255, 255, 255, .1);
+      padding: 10px 12px;
+      border-radius: 10px;
+      text-align: left
+    }
+
+    .kpi .percent {
+      font-weight: 700
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+      margin-top: 14px
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, .08);
+      padding: 14px;
+      transition: transform .18s ease, box-shadow .18s ease
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, .12)
+    }
+
+    .col-3 {
+      grid-column: span 3
+    }
+
+    .col-4 {
+      grid-column: span 4
+    }
+
+    .col-5 {
+      grid-column: span 5
+    }
+
+    .col-6 {
+      grid-column: span 6
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    .small {
+      font-size: 12px
+    }
+
+    .title {
+      font-weight: 700;
+      margin-bottom: 8px
+    }
+
+    .tile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid #eef0f4;
+      border-radius: 12px;
+      transition: background .2s ease
+    }
+
+    .tile:hover {
+      background: #f8fafc
+    }
+
+    .tile .icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: #eef6ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #2563eb;
+      font-weight: 700
+    }
+
+    .tile .label {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .tile .value {
+      font-weight: 600
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .btn {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .12s ease
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 12px rgba(2, 6, 23, .1)
+    }
+
+    .btn:disabled {
+      opacity: .7;
+      cursor: not-allowed
+    }
+
+    .btn.alt {
+      background: #0ea5e9
+    }
+
+    .btn.ghost {
+      background: #eef2ff;
+      color: #1f2a5a
+    }
+
+    .leave-row {
+      display: grid;
+      grid-template-columns: 160px 1fr 120px;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0
+    }
+
+    .leave-row .bar {
+      height: 8px;
+      background: #eef2ff;
+      border-radius: 999px;
+      overflow: hidden
+    }
+
+    .leave-row .bar span {
+      display: block;
+      height: 8px
+    }
+
+    .bar-annual span {
+      background: var(--green)
+    }
+
+    .bar-sick span {
+      background: var(--orange)
+    }
+
+    .bar-exam span {
+      background: var(--purple)
+    }
+
+    .bar-compassionate span {
+      background: var(--red)
+    }
+
+    .person {
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px dashed #eef0f4
+    }
+
+    .person .avatar {
+      width: 36px;
+      height: 36px;
+      font-size: 13px;
+      background: #e9f2ff;
+      color: #1f2a5a
+    }
+
+    .pay {
+      display: flex;
+      gap: 16px
+    }
+
+    .pay .stat {
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 10px 12px
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .35);
+      display: none;
+      align-items: center;
+      justify-content: center
+    }
+
+    .modal.open {
+      display: flex
+    }
+
+    .modal .panel {
+      width: min(520px, 90vw);
+      background: #fff;
+      border-radius: 14px;
+      padding: 16px
+    }
+
+    .modal .panel h3 {
+      margin-top: 0
+    }
+
+    .modal .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px
+    }
+
+    .modal input,
+    .modal select,
+    .modal textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 10px
+    }
+
+    .modal .actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px
+    }
+
+    .linkbar {
+      font-size: 12px;
+      margin-top: 8px
+    }
+
+    .linkbar a {
+      color: #2563eb;
+      text-decoration: none;
+      margin-right: 8px
+    }
+
+    .pillbar {
+      display: inline-flex;
+      background: #eef2ff;
+      border-radius: 999px;
+      overflow: hidden
+    }
+
+    .pillbar a {
+      padding: 6px 10px;
+      font-size: 12px;
+      text-decoration: none;
+      color: #1f2a5a
+    }
+
+    .pillbar a.active {
+      background: #2563eb;
+      color: #fff
+    }
+
+    .att-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .att-note {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .att-table {
+      width: 100%;
+      border-collapse: collapse
+    }
+
+    .att-table th,
+    .att-table td {
+      padding: 8px;
+      border-bottom: 1px dashed #eef0f4;
+      text-align: left;
+      font-size: 13px
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px
+    }
+
+    .action-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #eef2ff;
+      border: none;
+      border-radius: 12px;
+      padding: 10px;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .12s ease
+    }
+
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 12px rgba(2, 6, 23, .08)
+    }
+
+    .action-btn .icon {
+      font-size: 18px
+    }
+
+    .badge {
+      display: inline-block;
+      background: #fde68a;
+      color: #b45309;
+      border-radius: 999px;
+      padding: 2px 8px;
+      font-size: 11px;
+      margin-left: auto
+    }
+
+    #toast-container {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 90;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 90vw
+    }
+
+    .toast {
+      background: #111827;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      box-shadow: 0 8px 20px rgba(2, 6, 23, .2);
+      transform: translateX(120%);
+      opacity: 0;
+      transition: transform .22s ease, opacity .22s ease
+    }
+
+    .toast.show {
+      transform: translateX(0);
+      opacity: 1
+    }
+
+    .toast.info {
+      background: #1f2937
+    }
+
+    .toast.success {
+      background: #16a34a
+    }
+
+    .toast.error {
+      background: #dc2626
+    }
+
+    .toast.warning {
+      background: #b45309
+    }
+
+    .loading {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #e5e7eb;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      animation: spin .8s linear infinite
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0)
+      }
+
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .slider-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #6b7280;
+      margin-top: 4px
+    }
+
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: repeat(6, 1fr)
+      }
+
+      .col-6 {
+        grid-column: span 6
+      }
+
+      .col-5 {
+        grid-column: span 6
+      }
+
+      .col-4 {
+        grid-column: span 6
+      }
+
+      .col-3 {
+        grid-column: span 6
+      }
+
+      .quick-actions {
+        grid-template-columns: repeat(3, 1fr)
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero-inner {
+        flex-direction: column
+      }
+
+      .quick-actions {
+        grid-template-columns: repeat(2, 1fr)
+      }
+
+      .tile {
+        padding: 10px
+      }
+    }
+  </style>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/env.js"></script>
+  <script src="js/supabase.js"></script>
+</head>
+
+<body>
+  <header>
+    <h2>Employee Dashboard</h2>
+    <div style="flex:1;display:flex;justify-content:center;max-width:520px;margin:0 12px">
+      <input id="topSearch" class="glass-input" placeholder="Search employees, documents, policies..."
+        style="width:100%" />
+    </div>
+    <div id="user-menu"></div>
+  </header>
+  <div class="container">
+    <div id="toast-container"></div>
+    <section class="hero glass-card"
+      style="background:linear-gradient(120deg,rgba(37,99,235,.85),rgba(79,70,229,.85));">
+      <div class="hero-inner">
+        <div class="avatar" id="hero-initials" style="background:rgba(255,255,255,.25)">U</div>
+        <div>
+          <div class="muted small" style="color:#e5e7eb">WELCOME</div>
+          <div class="hero-name" id="hero-name" style="color:#fff">—</div>
+          <div class="empid" style="color:#e5e7eb">Your ID <span id="hero-empid">—</span></div>
+        </div>
+        <div class="kpi glass-card" style="background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.35)">
+          <div class="small" style="color:#eef2ff">PROFILE COMPLETENESS</div>
+          <div class="percent" style="color:#fff">0%</div>
+          <div><a href="#" id="edit-profile-link" class="small" style="color:#fff;text-decoration:underline">Edit
+              profile now</a></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="col-3">
+        <div class="tile" id="tile-dept">
+          <div class="icon">D</div>
+          <div>
+            <div class="label">DEPARTMENT</div>
+            <div class="value">—</div>
+          </div>
+        </div>
+        <div class="tile" id="tile-location" style="margin-top:10px">
+          <div class="icon">L</div>
+          <div>
+            <div class="label">LOCATION</div>
+            <div class="value">—</div>
+          </div>
+        </div>
+        <div class="tile" id="tile-supervisor" style="margin-top:10px">
+          <div class="icon">S</div>
+          <div>
+            <div class="label">SUPERVISOR</div>
+            <div class="value">—</div>
+          </div>
+        </div>
+        <div class="tile" id="tile-anniversary" style="margin-top:10px">
+          <div class="icon">A</div>
+          <div>
+            <div class="label">WORK ANNIVERSARY</div>
+            <div class="value">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card glass-card col-5">
+        <div class="title">Available leave days</div>
+        <div id="leave-bars"></div>
+        <div class="linkbar"><a href="#" id="link-view-leaves">View all</a></div>
+      </div>
+
+      <div class="card glass-card col-4">
+        <div class="title">View employee(s) on leave in your Department</div>
+        <div id="dept-on-leave"></div>
+        <div class="linkbar"><a href="#" data-range="today" class="range-link active">Today</a> · <a href="#"
+            data-range="week" class="range-link">This week</a> · <a href="#" data-range="month" class="range-link">This
+            month</a></div>
+      </div>
+    </section>
+
+    <section class="quick-actions" style="margin-top:12px">
+      <button class="btn-quick" id="act-request-leave" style="background:linear-gradient(135deg,#22c55e,#16a34a)"><span
+          class="icon">📅</span><span>Request Leave</span></button>
+      <button class="btn-quick" id="act-set-kpi" style="background:linear-gradient(135deg,#8b5cf6,#6366f1)"><span
+          class="icon">🎯</span><span>Set KPI Goals</span></button>
+      <button class="btn-quick" id="act-take-appraisal" style="background:linear-gradient(135deg,#06b6d4,#0ea5e9)"><span
+          class="icon">📝</span><span>Take Appraisal</span></button>
+      <button class="btn-quick" id="act-view-payslip" style="background:linear-gradient(135deg,#f97316,#f59e0b)"><span
+          class="icon">💼</span><span>View Payslip</span></button>
+      <button class="btn-quick" id="act-my-req" style="background:linear-gradient(135deg,#ef4444,#f97316)"><span
+          class="icon">📦</span><span>My Requisition</span><span id="badge-pending" class="badge"
+          style="display:none;background:#fde68a;color:#b45309;margin-left:8px">0</span></button>
+    </section>
+
+    <section class="card glass-card" id="quick-stats" style="margin-top:12px">
+      <div class="title">Quick Stats</div>
+      <div class="small muted" id="qs-leaves-month">—</div>
+      <div class="small muted" id="qs-upcoming" style="margin-top:6px">—</div>
+    </section>
+
+    <section class="grid" style="margin-top:12px; grid-template-columns:1fr 1fr; gap:12px">
+      <div class="card glass-card">
+        <div class="title">Policies & Compliance</div>
+        <div class="small muted">Acknowledge required policies</div>
+        <div id="policy-list" style="margin-top:8px"></div>
+      </div>
+      <div class="card glass-card">
+        <div class="title">My Assets</div>
+        <div class="small muted">Assigned equipment</div>
+        <div id="assets-list" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:12px">
+      <div class="title">Payslip Summary</div>
+      <div class="pay">
+        <div class="stat">
+          <div class="small muted">Period</div>
+          <div id="payslip-period">—</div>
+        </div>
+        <div class="stat">
+          <div class="small muted">Gross</div>
+          <div id="payslip-gross">—</div>
+        </div>
+        <div class="stat">
+          <div class="small muted">Net</div>
+          <div id="payslip-net">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tomorrow Planner -->
+    <section class="card" style="margin-top:12px" id="planner-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div class="title">Plan Tomorrow</div>
+          <div class="small muted" id="planner-date">—</div>
+        </div>
+        <div class="small muted" id="planner-suggest">—</div>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px">
+        <div>
+          <div class="small muted" style="margin-bottom:6px">Work mode</div>
+          <select id="plan-mode">
+            <option value="office">In office</option>
+            <option value="remote">Remote</option>
+          </select>
+        </div>
+        <div>
+          <div class="small muted" style="margin-bottom:6px">Start time</div>
+          <input id="plan-start" type="time" value="09:00" />
+        </div>
+        <div>
+          <div class="small muted" style="margin-bottom:6px">Focus block</div>
+          <select id="plan-focus">
+            <option value="deep">Deep work (2h)</option>
+            <option value="outreach">Outreach (2h)</option>
+            <option value="learning">Learning (1h)</option>
+            <option value="collab">Collaboration (1h)</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid" style="grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px">
+        <div>
+          <label class="small"><input type="checkbox" id="plan-break" /> Schedule a 15m break</label>
+        </div>
+        <div>
+          <label class="small"><input type="checkbox" id="plan-walk" /> 15m walk / stretch</label>
+        </div>
+        <div>
+          <label class="small"><input type="checkbox" id="plan-checkin" /> Do a quick check-in</label>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <textarea id="plan-notes" placeholder="Optional notes or goals"
+          style="width:100%;min-height:60px;border:1px solid #d1d5db;border-radius:10px;padding:8px"></textarea>
+      </div>
+      <div class="actions" style="margin-top:8px;justify-content:space-between">
+        <label class="small"><input type="checkbox" id="plan-share" /> Share plan with manager</label>
+        <div>
+          <button class="btn" id="plan-save">Save Plan</button>
+          <button class="btn ghost" id="plan-export-ics" style="margin-left:8px">Export Plan (.ics)</button>
+        </div>
+      </div>
+
+      <div class="grid" style="grid-template-columns:1fr 2fr;gap:12px;margin-top:12px">
+        <div class="pay">
+          <div class="stat">
+            <div class="small muted">Tomorrow Readiness</div>
+            <div id="planner-ready-score">—</div>
+          </div>
+          <div class="stat">
+            <div class="small muted">Tip</div>
+            <div id="planner-ready-tip">—</div>
+          </div>
+        </div>
+        <div>
+          <div class="small muted" style="margin-bottom:6px">Micro‑learning for you</div>
+          <div id="planner-learning-list"></div>
+          <div class="small muted" style="margin-top:8px">Recent learning</div>
+          <div id="learning-history"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Daily Check-in -->
+    <section class="card" style="margin-top:12px" id="checkin-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div class="title">Daily Check-in</div>
+          <div class="att-note" id="pulse-status-text">Share mood, stress, and workload for today.</div>
+        </div>
+        <div class="small muted" id="pulse-avg-7d">Last 7d engagement: —</div>
+      </div>
+      <!-- Contextual nudge -->
+      <div id="nudge-card"
+        style="display:none;margin-top:10px;border:1px dashed #e5e7eb;border-radius:10px;padding:10px;background:#f9fafb">
+        <div id="pulse-nudge" class="small" style="color:#374151">—</div>
+        <div class="actions" style="justify-content:flex-end;margin-top:6px">
+          <button class="btn ghost" id="nudge-dismiss">Dismiss</button>
+          <button class="btn" id="nudge-open">Open Check-in</button>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:center">
+        <div>
+          <div class="small muted" style="margin-bottom:6px">Mood</div>
+          <div style="display:flex;gap:6px">
+            <label class="small"><input type="radio" name="pulse-mood" value="-2"> 😟</label>
+            <label class="small"><input type="radio" name="pulse-mood" value="-1"> 🙁</label>
+            <label class="small"><input type="radio" name="pulse-mood" value="0" checked> 😐</label>
+            <label class="small"><input type="radio" name="pulse-mood" value="1"> 🙂</label>
+            <label class="small"><input type="radio" name="pulse-mood" value="2"> 😄</label>
+          </div>
+        </div>
+        <div>
+          <div class="small muted" style="margin-bottom:6px">Stress</div>
+          <input id="pulse-stress" type="range" min="1" max="5" step="1" value="3" />
+          <div class="small muted">Level: <span id="pulse-stress-val">3</span>/5</div>
+        </div>
+        <div>
+          <div class="small muted" style="margin-bottom:6px">Workload</div>
+          <input id="pulse-workload" type="range" min="1" max="5" step="1" value="3" />
+          <div class="small muted">Level: <span id="pulse-workload-val">3</span>/5</div>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <textarea id="pulse-note" placeholder="Optional note (visible to HR in aggregate only)"
+          style="width:100%;min-height:60px;border:1px solid #d1d5db;border-radius:10px;padding:8px"></textarea>
+      </div>
+      <div class="actions" style="margin-top:8px;justify-content:flex-end">
+        <button class="btn" id="pulse-save">Save Check-in</button>
+      </div>
+    </section>
+
+    <!-- Attendance -->
+    <section class="card" style="margin-top:12px" id="attendance-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+        <div>
+          <div class="title">Attendance</div>
+          <div class="att-note" id="att-status-text">—</div>
+        </div>
+        <div class="pillbar">
+          <a href="#" id="att-tab-clock" class="active">Clock In/Out</a>
+          <a href="#" id="att-tab-history">History</a>
+        </div>
+      </div>
+      <div id="att-clock-pane" style="margin-top:10px">
+        <div class="att-row">
+          <div class="small muted">Mode</div>
+          <label class="small"><input type="radio" name="att-mode" value="office" checked /> In office (use
+            location)</label>
+          <label class="small"><input type="radio" name="att-mode" value="remote" /> Remote (use computer login)</label>
+        </div>
+        <div class="att-note" id="att-location-note" style="margin-top:6px">Select a mode to proceed.</div>
+        <div class="actions" style="margin-top:8px">
+          <button class="btn" id="btn-clock-in">Clock In</button>
+          <button class="btn ghost" id="btn-clock-out">Clock Out</button>
+        </div>
+        <div class="att-note" style="margin-top:8px">Today: <span id="att-today-date">—</span> · In: <span
+            id="att-today-in">—</span> · Out: <span id="att-today-out">—</span> · Status: <span
+            id="att-today-status">—</span></div>
+      </div>
+      <div id="att-history-pane" style="display:none;margin-top:8px;max-height:40vh;overflow:auto">
+        <div class="actions" style="justify-content:flex-end;margin-bottom:6px">
+          <button class="btn ghost" id="att-export-csv">Export CSV</button>
+        </div>
+        <table class="att-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Status</th>
+              <th>In</th>
+              <th>Out</th>
+              <th>Mode</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody id="att-history-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Leave Modal -->
+  <div class="modal" id="leave-modal">
+    <div class="panel">
+      <h3>Request Leave</h3>
+      <form id="leave-form">
+        <div class="row">
+          <select name="type" required>
+            <option value="annual">Annual Leave</option>
+            <option value="sick">Sick Leave</option>
+            <option value="exam">Exam Leave</option>
+            <option value="compassionate">Compassionate Leave</option>
+          </select>
+          <input type="text" name="reason" placeholder="Reason (optional)" />
+          <input type="date" name="start" required />
+          <input type="date" name="end" required />
+        </div>
+        <div class="actions">
+          <button type="button" class="btn ghost close">Cancel</button>
+          <button type="submit" class="btn">Submit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Payslip Modal -->
+  <div class="modal" id="payslip-modal">
+    <div class="panel">
+      <h3>Payslip Details</h3>
+      <div class="small muted">Period: <span id="paydet-period">—</span></div>
+      <div style="margin-top:10px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="text-align:left">Item</th>
+              <th style="text-align:right">Amount</th>
+            </tr>
+          </thead>
+          <tbody id="paydet-items"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost close-pay">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leave History Modal -->
+  <div class="modal" id="leaves-modal">
+    <div class="panel">
+      <h3>My Leaves</h3>
+      <div style="max-height:50vh;overflow:auto">
+        <table style="width:100%;border-collapse:collapse">
+          <thead>
+            <tr>
+              <th style="text-align:left">Type</th>
+              <th style="text-align:left">Dates</th>
+              <th style="text-align:left">Status</th>
+            </tr>
+          </thead>
+          <tbody id="leaves-history"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn ghost close-leaves">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Requisition Modal -->
+  <div class="modal" id="req-modal">
+    <div class="panel">
+      <h3>My Requisition</h3>
+      <form id="req-form">
+        <div class="row">
+          <select name="type" required>
+            <option value="equipment">Equipment</option>
+            <option value="travel">Travel</option>
+            <option value="training">Training</option>
+            <option value="general">General</option>
+          </select>
+          <input type="text" name="description" placeholder="Description" required />
+          <input type="number" name="amount" placeholder="Amount (₦)" min="0" step="1" />
+        </div>
+        <div class="actions">
+          <button type="button" class="btn ghost req-close">Cancel</button>
+          <button type="submit" class="btn">Submit</button>
+        </div>
+      </form>
+      <div style="margin-top:12px">
+        <div class="small muted">Recent Requests</div>
+        <div id="req-list" style="max-height:40vh; overflow:auto"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div class="modal" id="profile-modal">
+    <div class="panel">
+      <h3>Edit Profile</h3>
+      <form id="profile-form">
+        <div class="row">
+          <input type="text" name="name" placeholder="Full name" required />
+          <input type="text" name="location" placeholder="Location" />
+          <input type="text" name="department" placeholder="Department" />
+          <input type="text" name="manager" placeholder="Supervisor" />
+        </div>
+        <div class="actions">
+          <button type="button" class="btn ghost close-prof">Cancel</button>
+          <button type="submit" class="btn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="./js/user-dashboard.js"></script>
+  <script type="module" src="./js/header-footer.js"></script>
+  <script>
+    (function () {
+      const patterns = [/\/\*\s*glass tokens\s*\*\//i, /\.glass-card\{/, /\.glass-input\{/, /\.btn-quick\{/, /box-shadow:\s*0 10px 24px/];
+      function stripNode(n) {
+        if (!n) return;
+        if (n.nodeType === Node.TEXT_NODE) {
+          const t = n.textContent || '';
+          if (patterns.some(re => re.test(t))) n.textContent = '';
+        }
+      }
+      function walk(root) { const kids = root.childNodes || []; for (let i = 0; i < kids.length; i++) { const k = kids[i]; stripNode(k); if (k.nodeType === Node.ELEMENT_NODE) walk(k); } }
+      const run = () => { walk(document.body); };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+      const mo = new MutationObserver((muts) => { muts.forEach(m => { (m.addedNodes || []).forEach(n => { stripNode(n); if (n.nodeType === Node.ELEMENT_NODE) walk(n); }); }); });
+      mo.observe(document.body, { childList: true, subtree: true });
+    })();
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumion 2.0 - AI Interview Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/assets/site-ui.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --dark: #0f172a;
+            --light: #f8fafc;
+            --glass: rgba(255, 255, 255, 0.08);
+            --glass-border: rgba(255, 255, 255, 0.18);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: var(--light);
+            min-height: 100vh;
+        }
+
+        /* using shared glass utilities from site-ui.css */
+
+        .gradient-text {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .pulse-ring {
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+
+            80%,
+            100% {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
+        .floating {
+            animation: floating 6s ease-in-out infinite;
+        }
+
+        @keyframes floating {
+            0% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+
+            100% {
+                transform: translateY(0px);
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .typing-dots span {
+            animation: bounce 1.4s infinite ease-in-out both;
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background-color: #9ca3af;
+        }
+
+        .typing-dots span:nth-child(1) {
+            animation-delay: -0.32s;
+        }
+
+        .typing-dots span:nth-child(2) {
+            animation-delay: -0.16s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0);
+            }
+
+            40% {
+                transform: scale(1);
+            }
+        }
+
+        .neon-glow {
+            box-shadow: 0 0 10px var(--primary), 0 0 20px var(--primary);
+        }
+
+        .sentiment-positive {
+            color: #10b981;
+        }
+
+        .sentiment-negative {
+            color: #ef4444;
+        }
+
+        .sentiment-neutral {
+            color: #f59e0b;
+        }
+
+        .message-bubble {
+            max-width: 80%;
+            padding: 16px 20px;
+            border-radius: 18px;
+            margin-bottom: 16px;
+            position: relative;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .ai-message {
+            background: rgba(99, 102, 241, 0.15);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+        }
+
+        .user-message {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom-right-radius: 4px;
+            align-self: flex-end;
+        }
+
+        .skill-tag {
+            display: inline-block;
+            padding: 6px 12px;
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin: 4px;
+        }
+
+        .metric-bar {
+            height: 8px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .metric-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.8s ease;
+        }
+
+        .glow-button {
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 24px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glow-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .tab-active {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            color: white;
+        }
+
+        .hiring-score {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .hiring-score-circle {
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+        }
+
+        .hiring-score-bg {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.1);
+            stroke-width: 8;
+        }
+
+        .hiring-score-value {
+            fill: none;
+            stroke-width: 8;
+            stroke-linecap: round;
+            stroke-dasharray: 314;
+            stroke-dashoffset: 314;
+            transition: stroke-dashoffset 1.5s ease;
+        }
+
+        .hiring-score-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+
+        .grid-pattern {
+            background-image:
+                linear-gradient(rgba(99, 102, 241, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(99, 102, 241, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+    </style>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config/env.js"></script>
+    <script src="js/supabase.js"></script>
+</head>
+
+<body class="grid-pattern">
+    <!-- Navigation -->
+    <nav class="glass-card m-4 sticky top-4 z-50">
+        <div class="flex items-center justify-between p-4">
+            <div class="flex items-center space-x-3">
+                <div
+                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <i class="fas fa-brain text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold gradient-text">Lumion 2.0</h1>
+                    <p class="text-xs text-gray-400">AI Interview Assistant</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-2 h-2 bg-green-500 rounded-full pulse-ring"></div>
+                    <span class="text-sm">AI Active</span>
+                </div>
+
+                <div class="flex space-x-2">
+                    <button
+                        class="px-4 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-sm font-medium hover:bg-indigo-500/30 transition-all">
+                        <i class="fas fa-sync-alt mr-2"></i>New Session
+                    </button>
+                    <button
+                        class="px-4 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-sm font-medium hover:bg-indigo-500/30 transition-all">
+                        <i class="fas fa-download mr-2"></i>Export
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-4 pb-10">
+        <div class="grid grid-cols-12 gap-6">
+            <!-- Left Panel - Candidate & Job Info -->
+            <div class="col-span-3 space-y-6">
+                <!-- Candidate Card -->
+                <div class="glass-card p-6">
+                    <div class="flex items-center space-x-4 mb-6">
+                        <div class="relative">
+                            <div
+                                class="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold">
+                                JD
+                            </div>
+                            <div
+                                class="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-4 border-gray-900 flex items-center justify-center">
+                                <i class="fas fa-check text-xs text-white"></i>
+                            </div>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold">John Doe</h2>
+                            <p class="text-gray-400 text-sm">Senior Frontend Developer</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-400 mb-2">APPLYING FOR</h3>
+                            <p class="font-medium">Lead UI Engineer</p>
+                            <p class="text-sm text-gray-400">Product Team • San Francisco</p>
+                        </div>
+
+                        <div>
+                            <h3 class="text-sm font-semibold text-gray-400 mb-2">STATUS</h3>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-2 h-2 bg-amber-500 rounded-full"></div>
+                                <span class="text-sm">In Progress</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Skills & Match -->
+                <div class="glass-card p-6">
+                    <h3 class="text-lg font-bold mb-4">Skills & Match</h3>
+
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>React</span>
+                                <span>92%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 92%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>TypeScript</span>
+                                <span>87%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 87%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>UI/UX Design</span>
+                                <span>78%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 78%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>Leadership</span>
+                                <span>65%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-amber-500" style="width: 65%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-gray-700/50">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Overall Match</span>
+                            <div class="hiring-score">
+                                <svg width="120" height="120" viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="54" class="hiring-score-bg"></circle>
+                                    <circle cx="60" cy="60" r="54" class="hiring-score-value" stroke="#10b981"
+                                        stroke-dashoffset="56.52"></circle>
+                                </svg>
+                                <div class="hiring-score-text">82%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Insights -->
+                <div class="glass-card p-6">
+                    <h3 class="text-lg font-bold mb-4">AI Insights</h3>
+
+                    <div class="space-y-4">
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center mt-1">
+                                <i class="fas fa-lightbulb text-indigo-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-medium">Strong Technical Fit</h4>
+                                <p class="text-sm text-gray-400">Candidate demonstrates advanced knowledge in required
+                                    areas.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center mt-1">
+                                <i class="fas fa-exclamation-triangle text-amber-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-medium">Communication Style</h4>
+                                <p class="text-sm text-gray-400">Tends to use technical jargon that may need
+                                    simplification for stakeholders.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start space-x-3">
+                            <div class="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center mt-1">
+                                <i class="fas fa-chart-line text-green-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="font-medium">Growth Potential</h4>
+                                <p class="text-sm text-gray-400">Shows strong learning agility and adaptability to new
+                                    technologies.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center Panel - Interview Interface -->
+            <div class="col-span-6 space-y-6">
+                <!-- Interview Header -->
+                <div class="glass-card p-6">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h2 class="text-2xl font-bold">Technical Interview</h2>
+                            <p class="text-gray-400">Session started 12 minutes ago</p>
+                        </div>
+
+                        <div class="flex space-x-3">
+                            <button
+                                class="px-4 py-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-sm font-medium hover:bg-indigo-500/30 transition-all">
+                                <i class="fas fa-video mr-2"></i>Video Call
+                            </button>
+                            <button
+                                class="px-4 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-sm font-medium hover:bg-red-500/30 transition-all">
+                                <i class="fas fa-stop-circle mr-2"></i>End Interview
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-4 mt-6">
+                        <div class="tab-active px-4 py-2 rounded-lg text-sm font-medium">Questions</div>
+                        <div
+                            class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/30 hover:bg-gray-700/50 cursor-pointer">
+                            Evaluation</div>
+                        <div
+                            class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/30 hover:bg-gray-700/50 cursor-pointer">
+                            Notes</div>
+                        <div
+                            class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700/30 hover:bg-gray-700/50 cursor-pointer">
+                            Recording</div>
+                    </div>
+                </div>
+
+                <!-- Chat Interface -->
+                <div class="glass-card p-6 flex flex-col" style="height: 500px;">
+                    <div class="flex-1 overflow-y-auto mb-4 flex flex-col space-y-4" id="chat-container">
+                        <!-- AI Message -->
+                        <div class="message-bubble ai-message">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
+                                    <i class="fas fa-robot text-white text-xs"></i>
+                                </div>
+                                <span class="text-sm font-medium">Lumion AI</span>
+                                <span class="text-xs text-gray-400">2:15 PM</span>
+                            </div>
+                            <p>Hello John! Thanks for joining the interview today. I'll be asking you a series of
+                                technical and behavioral questions. Let's start with your experience with React and
+                                state management.</p>
+                        </div>
+
+                        <!-- User Message -->
+                        <div class="message-bubble user-message">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="text-sm font-medium">John Doe</span>
+                                <span class="text-xs text-gray-400">2:16 PM</span>
+                            </div>
+                            <p>Thanks for having me! I've been working with React for about 5 years now. For state
+                                management, I've used Redux extensively in larger applications, but for most projects I
+                                prefer React's built-in state and Context API combined with libraries like React Query
+                                for server state.</p>
+                        </div>
+
+                        <!-- AI Message with Analysis -->
+                        <div class="message-bubble ai-message">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
+                                    <i class="fas fa-robot text-white text-xs"></i>
+                                </div>
+                                <span class="text-sm font-medium">Lumion AI</span>
+                                <span class="text-xs text-gray-400">2:17 PM</span>
+                            </div>
+                            <p class="mb-3">That's great experience. Can you walk me through a specific complex React
+                                component you've built and explain your approach to state management within it?</p>
+
+                            <div class="mt-3 pt-3 border-t border-indigo-500/30">
+                                <div class="flex items-center space-x-2 text-sm">
+                                    <i class="fas fa-chart-bar text-indigo-400"></i>
+                                    <span class="font-medium">AI Analysis:</span>
+                                    <span class="sentiment-positive">Positive technical depth detected</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- User Message -->
+                        <div class="message-bubble user-message">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="text-sm font-medium">John Doe</span>
+                                <span class="text-xs text-gray-400">2:19 PM</span>
+                            </div>
+                            <p>Sure! Recently I built a complex data visualization dashboard that needed to handle
+                                real-time updates. I used a combination of useState for UI state, useContext for theme
+                                and user preferences, and React Query for managing server state and caching.</p>
+                            <p class="mt-2">The component had multiple filters, date ranges, and visualization types
+                                that needed to be synchronized. I used the useReducer hook for complex state transitions
+                                and implemented custom hooks to abstract the data fetching logic.</p>
+                        </div>
+
+                        <!-- AI is typing indicator -->
+                        <div class="flex items-center space-x-2 text-gray-400 text-sm">
+                            <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                                <i class="fas fa-robot text-indigo-400"></i>
+                            </div>
+                            <span>Lumion AI is analyzing response</span>
+                            <div class="typing-dots flex space-x-1 ml-2">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-gray-700/50 pt-4">
+                        <div class="flex space-x-3">
+                            <input type="text" placeholder="Type your response or question..."
+                                class="flex-1 bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button class="glow-button px-6">
+                                <i class="fas fa-paper-plane mr-2"></i>Send
+                            </button>
+                        </div>
+
+                        <div class="flex justify-between mt-3">
+                            <div class="flex space-x-2">
+                                <button
+                                    class="px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700/70 transition-all text-sm">
+                                    <i class="fas fa-microphone mr-1"></i>Voice
+                                </button>
+                                <button
+                                    class="px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700/70 transition-all text-sm">
+                                    <i class="fas fa-magic mr-1"></i>AI Suggest
+                                </button>
+                            </div>
+
+                            <div class="flex space-x-2">
+                                <button
+                                    class="px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700/70 transition-all text-sm">
+                                    <i class="fas fa-redo mr-1"></i>Rephrase
+                                </button>
+                                <button
+                                    class="px-3 py-2 rounded-lg bg-gray-700/50 hover:bg-gray-700/70 transition-all text-sm">
+                                    <i class="fas fa-forward mr-1"></i>Skip
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel - Analysis & Tools -->
+            <div class="col-span-3 space-y-6">
+                <!-- Real-time Metrics -->
+                <div class="glass-card p-6">
+                    <h3 class="text-lg font-bold mb-4">Real-time Metrics</h3>
+
+                    <div class="space-y-5">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Technical Depth</span>
+                                <span class="text-sm">84%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 84%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Communication</span>
+                                <span class="text-sm">76%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-green-500" style="width: 76%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Problem Solving</span>
+                                <span class="text-sm">92%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-indigo-500" style="width: 92%"></div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span class="text-sm font-medium">Cultural Fit</span>
+                                <span class="text-sm">68%</span>
+                            </div>
+                            <div class="metric-bar">
+                                <div class="metric-fill bg-amber-500" style="width: 68%"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-gray-700/50">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm font-medium">Hiring Recommendation</span>
+                            <div class="px-3 py-1 bg-green-500/20 text-green-400 rounded-full text-xs font-medium">
+                                STRONG YES
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sentiment Analysis -->
+                <div class="glass-card p-6">
+                    <h3 class="text-lg font-bold mb-4">Sentiment Analysis</h3>
+
+                    <div class="flex items-center justify-center mb-4">
+                        <div class="relative">
+                            <div
+                                class="w-32 h-32 rounded-full border-8 border-indigo-500/30 flex items-center justify-center">
+                                <div
+                                    class="w-24 h-24 rounded-full border-8 border-green-500 flex items-center justify-center">
+                                    <span class="text-2xl font-bold">78%</span>
+                                </div>
+                            </div>
+                            <div class="absolute top-0 left-0 w-full h-full">
+                                <div
+                                    class="w-full h-full rounded-full border-8 border-transparent border-t-amber-500 border-r-amber-500 transform -rotate-45">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-sm">Confidence</span>
+                            <span class="text-sm font-medium sentiment-positive">High</span>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <span class="text-sm">Engagement</span>
+                            <span class="text-sm font-medium sentiment-positive">High</span>
+                        </div>
+
+                        <div class="flex justify-between">
+                            <span class="text-sm">Clarity</span>
+                            <span class="text-sm font-medium sentiment-neutral">Medium</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI Tools -->
+                <div class="glass-card p-6">
+                    <h3 class="text-lg font-bold mb-4">AI Tools</h3>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <button
+                            class="p-3 rounded-xl bg-indigo-500/20 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all flex flex-col items-center justify-center">
+                            <i class="fas fa-question-circle text-indigo-400 text-xl mb-2"></i>
+                            <span class="text-sm">Generate Questions</span>
+                        </button>
+
+                        <button
+                            class="p-3 rounded-xl bg-green-500/20 border border-green-500/30 hover:bg-green-500/30 transition-all flex flex-col items-center justify-center">
+                            <i class="fas fa-chart-pie text-green-400 text-xl mb-2"></i>
+                            <span class="text-sm">Skill Analysis</span>
+                        </button>
+
+                        <button
+                            class="p-3 rounded-xl bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500/30 transition-all flex flex-col items-center justify-center">
+                            <i class="fas fa-file-alt text-amber-400 text-xl mb-2"></i>
+                            <span class="text-sm">Generate Report</span>
+                        </button>
+
+                        <button
+                            class="p-3 rounded-xl bg-purple-500/20 border border-purple-500/30 hover:bg-purple-500/30 transition-all flex flex-col items-center justify-center">
+                            <i class="fas fa-redo text-purple-400 text-xl mb-2"></i>
+                            <span class="text-sm">Compare Candidates</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating AI Assistant -->
+    <div class="fixed bottom-6 right-6">
+        <div class="relative">
+            <div
+                class="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xl shadow-lg neon-glow floating cursor-pointer">
+                <i class="fas fa-robot"></i>
+            </div>
+            <div
+                class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-xs">
+                3
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize hiring score animation
+        document.addEventListener('DOMContentLoaded', function () {
+            // Simulate chat updates
+            setTimeout(() => {
+                const chatContainer = document.getElementById('chat-container');
+                const typingIndicator = chatContainer.querySelector('.typing-dots').parentElement;
+                typingIndicator.remove();
+
+                const newMessage = document.createElement('div');
+                newMessage.className = 'message-bubble ai-message slide-in';
+                newMessage.innerHTML = `
+                    <div class="flex items-center space-x-2 mb-2">
+                        <div class="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center">
+                            <i class="fas fa-robot text-white text-xs"></i>
+                        </div>
+                        <span class="text-sm font-medium">Lumion AI</span>
+                        <span class="text-xs text-gray-400">2:21 PM</span>
+                    </div>
+                    <p class="mb-3">Excellent! That's a sophisticated approach. How did you handle performance optimization in such a complex component?</p>
+                    
+                    <div class="mt-3 pt-3 border-t border-indigo-500/30">
+                        <div class="flex items-center space-x-2 text-sm">
+                            <i class="fas fa-chart-bar text-indigo-400"></i>
+                            <span class="font-medium">AI Analysis:</span>
+                            <span class="sentiment-positive">Strong problem-solving skills detected</span>
+                        </div>
+                    </div>
+                `;
+                chatContainer.appendChild(newMessage);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }, 3000);
+        });
+    </script>
+</body>
+
+</html>
