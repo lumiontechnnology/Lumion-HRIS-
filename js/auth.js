@@ -29,7 +29,7 @@ export function renderUserMenu(containerId = 'user-menu') {
   };
 }
 
-export async function signupWithSupabase(email, password, name) {
+export async function signupWithSupabase(email, password, name, role = 'user') {
   if (!window.supabaseClient) {
     console.error('Supabase client not initialized');
     return { ok: false, error: 'Initialization error' };
@@ -40,7 +40,7 @@ export async function signupWithSupabase(email, password, name) {
     options: {
       data: {
         full_name: name,
-        role: 'user' // Default role
+        role: role
       }
     }
   });
@@ -48,16 +48,60 @@ export async function signupWithSupabase(email, password, name) {
   return { ok: true, user: data.user };
 }
 
+/**
+ * Creates a new Auth user via signUp using a secondary client.
+ * This ensures the current Admin session is not replaced.
+ * Supabase will send a confirmation/welcome email by default.
+ */
+export async function adminCreateEmployeeAuth(email, name, role = 'user') {
+  if (!window.supabaseClient || !window.__env__) {
+    return { ok: false, error: 'Supabase not configured' };
+  }
+
+  // Use a secondary client for "background" signup to avoid session clash
+  const tempClient = supabase.createClient(
+    window.__env__.NEXT_PUBLIC_SUPABASE_URL,
+    window.__env__.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    { auth: { persistSession: false } }
+  );
+
+  const tempPass = `Lumion@${new Date().getFullYear()}!`;
+
+  const { data, error } = await tempClient.auth.signUp({
+    email,
+    password: tempPass,
+    options: {
+      data: {
+        full_name: name,
+        role: role
+      }
+    }
+  });
+
+  if (error) {
+    console.error('Admin signup error:', error);
+    return { ok: false, error: error.message };
+  }
+
+  console.log('Employee Auth created successfully for:', email);
+  return { ok: true, user: data.user, tempPass };
+}
+
 export async function loginWithSupabase(email, password) {
+  console.log('Attempting Supabase login for:', email);
   if (!window.supabaseClient) {
-    console.error('Supabase client not initialized');
-    return { ok: false, error: 'Initialization error' };
+    console.error('Supabase client not initialized. Check window.__env__ and supabase SDK.');
+    return { ok: false, error: 'Initialization error: window.supabaseClient is missing' };
   }
   const { data, error } = await window.supabaseClient.auth.signInWithPassword({
     email,
     password
   });
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error('Supabase sign-in error:', error);
+    return { ok: false, error: error.message };
+  }
+  console.log('Supabase sign-in success:', data.user);
 
   // Update local store
   Store.setCurrentUser(data.user);
@@ -81,16 +125,25 @@ export function handleLoginForm() {
     try {
       const res = await loginWithSupabase(email, password);
       if (!res.ok) {
-        alert('Login failed: ' + res.error);
+        let errorMsg = res.error;
+        if (errorMsg.toLowerCase().includes('email not confirmed')) {
+          errorMsg = 'Your email has not been confirmed yet. Please check your inbox for a confirmation link from Supabase.';
+        } else if (email === 'admin@lumion.com' && errorMsg.includes('Invalid login credentials')) {
+          errorMsg += '\n\nTIP: Since we migrated to Supabase, you must first CREATE this account at the signup page once.';
+        }
+        alert('Login failed: ' + errorMsg);
         btn.textContent = originalText;
         btn.disabled = false;
         return;
       }
 
       const u = Store.currentUser();
+      console.log('Current user from Store after login:', u);
       localStorage.setItem('isLoggedIn', 'true');
-      if (u && u.role === 'admin') window.location.href = 'hris-dashboard-admin.html';
-      else window.location.href = 'user-dashboard.html';
+
+      const target = (u && u.role === 'admin') ? 'hris-dashboard-admin.html' : 'user-dashboard.html';
+      console.log('Redirecting to:', target);
+      window.location.href = target;
     } catch (err) {
       alert('An unexpected error occurred');
       console.error(err);

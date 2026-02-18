@@ -154,7 +154,7 @@
 
   <script type="module">
     import { Store } from './js/store.js';
-    import { requireAuth, renderUserMenu } from './js/auth.js';
+    import { requireAuth, renderUserMenu, adminCreateEmployeeAuth } from './js/auth.js';
     // requireAuth('admin');
     renderUserMenu();
     /***************************
@@ -467,6 +467,13 @@
         </div>
 
         <div class="mt-6">
+          <h4 class="text-sm font-semibold">Work Tools / Inventory</h4>
+          <div class="flex flex-wrap gap-2 mt-2">
+            ${(emp.inventory || []).map(i => `<span class="px-3 py-1 bg-gray-100 border rounded text-xs text-gray-700">${i}</span>`).join('') || '<div class="text-sm text-gray-500">No tools assigned</div>'}
+          </div>
+        </div>
+
+        <div class="mt-6">
           <h4 class="text-sm font-semibold">Documents</h4>
           <div class="flex flex-wrap gap-2 mt-2">
             ${(emp.files || []).map(f => `<a href="#" class="px-3 py-1 border rounded text-xs text-indigo-600" onclick="window.open('about:blank','_blank')">${f}</a>`).join('') || '<div class="text-sm text-gray-500">No documents</div>'}
@@ -649,7 +656,9 @@
       const isNew = !emp;
       const data = emp ? { ...emp } : {
         id: "EMP" + String(100 + Math.floor(Math.random() * 900)),
-        name: "", dept: "", role: "", salary: 0, status: "Active", start: new Date().toISOString().slice(0, 10), manager: "", contact: { email: "", phone: "" }, files: [], history: { resumption: "", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
+        name: "", dept: "", role: "", accountRole: "Staff", salary: 0, status: "Active", start: new Date().toISOString().slice(0, 10), manager: "", contact: { email: "", phone: "" },
+        inventory: [],
+        files: [], history: { resumption: "", promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] }
       };
 
       const modal = document.createElement('div'); modal.className = 'modal-backdrop';
@@ -663,6 +672,7 @@
           <div><label class="text-xs text-gray-600">Role</label><input id="ed_role" class="w-full p-2 border rounded" value="${data.role}"></div>
           <div><label class="text-xs text-gray-600">Location</label><input id="ed_location" class="w-full p-2 border rounded" value="${data.location || ''}"></div>
           <div><label class="text-xs text-gray-600">Line Manager</label><input id="ed_manager" class="w-full p-2 border rounded" value="${data.manager || ''}"></div>
+          <div><label class="text-xs text-gray-600">Account Role</label><select id="ed_accountRole" class="w-full p-2 border rounded"><option ${data.accountRole === 'Admin' ? 'selected' : ''}>Admin</option><option ${data.accountRole === 'Staff' ? 'selected' : '' || !data.accountRole ? 'selected' : ''}>Staff</option></select></div>
           <div><label class="text-xs text-gray-600">Status</label><select id="ed_status" class="w-full p-2 border rounded"><option ${data.status === 'Active' ? 'selected' : ''}>Active</option><option ${data.status === 'On Leave' ? 'selected' : ''}>On Leave</option><option ${data.status === 'Suspended' ? 'selected' : ''}>Suspended</option><option ${data.status === 'Exited' ? 'selected' : ''}>Exited</option></select></div>
           <div><label class="text-xs text-gray-600">Exit date</label><input id="ed_exit" type="date" class="w-full p-2 border rounded" value="${data.exit || data.exit_date || ''}"></div>
           <div><label class="text-xs text-gray-600">Salary (₦)</label><input id="ed_salary" type="number" class="w-full p-2 border rounded" value="${data.salary}"></div>
@@ -670,6 +680,23 @@
           <div><label class="text-xs text-gray-600">Email</label><input id="ed_email" class="w-full p-2 border rounded" value="${data.contact?.email || ''}"></div>
           <div><label class="text-xs text-gray-600">Phone</label><input id="ed_phone" class="w-full p-2 border rounded" value="${data.contact?.phone || ''}"></div>
         </div>
+        
+        <div class="mt-4">
+          <label class="text-xs font-bold text-gray-700 mb-2 block">Work Tools Given on Resumption</label>
+          <div class="grid grid-cols-3 gap-2">
+            ${['Laptop', 'External screen', 'Note pad', 'Extra mouse', 'Company car', 'Headset'].map(item => `
+              <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" class="inventory-check" value="${item}" ${data.inventory?.includes(item) ? 'checked' : ''}>
+                <span>${item}</span>
+              </label>
+            `).join('')}
+          </div>
+          <div class="mt-3">
+            <label class="text-xs text-gray-600">Other tools (comma separated)</label>
+            <input id="ed_otherInventory" class="w-full p-2 border rounded text-sm" placeholder="e.g. Standing desk, Keyboard" value="${(data.inventory || []).filter(i => !['Laptop', 'External screen', 'Note pad', 'Extra mouse', 'Company car', 'Headset'].includes(i)).join(', ')}">
+          </div>
+        </div>
+
         <div class="mt-4 text-right">
           <button id="cancelEdit" class="px-4 py-2 mr-2 border rounded">Cancel</button>
           <button id="saveEdit" class="px-4 py-2 bg-indigo-600 text-white rounded">${isNew ? 'Create' : 'Save'}</button>
@@ -696,20 +723,50 @@
         const email = modal.querySelector('#ed_email').value.trim();
         const phone = modal.querySelector('#ed_phone').value.trim();
         const exit = modal.querySelector('#ed_exit').value || '';
+        const accountRole = modal.querySelector('#ed_accountRole').value;
+        // Collect Inventory
+        const inventory = Array.from(modal.querySelectorAll('.inventory-check:checked')).map(cb => cb.value);
+        const other = modal.querySelector('#ed_otherInventory').value.trim();
+        if (other) {
+          other.split(',').forEach(o => {
+            const item = o.trim();
+            if (item && !inventory.includes(item)) inventory.push(item);
+          });
+        }
         if (!name || !idv) { alert('Name and ID required'); return; }
 
         if (isNew) {
-          const payload = { id: idv, name, dept, role, location, salary, status, start, manager, exit, exit_date: exit, contact: { email, phone }, files: [], history: { resumption: start, promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] } };
-          Store.addEmployee(payload);
-          try { if (window.saveEmployee) window.saveEmployee({ employee_id: (parseInt(String(payload.id).replace(/\D/g, ''), 10) || null), name: payload.name, department: payload.dept, role: payload.role, manager: payload.manager, location: payload.location, salary: payload.salary, status: payload.status, start: payload.start, contact_email: payload.contact.email, contact_phone: payload.contact.phone, exit_date: payload.exit || payload.exit_date || '', files: payload.files, history: payload.history }); } catch { }
+          const payload = { id: idv, name, dept, role, accountRole, inventory, location, salary, status, start, manager, exit, exit_date: exit, contact: { email, phone }, files: [], history: { resumption: start, promotions: [], transfers: [], performance: [], salaryReviews: [], warnings: [] } };
+
+          const btn = modal.querySelector('#saveEdit');
+          const originalText = btn.textContent;
+          btn.textContent = 'Pushing...';
+          btn.disabled = true;
+
+          // Call Auth creation
+          adminCreateEmployeeAuth(email, name, accountRole.toLowerCase()).then(res => {
+            if (res.ok) {
+              Store.addEmployee(payload);
+              try { if (window.saveEmployee) window.saveEmployee({ employee_id: (parseInt(String(payload.id).replace(/\D/g, ''), 10) || null), name: payload.name, department: payload.dept, role: payload.role, manager: payload.manager, location: payload.location, salary: payload.salary, status: payload.status, start: payload.start, contact_email: payload.contact.email, contact_phone: payload.contact.phone, exit_date: payload.exit || payload.exit_date || '', inventory: payload.inventory, files: payload.files, history: payload.history }); } catch { }
+              alert(`Employee created! Temporary password for ${email} is: ${res.tempPass}\n\nA welcome email has been sent.`);
+              employees = Store.getEmployees();
+              modal.remove();
+              populateDeptFilter();
+              filterAndRender();
+            } else {
+              alert('Error creating auth account: ' + res.error);
+              btn.textContent = originalText;
+              btn.disabled = false;
+            }
+          });
         } else {
-          Store.updateEmployee(data.id, { id: idv, name, dept, role, location, salary, status, start, manager, exit, exit_date: exit, contact: { email, phone } });
-          try { if (window.updateEmployee) window.updateEmployee((parseInt(String(idv).replace(/\D/g, ''), 10) || null), { name, department: dept, role, manager, location, salary, status, start, contact_email: email, contact_phone: phone, exit_date: exit, job_title: role }); } catch { }
+          Store.updateEmployee(data.id, { id: idv, name, dept, role, accountRole, inventory, location, salary, status, start, manager, exit, exit_date: exit, contact: { email, phone } });
+          try { if (window.updateEmployee) window.updateEmployee((parseInt(String(idv).replace(/\D/g, ''), 10) || null), { name, department: dept, role, manager, location, salary, status, start, contact_email: email, contact_phone: phone, exit_date: exit, job_title: role, inventory }); } catch { }
+          employees = Store.getEmployees();
+          modal.remove();
+          populateDeptFilter();
+          filterAndRender();
         }
-        employees = Store.getEmployees();
-        modal.remove();
-        populateDeptFilter();
-        filterAndRender();
       });
     }
 
@@ -722,15 +779,76 @@
     }
 
     async function exitEmployeeQuick(emp) {
-      const dateStr = prompt('Exit date (YYYY-MM-DD)?');
-      if (!dateStr) return;
-      const fullIso = new Date(dateStr).toISOString();
-      const iso = fullIso.slice(0, 10);
-      if (window.updateEmployee) { try { await window.updateEmployee(emp.id, { status: 'Exited', exit_date: fullIso }); } catch { } }
-      Store.updateEmployee(emp.id, { status: 'Exited', exit: iso, exit_date: iso });
-      employees = Store.getEmployees();
-      populateDeptFilter();
-      filterAndRender();
+      const modal = document.createElement('div'); modal.className = 'modal-backdrop';
+      modal.innerHTML = `
+        <div class="modal-content max-w-md">
+          <h3 class="text-lg font-bold mb-2">Process Exit: ${emp.name}</h3>
+          <p class="text-sm text-gray-600 mb-4">Please confirm recovery of all work tools and specify the exit date.</p>
+          
+          <div class="mb-4">
+            <label class="text-xs text-gray-600 mb-1 block">Exit Date</label>
+            <input id="ex_date" type="date" class="w-full p-2 border rounded" value="${new Date().toISOString().slice(0, 10)}">
+          </div>
+
+          <div class="mb-4">
+            <label class="text-xs font-bold text-gray-700 mb-2 block">Inventory Return Checklist</label>
+            <div class="space-y-2 border p-3 rounded bg-gray-50 max-h-40 overflow-y-auto">
+              ${(emp.inventory || []).length > 0 ? emp.inventory.map(item => `
+                <label class="flex items-center gap-2 text-sm">
+                  <input type="checkbox" class="return-check" value="${item}">
+                  <span>${item}</span>
+                </label>
+              `).join('') : '<div class="text-sm text-gray-500 italic">No tools were assigned to this employee.</div>'}
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 mt-6">
+            <button id="ex_cancel" class="px-4 py-2 border rounded text-sm">Cancel</button>
+            <button id="ex_confirm" class="px-4 py-2 bg-red-600 text-white rounded text-sm">Finalize Exit</button>
+          </div>
+        </div>
+      `;
+      document.getElementById('modalRoot').appendChild(modal);
+
+      modal.querySelector('#ex_cancel').onclick = () => modal.remove();
+      modal.querySelector('#ex_confirm').onclick = async () => {
+        const dateStr = modal.querySelector('#ex_date').value;
+        if (!dateStr) { alert('Exit date required'); return; }
+
+        const unreturned = Array.from(modal.querySelectorAll('.return-check:not(:checked)')).map(cb => cb.value);
+        if (unreturned.length > 0) {
+          if (!confirm(`The following tools have NOT been marked as returned:\n- ${unreturned.join('\n- ')}\n\nProcess exit anyway?`)) return;
+        }
+
+        const fullIso = new Date(dateStr).toISOString();
+        const iso = fullIso.slice(0, 10);
+
+        const btn = modal.querySelector('#ex_confirm');
+        btn.textContent = 'Processing...';
+        btn.disabled = true;
+
+        if (window.updateEmployee) {
+          try {
+            await window.updateEmployee(emp.id, {
+              status: 'Exited',
+              exit_date: fullIso,
+              inventory_notes: unreturned.length > 0 ? `Unreturned tools: ${unreturned.join(', ')}` : 'All tools returned'
+            });
+          } catch { }
+        }
+        Store.updateEmployee(emp.id, {
+          status: 'Exited',
+          exit: iso,
+          exit_date: iso,
+          inventoryNotes: unreturned.length > 0 ? `Unreturned tools: ${unreturned.join(', ')}` : 'All tools returned'
+        });
+
+        employees = Store.getEmployees();
+        modal.remove();
+        populateDeptFilter();
+        filterAndRender();
+        alert(`Exit processed for ${emp.name}. Status updated to Exited.`);
+      };
     }
 
     /***********************

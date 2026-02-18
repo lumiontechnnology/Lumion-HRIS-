@@ -99,6 +99,14 @@
         <input name="email" type="email" placeholder="you@company.com" required />
         <label>Password</label>
         <input name="password" type="password" placeholder="••••••••" required />
+
+        <label>Account Type</label>
+        <select name="role" required
+          style="width: 100%; padding: 10px 12px; border: 1px solid #d1d5db; border-radius: 8px; background: white;">
+          <option value="user">User / Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+
         <button type="submit">Sign Up</button>
         <div class="small"><a href="login.html">Already have an account? Login</a></div>
         <div id="msg" class="hint"></div>
@@ -107,7 +115,7 @@
   </div>
   <script type="module">
     import { signupWithSupabase } from './js/auth.js';
-    
+
     const form = document.getElementById('signup-form');
     const msg = document.getElementById('msg');
 
@@ -117,14 +125,15 @@
       const name = form.querySelector('input[name="name"]').value.trim();
       const email = form.querySelector('input[name="email"]').value.trim();
       const password = form.querySelector('input[name="password"]').value.trim();
-      
+      const role = form.querySelector('select[name="role"]').value;
+
       const btn = form.querySelector('button');
       const originalText = btn.textContent;
       btn.textContent = 'Signing up...';
       btn.disabled = true;
 
       try {
-        const res = await signupWithSupabase(email, password, name);
+        const res = await signupWithSupabase(email, password, name, role);
         if (!res.ok) {
           msg.className = 'err';
           msg.textContent = 'Signup failed: ' + res.error;
@@ -132,10 +141,10 @@
           btn.disabled = false;
           return;
         }
-        
+
         msg.className = 'ok';
-        msg.textContent = 'Account created! Redirecting to login...';
-        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+        msg.textContent = 'Account created! Please check your email inbox to confirm your account before logging in. Redirecting...';
+        setTimeout(() => { window.location.href = 'login.html'; }, 3000);
       } catch (err) {
         msg.className = 'err';
         msg.textContent = 'An unexpected error occurred';

@@ -74,7 +74,11 @@
 
   var url = cfg.NEXT_PUBLIC_SUPABASE_URL;
   var key = cfg.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key || typeof supabase === 'undefined') return;
+  if (!url || !key || typeof supabase === 'undefined') {
+    console.warn('Supabase client could not be initialized. Missing URL/Key or SDK undefined.');
+    return;
+  }
+  console.log('Initializing Supabase client with URL:', url);
   var client = supabase.createClient(url, key);
   window.supabaseClient = client;
   window.loadRemoteState = async function () {
@@ -129,6 +133,9 @@
         contact_email: emp.contact_email || null,
         contact_phone: emp.contact_phone || null,
         exit_date: emp.exit_date || null,
+        account_role: emp.account_role || emp.accountRole || null,
+        inventory: emp.inventory || [],
+        inventory_notes: emp.inventory_notes || emp.inventoryNotes || null,
         files: emp.files || [],
         history: emp.history || {}
       }, { onConflict: 'employee_id' });
