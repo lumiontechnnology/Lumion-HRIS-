@@ -1,6 +1,28 @@
 // Simple role-based auth for static site (demo only)
 import { Store } from './store.js';
 
+/**
+ * Lazily get or create the Supabase client.
+ * Handles cases where supabase.js IIFE ran before the CDN script loaded.
+ */
+function getClient() {
+  if (window.supabaseClient) return window.supabaseClient;
+  const cfg = window.__env__ || {};
+  const url = cfg.NEXT_PUBLIC_SUPABASE_URL;
+  const key = cfg.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) {
+    console.error('Supabase env vars missing from window.__env__');
+    return null;
+  }
+  if (typeof supabase === 'undefined') {
+    console.error('Supabase SDK not loaded from CDN yet');
+    return null;
+  }
+  window.supabaseClient = supabase.createClient(url, key);
+  console.log('Supabase client lazily initialized');
+  return window.supabaseClient;
+}
+
 export function requireAuth(role) {
   const user = Store.currentUser();
   if (!user) {
@@ -8,7 +30,7 @@ export function requireAuth(role) {
     return;
   }
   if (role && user.role !== role) {
-    // redirect to appropriate home
+    if (role === 'user' && user.role === 'admin') return;
     if (user.role === 'admin') window.location.href = 'hris-dashboard-admin.html';
     else window.location.href = 'user-dashboard.html';
   }
@@ -18,7 +40,14 @@ export function renderUserMenu(containerId = 'user-menu') {
   const el = document.getElementById(containerId);
   if (!el) return;
   const u = Store.currentUser();
-  el.innerHTML = u ? `Logged in as ${u.name} (${u.role}) <button id="logoutBtn">Logout</button>` : '';
+  el.innerHTML = u ? (
+    u.role === 'admin'
+      ? `Logged in as ${u.name} (admin) 
+         <a href="hris-dashboard-admin.html" class="btn">Admin Dashboard</a>
+         <a href="user-dashboard.html" class="btn">User Dashboard</a>
+         <button id="logoutBtn">Logout</button>`
+      : `Logged in as ${u.name} (${u.role}) <button id="logoutBtn">Logout</button>`
+  ) : '';
   const btn = document.getElementById('logoutBtn');
   if (btn) btn.onclick = async () => {
     // clear both session systems (new + legacy)
@@ -30,19 +59,14 @@ export function renderUserMenu(containerId = 'user-menu') {
 }
 
 export async function signupWithSupabase(email, password, name, role = 'user') {
-  if (!window.supabaseClient) {
-    console.error('Supabase client not initialized');
-    return { ok: false, error: 'Initialization error' };
+  const client = getClient();
+  if (!client) {
+    return { ok: false, error: 'Supabase is not configured. Check config/env.js has the correct SUPABASE_URL and ANON_KEY.' };
   }
-  const { data, error } = await window.supabaseClient.auth.signUp({
+  const { data, error } = await client.auth.signUp({
     email,
     password,
-    options: {
-      data: {
-        full_name: name,
-        role: role
-      }
-    }
+    options: { data: { full_name: name, role } }
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true, user: data.user };
@@ -113,40 +137,96 @@ export function handleLoginForm() {
   if (!form) return;
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = form.querySelector('input[name="email"]').value.trim();
+    const email = form.querySelector('input[name="email"]').value.trim().toLowerCase();
     const password = form.querySelector('input[name="password"]').value.trim();
 
-    // Show loading state
     const btn = form.querySelector('button');
     const originalText = btn.textContent;
-    btn.textContent = 'Logging in...';
+    btn.textContent = 'Logging in…';
     btn.disabled = true;
 
     try {
-      const res = await loginWithSupabase(email, password);
-      if (!res.ok) {
-        let errorMsg = res.error;
-        if (errorMsg.toLowerCase().includes('email not confirmed')) {
-          errorMsg = 'Your email has not been confirmed yet. Please check your inbox for a confirmation link from Supabase.';
-        } else if (email === 'admin@lumion.com' && errorMsg.includes('Invalid login credentials')) {
-          errorMsg += '\n\nTIP: Since we migrated to Supabase, you must first CREATE this account at the signup page once.';
+      // ── Step 1: Try Supabase if available ──────────────────────────────
+      const client = getClient();
+      if (client) {
+        const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          let errorMsg = error.message || 'Login failed';
+
+          if (errorMsg.toLowerCase().includes('email not confirmed') ||
+            errorMsg.toLowerCase().includes('email_not_confirmed')) {
+            errorMsg = '✉️ Your email is not confirmed yet.\n\nPlease check your inbox (and spam folder) for a confirmation link from Supabase. After clicking the link, try logging in again.\n\nAlternatively, ask your admin to disable "Email Confirmations" in the Supabase Dashboard → Authentication → Providers → Email.';
+          } else if (errorMsg.toLowerCase().includes('invalid login credentials') ||
+            errorMsg.toLowerCase().includes('invalid credentials')) {
+            errorMsg = 'Incorrect email or password. Please try again.';
+          }
+
+          alert('Login failed: ' + errorMsg);
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
         }
-        alert('Login failed: ' + errorMsg);
-        btn.textContent = originalText;
-        btn.disabled = false;
+
+        // ── Step 2: Supabase login succeeded — set session ─────────────
+        const sbUser = data.user;
+        if (!sbUser) {
+          alert('Login failed: No user returned. Please try again.');
+          btn.textContent = originalText;
+          btn.disabled = false;
+          return;
+        }
+
+        // Extract role — Supabase stores it in user_metadata
+        const role = (
+          sbUser.user_metadata?.role ||
+          sbUser.app_metadata?.role ||
+          'user'
+        ).toLowerCase();
+
+        // Ensure user exists in local Store with correct role
+        const s = Store.getState();
+        let localUser = s.users.find(u => u.email === email);
+        if (!localUser) {
+          const newUser = {
+            id: sbUser.id,
+            email: sbUser.email,
+            name: sbUser.user_metadata?.full_name || email.split('@')[0],
+            role: role
+          };
+          Store.addUser(newUser);
+          localStorage.setItem('lumionHR_current_user_id', sbUser.id);
+        } else {
+          // Update role in case it changed
+          localUser.role = role;
+          Store.setState(s);
+          localStorage.setItem('lumionHR_current_user_id', localUser.id);
+        }
+
+        // Also store Supabase user in a quick-access key for settings pages
+        localStorage.setItem('lumion_user', JSON.stringify({
+          id: sbUser.id,
+          email: sbUser.email,
+          name: sbUser.user_metadata?.full_name || email.split('@')[0],
+          role: role,
+          user_metadata: sbUser.user_metadata
+        }));
+
+        localStorage.setItem('isLoggedIn', 'true');
+
+        const target = 'user-dashboard.html';
+        window.location.href = target;
         return;
       }
 
-      const u = Store.currentUser();
-      console.log('Current user from Store after login:', u);
-      localStorage.setItem('isLoggedIn', 'true');
+      // ── Step 3: Supabase not configured ────────────────────────────────
+      alert('Supabase is not configured. Please set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in config/env.js.');
+      btn.textContent = originalText;
+      btn.disabled = false;
 
-      const target = (u && u.role === 'admin') ? 'hris-dashboard-admin.html' : 'user-dashboard.html';
-      console.log('Redirecting to:', target);
-      window.location.href = target;
     } catch (err) {
-      alert('An unexpected error occurred');
-      console.error(err);
+      console.error('Login error:', err);
+      alert('An unexpected error occurred: ' + (err.message || err));
       btn.textContent = originalText;
       btn.disabled = false;
     }

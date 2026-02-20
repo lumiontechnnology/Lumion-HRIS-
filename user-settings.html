@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>My Settings – Lumion HRIS</title>
+  <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/site-ui.css" />
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config/env.js"></script>
+  <script src="js/supabase.js"></script>
+
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --brand: #4f46e5;
+      --brand-light: #eef2ff;
+      --teal: #0ea5e9;
+      --green: #10b981;
+      --orange: #f97316;
+      --red: #ef4444;
+      --ink: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --radius: 14px;
+      --shadow: 0 4px 20px rgba(2,6,23,.07);
+      --shadow-hover: 0 8px 28px rgba(2,6,23,.12);
+    }
+    .dark-mode {
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --ink: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #334155;
+      --brand-light: #1e1b4b;
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      transition: background .2s, color .2s;
+    }
+
+    /* ── Header ── */
+    .top-bar {
+      position: sticky; top: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px;
+      background: #111827; color: #fff;
+    }
+    .top-bar-brand { display:flex; align-items:center; gap:10px; font-weight:700; font-size:15px; }
+    .top-bar-brand img { height:28px; width:28px; object-fit:contain; border-radius:6px; }
+    .top-bar-back {
+      display:flex; align-items:center; gap:6px;
+      color:#e5e7eb; text-decoration:none; font-size:13px;
+      padding: 6px 12px; border-radius:8px; border:1px solid rgba(255,255,255,.2);
+      transition: background .15s;
+    }
+    .top-bar-back:hover { background: rgba(255,255,255,.1); }
+
+    /* ── Layout ── */
+    .settings-wrap {
+      max-width: 1040px; margin: 0 auto;
+      padding: 32px 20px 60px;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 24px;
+      align-items: flex-start;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 12px;
+      position: sticky; top: 80px;
+    }
+    .sidebar-avatar-wrap {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 20px 12px 16px; gap: 8px; border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+    .sidebar-avatar {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 26px; font-weight: 700; color: #fff;
+      overflow: hidden; cursor: pointer;
+      transition: transform .18s; border: 3px solid var(--brand);
+    }
+    .sidebar-avatar:hover { transform: scale(1.05); }
+    .sidebar-name { font-weight: 700; font-size: 14px; text-align:center; }
+    .sidebar-role { font-size: 11px; color: var(--muted); background: var(--brand-light); padding: 2px 10px; border-radius:999px; }
+
+    .sidebar-nav { list-style:none; padding:0; }
+    .sidebar-nav li a {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      text-decoration: none; color: var(--ink); font-size: 13.5px; font-weight: 500;
+      transition: background .15s, color .15s;
+    }
+    .sidebar-nav li a:hover { background: var(--brand-light); color: var(--brand); }
+    .sidebar-nav li a.active { background: var(--brand); color: #fff; }
+    .sidebar-nav li a .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+
+    /* ── Main Panel ── */
+    .main-panel {}
+    .section-card {
+      display: none;
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 28px;
+      margin-bottom: 20px;
+      animation: fadeIn .22s ease;
+    }
+    .section-card.active { display: block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+
+    .section-title {
+      font-size: 18px; font-weight: 800; margin-bottom: 4px; letter-spacing: -.2px;
+    }
+    .section-subtitle { font-size: 13px; color: var(--muted); margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 14px; }
+
+    /* ── Form Fields ── */
+    .field-group { margin-bottom: 20px; }
+    .field-group label { display:block; font-size:12px; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:6px; }
+    .field-group input,
+    .field-group select,
+    .field-group textarea {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--border); border-radius: 10px;
+      font-size: 14px; font-family: inherit; color: var(--ink);
+      background: var(--bg);
+      transition: border-color .15s, box-shadow .15s;
+      outline: none;
+    }
+    .field-group input:focus,
+    .field-group select:focus,
+    .field-group textarea:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(79,70,229,.12);
+    }
+    .field-group textarea { min-height: 90px; resize: vertical; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* ── Avatar Upload Section ── */
+    .avatar-upload-zone {
+      display: flex; align-items: center; gap: 20px;
+      padding: 20px; background: var(--bg); border-radius: var(--radius); border: 1.5px dashed var(--border);
+      margin-bottom: 24px;
+    }
+    .avatar-preview {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px; font-weight: 700; color: #fff;
+      overflow: hidden; flex-shrink: 0; border: 3px solid var(--brand);
+    }
+    .avatar-preview img { width:100%; height:100%; object-fit:cover; }
+    .avatar-actions { display: flex; flex-direction: column; gap: 8px; }
+    .avatar-actions p { font-size: 12px; color: var(--muted); }
+
+    /* ── Password Strength Bar ── */
+    .pw-strength-wrap { margin-top: 6px; }
+    .pw-strength-bar {
+      height: 4px; border-radius: 999px; background: var(--border);
+      overflow: hidden; margin-bottom: 4px;
+    }
+    .pw-strength-fill {
+      height: 100%; border-radius: 999px;
+      transition: width .3s, background .3s;
+      width: 0%;
+    }
+    .pw-strength-label { font-size: 11px; color: var(--muted); }
+
+    /* ── Toggle Switch ── */
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 0; border-bottom: 1px solid var(--border);
+    }
+    .toggle-row:last-child { border-bottom: none; }
+    .toggle-info .toggle-label { font-size: 14px; font-weight: 600; }
+    .toggle-info .toggle-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+    .toggle-switch {
+      position: relative; width: 44px; height: 24px; flex-shrink:0;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-track {
+      position: absolute; inset: 0; background: var(--border);
+      border-radius: 999px; cursor: pointer; transition: background .2s;
+    }
+    .toggle-track::after {
+      content: ''; position: absolute;
+      width: 18px; height: 18px; border-radius: 50%; background: #fff;
+      top: 3px; left: 3px; transition: transform .2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,.2);
+    }
+    .toggle-switch input:checked + .toggle-track { background: var(--brand); }
+    .toggle-switch input:checked + .toggle-track::after { transform: translateX(20px); }
+
+    /* ── Appearance Options ── */
+    .theme-options { display: flex; gap: 12px; flex-wrap: wrap; }
+    .theme-opt {
+      flex: 1; min-width: 120px;
+      border: 2px solid var(--border); border-radius: 12px;
+      padding: 16px; cursor: pointer; text-align: center;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .theme-opt:hover { border-color: var(--brand); }
+    .theme-opt.selected { border-color: var(--brand); box-shadow: 0 0 0 3px rgba(79,70,229,.12); }
+    .theme-opt .theme-icon { font-size: 28px; margin-bottom: 6px; }
+    .theme-opt .theme-name { font-size: 13px; font-weight: 600; }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 10px 20px; border-radius: 10px; border: none;
+      font-size: 13.5px; font-weight: 600; cursor: pointer;
+      transition: transform .12s, box-shadow .12s, opacity .12s; font-family: inherit;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(0,0,0,.1); }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-secondary { background: var(--bg); color: var(--ink); border: 1.5px solid var(--border); }
+    .btn-danger { background: #fef2f2; color: var(--red); border: 1.5px solid #fecaca; }
+    .btn-teal { background: var(--teal); color: #fff; }
+    .btn-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 24px; }
+
+    /* ── Danger Zone ── */
+    .danger-zone {
+      border: 1.5px solid #fecaca; border-radius: var(--radius);
+      padding: 20px; background: #fff5f5;
+    }
+    .danger-zone h4 { font-size: 14px; font-weight: 700; color: var(--red); margin-bottom: 6px; }
+    .danger-zone p { font-size: 13px; color: #6b7280; margin-bottom: 14px; }
+    .dark-mode .danger-zone { background: #2d1b1b; border-color: #7f1d1d; }
+
+    /* ── Responsive ── */
+    @media (max-width: 720px) {
+      .settings-wrap { grid-template-columns: 1fr; }
+      .sidebar { position: relative; top: 0; }
+      .field-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Header -->
+  <div class="top-bar">
+    <div class="top-bar-brand">
+      <img src="https://i.ibb.co/XfRLzWwy/Logo.png" alt="Lumion" />
+      Lumion HRIS
+    </div>
+    <a class="top-bar-back" id="back-link" href="user-dashboard.html">← Back to Dashboard</a>
+  </div>
+
+  <div class="settings-wrap">
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+      <div class="sidebar-avatar-wrap">
+        <div class="sidebar-avatar" id="sidebar-avatar-preview">U</div>
+        <div class="sidebar-name" id="sidebar-name">Loading…</div>
+        <div class="sidebar-role" id="sidebar-role">Employee</div>
+      </div>
+      <ul class="sidebar-nav">
+        <li><a href="#" class="active" data-section="profile" id="nav-profile"><span class="nav-icon">👤</span> Profile</a></li>
+        <li><a href="#" data-section="avatar" id="nav-avatar"><span class="nav-icon">🖼️</span> Profile Picture</a></li>
+        <li><a href="#" data-section="password" id="nav-password"><span class="nav-icon">🔑</span> Password</a></li>
+        <li><a href="#" data-section="notifications" id="nav-notifications"><span class="nav-icon">🔔</span> Notifications</a></li>
+        <li><a href="#" data-section="appearance" id="nav-appearance"><span class="nav-icon">🌗</span> Appearance</a></li>
+        <li><a href="#" data-section="data" id="nav-data"><span class="nav-icon">📦</span> My Data</a></li>
+      </ul>
+    </aside>
+
+    <!-- ── Main ── -->
+    <main class="main-panel">
+
+      <!-- Profile -->
+      <div class="section-card active" id="section-profile">
+        <div class="section-title">Profile Information</div>
+        <div class="section-subtitle">Update your personal details and bio.</div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>First Name</label>
+            <input type="text" id="prof-firstname" placeholder="Ada" />
+          </div>
+          <div class="field-group">
+            <label>Last Name</label>
+            <input type="text" id="prof-lastname" placeholder="Bello" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Email Address</label>
+            <input type="email" id="prof-email" placeholder="ada@lumion.com" readonly style="opacity:.7;cursor:not-allowed" />
+          </div>
+          <div class="field-group">
+            <label>Phone Number</label>
+            <input type="tel" id="prof-phone" placeholder="+234 800 000 0000" />
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label>Job Title</label>
+            <input type="text" id="prof-title" readonly style="opacity:.7;cursor:not-allowed" />
+          </div>
+          <div class="field-group">
+            <label>Department</label>
+            <input type="text" id="prof-dept" readonly style="opacity:.7;cursor:not-allowed" />
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Bio / About Me</label>
+          <textarea id="prof-bio" placeholder="A short bio shown on your profile card…"></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="save-profile">Save Profile</button>
+          <span id="profile-saved-note" style="font-size:12px;color:var(--muted);display:none">✓ Saved successfully</span>
+        </div>
+      </div>
+
+      <!-- Avatar -->
+      <div class="section-card" id="section-avatar">
+        <div class="section-title">Profile Picture</div>
+        <div class="section-subtitle">Upload a photo to personalize your account.</div>
+        <div class="avatar-upload-zone">
+          <div class="avatar-preview" id="avatar-preview-large">U</div>
+          <div class="avatar-actions">
+            <p>JPG, PNG or GIF · Max 2MB</p>
+            <label class="btn btn-primary" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+              📁 Choose Photo
+              <input type="file" id="avatar-file-input" accept="image/*" style="display:none" />
+            </label>
+            <button class="btn btn-secondary" id="remove-avatar">Remove Photo</button>
+          </div>
+        </div>
+        <p style="font-size:12px;color:var(--muted)">Your photo is stored locally on this device until a cloud sync is set up.</p>
+      </div>
+
+      <!-- Password -->
+      <div class="section-card" id="section-password">
+        <div class="section-title">Change Password</div>
+        <div class="section-subtitle">Choose a strong password to keep your account secure.</div>
+        <div class="field-group">
+          <label>Current Password</label>
+          <input type="password" id="pw-current" placeholder="Enter current password" autocomplete="current-password" />
+        </div>
+        <div class="field-group">
+          <label>New Password</label>
+          <input type="password" id="pw-new" placeholder="At least 8 characters" autocomplete="new-password" />
+          <div class="pw-strength-wrap">
+            <div class="pw-strength-bar"><div class="pw-strength-fill" id="pw-strength-fill"></div></div>
+            <div class="pw-strength-label" id="pw-strength-label">Enter a new password</div>
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Confirm New Password</label>
+          <input type="password" id="pw-confirm" placeholder="Repeat new password" autocomplete="new-password" />
+          <div style="font-size:12px;color:var(--red);margin-top:5px;display:none" id="pw-match-error">Passwords do not match.</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="save-password">Update Password</button>
+        </div>
+      </div>
+
+      <!-- Notifications -->
+      <div class="section-card" id="section-notifications">
+        <div class="section-title">Notification Preferences</div>
+        <div class="section-subtitle">Choose which alerts you receive by email.</div>
+
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Leave Request Updates</div>
+            <div class="toggle-desc">Approval & rejection emails for leave requests</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="notif-leave" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Payslip Available</div>
+            <div class="toggle-desc">Email when your monthly payslip is ready</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="notif-payslip" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Performance Review Due</div>
+            <div class="toggle-desc">Reminder when a self-appraisal or KPI review is due</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="notif-perf" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Team Announcements</div>
+            <div class="toggle-desc">Company-wide messages from HR or management</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="notif-announce" checked />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Asset & Requisition Updates</div>
+            <div class="toggle-desc">Status changes on your equipment or requisition requests</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="notif-asset" />
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="save-notifications">Save Preferences</button>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="section-card" id="section-appearance">
+        <div class="section-title">Appearance</div>
+        <div class="section-subtitle">Choose how Lumion HRIS looks and feels for you.</div>
+        <div class="theme-options" id="theme-options">
+          <div class="theme-opt selected" data-theme="light" id="theme-light">
+            <div class="theme-icon">☀️</div>
+            <div class="theme-name">Light</div>
+          </div>
+          <div class="theme-opt" data-theme="dark" id="theme-dark">
+            <div class="theme-icon">🌙</div>
+            <div class="theme-name">Dark</div>
+          </div>
+          <div class="theme-opt" data-theme="system" id="theme-system">
+            <div class="theme-icon">🖥️</div>
+            <div class="theme-name">System</div>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:16px">
+          <button class="btn btn-primary" id="save-appearance">Apply Theme</button>
+        </div>
+      </div>
+
+      <!-- My Data -->
+      <div class="section-card" id="section-data">
+        <div class="section-title">My Data</div>
+        <div class="section-subtitle">Download or manage the data associated with your account.</div>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:20px;line-height:1.7">You can download a local copy of your profile settings, notification preferences, and planner data stored on this device.</p>
+        <div class="btn-row">
+          <button class="btn btn-teal" id="export-data">⬇ Download My Data (JSON)</button>
+        </div>
+        <div style="margin-top:32px">
+          <div class="danger-zone">
+            <h4>⚠ Danger Zone</h4>
+            <p>Clearing your local settings will remove all saved profile data, preferences, and avatar from this browser. This does not affect your Supabase account data.</p>
+            <button class="btn btn-danger" id="clear-local-data">Clear Local Settings</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module">
+    import { loadSettings, saveSetting, getSetting, getCurrentUser, getRole, handleAvatarUpload, loadAvatar, applyAvatar, passwordStrength, showToast, applyTheme, auditLog } from './js/settings.js';
+
+    // ── Init ──
+    applyTheme();
+
+    const user = getCurrentUser();
+    const role = getRole();
+
+    // Back link
+    const backLink = document.getElementById('back-link');
+    if (role === 'admin' || role === 'super_admin') backLink.href = 'hris-dashboard-admin.html';
+
+    // Sidebar user info
+    const nameEl = document.getElementById('sidebar-name');
+    const roleEl = document.getElementById('sidebar-role');
+    if (user) {
+      const fullName = user.name || user.user_metadata?.full_name || user.email || '—';
+      nameEl.textContent = fullName;
+      roleEl.textContent = role === 'super_admin' ? 'Super Admin' : role === 'admin' ? 'Administrator' : 'Employee';
+      const initials = fullName.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase() || 'U';
+      document.getElementById('sidebar-avatar-preview').textContent = initials;
+    }
+
+    // Load avatar everywhere
+    const sidebarAv = document.getElementById('sidebar-avatar-preview');
+    const previewLg = document.getElementById('avatar-preview-large');
+    const savedAv = localStorage.getItem('lumion_avatar');
+    if (savedAv) {
+      applyAvatar(sidebarAv, savedAv);
+      applyAvatar(previewLg, savedAv);
+    }
+
+    // Pre-fill profile
+    const s = loadSettings();
+    if (user) {
+      const fullName = user.name || user.user_metadata?.full_name || '';
+      const [first, ...rest] = fullName.split(' ');
+      document.getElementById('prof-firstname').value = s.firstName || first || '';
+      document.getElementById('prof-lastname').value = s.lastName || rest.join(' ') || '';
+      document.getElementById('prof-email').value = user.email || user.user_metadata?.email || '';
+      document.getElementById('prof-title').value = user.role || user.user_metadata?.role || '—';
+      document.getElementById('prof-dept').value = user.dept || user.user_metadata?.dept || '—';
+    }
+    document.getElementById('prof-phone').value = s.phone || '';
+    document.getElementById('prof-bio').value = s.bio || '';
+
+    // ── Tab Navigation ──
+    const navLinks = document.querySelectorAll('.sidebar-nav a[data-section]');
+    const sections = document.querySelectorAll('.section-card');
+
+    navLinks.forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = link.dataset.section;
+        navLinks.forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        sections.forEach(sec => {
+          sec.classList.toggle('active', sec.id === `section-${target}`);
+        });
+      });
+    });
+
+    // ── Save Profile ──
+    document.getElementById('save-profile').addEventListener('click', () => {
+      const fn = document.getElementById('prof-firstname').value.trim();
+      const ln = document.getElementById('prof-lastname').value.trim();
+      const ph = document.getElementById('prof-phone').value.trim();
+      const bio = document.getElementById('prof-bio').value.trim();
+      if (!fn) { showToast('First name is required', 'error'); return; }
+      saveSetting('firstName', fn);
+      saveSetting('lastName', ln);
+      saveSetting('phone', ph);
+      saveSetting('bio', bio);
+      const note = document.getElementById('profile-saved-note');
+      note.style.display = 'inline';
+      setTimeout(() => note.style.display = 'none', 3000);
+      auditLog('profile_update', user?.email || 'user', `Name: ${fn} ${ln}`);
+      showToast('Profile saved!', 'success');
+      // update sidebar
+      nameEl.textContent = `${fn} ${ln}`;
+    });
+
+    // ── Avatar Upload ──
+    const fileInput = document.getElementById('avatar-file-input');
+    handleAvatarUpload(fileInput, previewLg);
+    fileInput.addEventListener('change', () => {
+      // also update sidebar avatar
+      setTimeout(() => {
+        const saved = localStorage.getItem('lumion_avatar');
+        if (saved) applyAvatar(sidebarAv, saved);
+      }, 200);
+    });
+
+    document.getElementById('remove-avatar').addEventListener('click', () => {
+      localStorage.removeItem('lumion_avatar');
+      const user = getCurrentUser();
+      const fullName = user?.name || user?.user_metadata?.full_name || 'U';
+      const initials = fullName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() || 'U';
+      previewLg.style.backgroundImage = '';
+      previewLg.textContent = initials;
+      sidebarAv.style.backgroundImage = '';
+      sidebarAv.textContent = initials;
+      showToast('Profile picture removed', 'info');
+    });
+
+    // ── Password ──
+    const pwNew = document.getElementById('pw-new');
+    const pwConfirm = document.getElementById('pw-confirm');
+    const strengthFill = document.getElementById('pw-strength-fill');
+    const strengthLabel = document.getElementById('pw-strength-label');
+    const matchError = document.getElementById('pw-match-error');
+
+    pwNew.addEventListener('input', () => {
+      const val = pwNew.value;
+      const str = passwordStrength(val);
+      const config = {
+        weak:   { width:'28%', bg:'#ef4444', label:'Weak password' },
+        medium: { width:'60%', bg:'#f97316', label:'Medium strength' },
+        strong: { width:'100%', bg:'#10b981', label:'Strong password ✓' }
+      }[str];
+      strengthFill.style.width = config.width;
+      strengthFill.style.background = config.bg;
+      strengthLabel.textContent = config.label;
+      strengthLabel.style.color = config.bg;
+    });
+
+    pwConfirm.addEventListener('input', () => {
+      matchError.style.display = (pwConfirm.value && pwConfirm.value !== pwNew.value) ? 'block' : 'none';
+    });
+
+    document.getElementById('save-password').addEventListener('click', async () => {
+      const current = document.getElementById('pw-current').value;
+      const newPw = pwNew.value;
+      const confirm = pwConfirm.value;
+      if (!current) { showToast('Enter your current password', 'error'); return; }
+      if (newPw.length < 8) { showToast('New password must be at least 8 characters', 'error'); return; }
+      if (newPw !== confirm) { showToast('Passwords do not match', 'error'); return; }
+      if (passwordStrength(newPw) === 'weak') { showToast('Password is too weak', 'warning'); return; }
+
+      const btn = document.getElementById('save-password');
+      btn.textContent = 'Updating…'; btn.disabled = true;
+      try {
+        if (window.supabaseClient) {
+          const { error } = await window.supabaseClient.auth.updateUser({ password: newPw });
+          if (error) throw new Error(error.message);
+        }
+        auditLog('password_change', user?.email || 'user');
+        showToast('Password updated successfully!', 'success');
+        document.getElementById('pw-current').value = '';
+        pwNew.value = '';
+        pwConfirm.value = '';
+        strengthFill.style.width = '0%';
+        strengthLabel.textContent = 'Enter a new password';
+        strengthLabel.style.color = '';
+      } catch(err) {
+        showToast(err.message || 'Failed to update password', 'error');
+      } finally {
+        btn.textContent = 'Update Password'; btn.disabled = false;
+      }
+    });
+
+    // ── Notifications ──
+    const notifKeys = ['notif-leave','notif-payslip','notif-perf','notif-announce','notif-asset'];
+    notifKeys.forEach(k => {
+      const el = document.getElementById(k);
+      const stored = getSetting(k);
+      if (stored !== null) el.checked = stored;
+    });
+    document.getElementById('save-notifications').addEventListener('click', () => {
+      notifKeys.forEach(k => saveSetting(k, document.getElementById(k).checked));
+      showToast('Notification preferences saved!', 'success');
+    });
+
+    // ── Appearance ──
+    let selectedTheme = getSetting('theme', 'light');
+    document.querySelectorAll('.theme-opt').forEach(opt => {
+      opt.classList.toggle('selected', opt.dataset.theme === selectedTheme);
+      opt.addEventListener('click', () => {
+        selectedTheme = opt.dataset.theme;
+        document.querySelectorAll('.theme-opt').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+      });
+    });
+    document.getElementById('save-appearance').addEventListener('click', () => {
+      saveSetting('theme', selectedTheme);
+      applyTheme();
+      showToast('Theme applied!', 'success');
+    });
+
+    // ── Export Data ──
+    document.getElementById('export-data').addEventListener('click', () => {
+      const all = loadSettings();
+      const blob = new Blob([JSON.stringify({ settings: all, exportedAt: new Date().toISOString(), user: { email: user?.email } }, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'lumion-my-data.json';
+      a.click();
+      showToast('Data exported!', 'success');
+    });
+
+    document.getElementById('clear-local-data').addEventListener('click', () => {
+      if (!confirm('Clear all local settings and avatar? This cannot be undone.')) return;
+      localStorage.removeItem('lumion_settings');
+      localStorage.removeItem('lumion_avatar');
+      showToast('Local settings cleared', 'info');
+      setTimeout(() => location.reload(), 1500);
+    });
+  </script>
+</body>
+</html>

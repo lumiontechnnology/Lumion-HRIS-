@@ -139,7 +139,7 @@
     <div id="login-card" class="flex flex-col justify-center md:w-1/2 p-8 sm:p-16 bg-white shadow-lg">
       <h2 class="text-2xl font-bold text-gray-900 mb-6 text-center">Sign in to your account</h2>
 
-      <form id="loginForm" class="space-y-5">
+      <form id="login-form" class="space-y-5">
         <div>
           <input type="email" id="email" placeholder="Email address" required
             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none fallback-input">
@@ -183,41 +183,10 @@
     </div>
   </div>
 
-  <!-- JS Logic: unify with shared Store/auth (keeps existing UI) -->
   <script type="module">
-    import { Store } from './js/store.js';
     import './js/header-footer.js';
-
-    const form = document.getElementById('loginForm');
-    form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const email = document.getElementById('email').value.trim();
-      let password = document.getElementById('password').value.trim();
-
-      // Backward-compat: accept old demo password for admin
-      if (email === 'admin@lumion.com' && password === '12345') {
-        password = 'admin123';
-      }
-
-      const u = Store.login(email, password);
-      if (!u) {
-        alert('Invalid login. Demo users: admin@lumion.com/admin123, stanford.george@lumion.com/user123, ada.bello@lumion.com/user123, chike.okoro@lumion.com/user123');
-        return;
-      }
-      // Set legacy flag for pages still checking it
-      localStorage.setItem('isLoggedIn', 'true');
-      // Role-based redirect
-      if (u.role === 'admin') window.location.href = 'hris-dashboard-admin.html';
-      else window.location.href = 'user-dashboard.html';
-    });
-
-    // If already logged in via legacy flag, keep redirect to admin for now
-    if (localStorage.getItem('isLoggedIn') === 'true') {
-      // Try to route based on current user, default to admin dashboard
-      const u = Store.currentUser();
-      if (u && u.role === 'user') window.location.href = 'user-dashboard.html';
-      else window.location.href = 'hris-dashboard-admin.html';
-    }
+    import { handleLoginForm } from './js/auth.js';
+    handleLoginForm();
   </script>
 
 

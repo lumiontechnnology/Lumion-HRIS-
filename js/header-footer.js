@@ -40,7 +40,12 @@ function createHeader() {
       </nav>
       <div class="site-actions">
         ${user ? `
-          <a class="btn" href="${user.role === 'admin' ? '/hris-dashboard-admin.html' : '/user-dashboard.html'}">Dashboard</a>
+          ${user.role === 'admin' ? `
+            <a class="btn" href="/hris-dashboard-admin.html">Admin Dashboard</a>
+            <a class="btn" href="/user-dashboard.html">User Dashboard</a>
+          ` : `
+            <a class="btn" href="/user-dashboard.html">Dashboard</a>
+          `}
           <a class="btn" href="/performance-dashboard.html">Performance</a>
           <button class="btn danger" id="site-logout">Logout</button>
         ` : `
@@ -72,7 +77,12 @@ function createHeader() {
           <a href="https://github.com/lumiontechnnology/Lumion-HRIS-" target="_blank" rel="noopener">Developers</a>
           <a href="/team.html">Team</a>
           ${user ? `
-            <a href="${user.role === 'admin' ? '/hris-dashboard-admin.html' : '/user-dashboard.html'}">Dashboard</a>
+            ${user.role === 'admin' ? `
+              <a href="/hris-dashboard-admin.html">Admin Dashboard</a>
+              <a href="/user-dashboard.html">User Dashboard</a>
+            ` : `
+              <a href="/user-dashboard.html">Dashboard</a>
+            `}
             <a href="/performance-dashboard.html">Performance</a>
             <button id="site-logout-mobile" class="btn danger" style="margin-top:8px">Logout</button>
           ` : `

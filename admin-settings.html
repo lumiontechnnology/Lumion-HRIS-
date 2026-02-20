@@ -1,0 +1,1412 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin Settings – Lumion HRIS</title>
+    <link rel="icon" href="https://i.ibb.co/XfRLzWwy/Logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="assets/site-ui.css" />
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config/env.js"></script>
+    <script src="js/supabase.js"></script>
+    <style>
+        :root {
+            --bg: #f6f7fb;
+            --surface: #fff;
+            --brand: #4f46e5;
+            --brand-light: #eef2ff;
+            --ink: #111827;
+            --muted: #6b7280;
+            --border: #e5e7eb;
+            --red: #ef4444;
+            --green: #10b981;
+            --orange: #f97316;
+            --teal: #0ea5e9;
+            --radius: 14px;
+            --shadow: 0 4px 20px rgba(2, 6, 23, .07)
+        }
+
+        .dark-mode {
+            --bg: #0f172a;
+            --surface: #1e293b;
+            --ink: #f1f5f9;
+            --muted: #94a3b8;
+            --border: #334155;
+            --brand-light: #1e1b4b
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0
+        }
+
+        body {
+            font-family: Inter, system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            min-height: 100vh;
+            transition: background .2s, color .2s
+        }
+
+        .top-bar {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 24px;
+            background: #111827;
+            color: #fff
+        }
+
+        .top-bar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 15px
+        }
+
+        .top-bar-brand img {
+            height: 28px;
+            width: 28px;
+            object-fit: contain;
+            border-radius: 6px
+        }
+
+        .top-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px
+        }
+
+        .top-bar-back {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #e5e7eb;
+            text-decoration: none;
+            font-size: 13px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, .2);
+            transition: background .15s
+        }
+
+        .top-bar-back:hover {
+            background: rgba(255, 255, 255, .1)
+        }
+
+        .role-badge {
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .5px
+        }
+
+        .role-badge.super {
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            color: #78350f
+        }
+
+        .role-badge.admin-b {
+            background: linear-gradient(135deg, #818cf8, #4f46e5);
+            color: #fff
+        }
+
+        .settings-wrap {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 28px 20px 60px;
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            gap: 24px;
+            align-items: flex-start
+        }
+
+        .sidebar {
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 12px;
+            position: sticky;
+            top: 76px
+        }
+
+        .sidebar-header {
+            padding: 16px 12px 14px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 8px
+        }
+
+        .sidebar-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f46e5, #06b6d4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            overflow: hidden;
+            border: 3px solid var(--brand);
+            margin: 0 auto 8px;
+            cursor: pointer;
+            transition: transform .18s
+        }
+
+        .sidebar-avatar:hover {
+            transform: scale(1.05)
+        }
+
+        .sidebar-name {
+            font-weight: 700;
+            font-size: 13px;
+            text-align: center
+        }
+
+        .sidebar-subrole {
+            font-size: 11px;
+            color: var(--muted);
+            text-align: center;
+            margin-top: 3px
+        }
+
+        .sidebar-section-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--muted);
+            padding: 10px 12px 4px
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 0
+        }
+
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 9px 12px;
+            border-radius: 10px;
+            text-decoration: none;
+            color: var(--ink);
+            font-size: 13px;
+            font-weight: 500;
+            transition: background .15s, color .15s
+        }
+
+        .sidebar-nav li a:hover {
+            background: var(--brand-light);
+            color: var(--brand)
+        }
+
+        .sidebar-nav li a.active {
+            background: var(--brand);
+            color: #fff
+        }
+
+        .sidebar-nav li a .ni {
+            font-size: 15px;
+            width: 18px;
+            text-align: center
+        }
+
+        .sidebar-nav li a.super-only {
+            position: relative
+        }
+
+        .sidebar-nav li a.super-only .lock-badge {
+            font-size: 9px;
+            background: #fef3c7;
+            color: #92400e;
+            padding: 1px 5px;
+            border-radius: 4px;
+            margin-left: auto
+        }
+
+        .main-panel {}
+
+        .section-card {
+            display: none;
+            background: var(--surface);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 28px;
+            margin-bottom: 20px;
+            animation: fadeIn .2s ease
+        }
+
+        .section-card.active {
+            display: block
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px)
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0)
+            }
+        }
+
+        .sec-head {
+            margin-bottom: 20px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .sec-title {
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: -.2px
+        }
+
+        .sec-sub {
+            font-size: 13px;
+            color: var(--muted);
+            margin-top: 3px
+        }
+
+        .field-group {
+            margin-bottom: 18px
+        }
+
+        .field-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            margin-bottom: 5px
+        }
+
+        .field-group input,
+        .field-group select,
+        .field-group textarea {
+            width: 100%;
+            padding: 10px 13px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            color: var(--ink);
+            background: var(--bg);
+            outline: none;
+            transition: border-color .15s, box-shadow .15s
+        }
+
+        .field-group input:focus,
+        .field-group select:focus,
+        .field-group textarea:focus {
+            border-color: var(--brand);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, .12)
+        }
+
+        .field-group textarea {
+            min-height: 80px;
+            resize: vertical
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px
+        }
+
+        .field-row-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 14px
+        }
+
+        .btn {
+            padding: 9px 18px;
+            border-radius: 10px;
+            border: none;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform .12s, box-shadow .12s, opacity .12s;
+            font-family: inherit
+        }
+
+        .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 5px 14px rgba(0, 0, 0, .1)
+        }
+
+        .btn-primary {
+            background: var(--brand);
+            color: #fff
+        }
+
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--ink);
+            border: 1.5px solid var(--border)
+        }
+
+        .btn-danger {
+            background: #fef2f2;
+            color: var(--red);
+            border: 1.5px solid #fecaca
+        }
+
+        .btn-green {
+            background: #dcfce7;
+            color: #15803d;
+            border: 1.5px solid #bbf7d0
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px
+        }
+
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 20px
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .toggle-row:last-child {
+            border-bottom: none
+        }
+
+        .toggle-info .tl {
+            font-size: 13.5px;
+            font-weight: 600
+        }
+
+        .toggle-info .td {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 2px
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            flex-shrink: 0
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0
+        }
+
+        .toggle-track {
+            position: absolute;
+            inset: 0;
+            background: var(--border);
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background .2s
+        }
+
+        .toggle-track::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #fff;
+            top: 3px;
+            left: 3px;
+            transition: transform .2s;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .2)
+        }
+
+        .toggle-switch input:checked+.toggle-track {
+            background: var(--brand)
+        }
+
+        .toggle-switch input:checked+.toggle-track::after {
+            transform: translateX(20px)
+        }
+
+        /* Role table */
+        .role-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px
+        }
+
+        .role-table th {
+            text-align: left;
+            padding: 10px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: var(--muted);
+            border-bottom: 2px solid var(--border)
+        }
+
+        .role-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle
+        }
+
+        .role-table tr:last-child td {
+            border-bottom: none
+        }
+
+        .role-table tr:hover td {
+            background: var(--brand-light)
+        }
+
+        .user-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px
+        }
+
+        .user-avatar-sm {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #06b6d4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0
+        }
+
+        /* Tax bracket table */
+        .bracket-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            margin-bottom: 16px
+        }
+
+        .bracket-table th {
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: var(--muted);
+            border-bottom: 2px solid var(--border)
+        }
+
+        .bracket-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .bracket-table input {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 5px 8px;
+            font-family: inherit;
+            font-size: 13px;
+            background: var(--bg);
+            color: var(--ink)
+        }
+
+        /* KPI weight rows */
+        .kpi-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .kpi-row:last-child {
+            border-bottom: none
+        }
+
+        .kpi-row .kpi-label {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500
+        }
+
+        .kpi-row input[type=range] {
+            flex: 1
+        }
+
+        .kpi-row .kpi-val {
+            width: 40px;
+            text-align: right;
+            font-weight: 700;
+            font-size: 13px;
+            color: var(--brand)
+        }
+
+        /* Pipeline stages */
+        .stages-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 16px
+        }
+
+        .stage-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg);
+            border-radius: 10px;
+            padding: 10px 14px;
+            border: 1px solid var(--border)
+        }
+
+        .stage-item .drag-handle {
+            color: var(--muted);
+            cursor: grab;
+            font-size: 16px
+        }
+
+        .stage-item .stage-name {
+            flex: 1;
+            font-weight: 600;
+            font-size: 13px
+        }
+
+        .stage-item .stage-badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 999px
+        }
+
+        /* Interview scorecard */
+        .score-card {
+            background: var(--bg);
+            border-radius: 12px;
+            padding: 14px;
+            border: 1px solid var(--border);
+            margin-bottom: 12px
+        }
+
+        .score-card h4 {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 10px
+        }
+
+        .score-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px
+        }
+
+        .score-row label {
+            flex: 1;
+            font-size: 12px;
+            color: var(--muted)
+        }
+
+        .score-row input[type=range] {
+            flex: 1
+        }
+
+        .score-row span {
+            width: 30px;
+            text-align: right;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--brand)
+        }
+
+        /* Audit table */
+        .audit-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12.5px
+        }
+
+        .audit-table th {
+            text-align: left;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: var(--muted);
+            border-bottom: 2px solid var(--border)
+        }
+
+        .audit-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .audit-table tr:last-child td {
+            border-bottom: none
+        }
+
+        .audit-table tr:hover td {
+            background: rgba(79, 70, 229, .04)
+        }
+
+        /* Password strength */
+        .pw-strength-bar {
+            height: 4px;
+            border-radius: 999px;
+            background: var(--border);
+            overflow: hidden;
+            margin-top: 6px
+        }
+
+        .pw-strength-fill {
+            height: 100%;
+            border-radius: 999px;
+            transition: width .3s, background .3s;
+            width: 0%
+        }
+
+        .pw-strength-label {
+            font-size: 11px;
+            color: var(--muted);
+            margin-top: 3px
+        }
+
+        /* Avatar upload */
+        .avatar-upload-zone {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 18px;
+            background: var(--bg);
+            border-radius: var(--radius);
+            border: 1.5px dashed var(--border);
+            margin-bottom: 20px
+        }
+
+        .avatar-preview {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4f46e5, #06b6d4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: 700;
+            color: #fff;
+            overflow: hidden;
+            flex-shrink: 0;
+            border: 3px solid var(--brand)
+        }
+
+        /* Dept/loc tags */
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--brand-light);
+            color: var(--brand);
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: 600
+        }
+
+        .tag .tag-remove {
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 1;
+            color: var(--brand);
+            opacity: .7
+        }
+
+        .tag .tag-remove:hover {
+            opacity: 1
+        }
+
+        /* Danger zone */
+        .danger-zone {
+            border: 1.5px solid #fecaca;
+            border-radius: var(--radius);
+            padding: 18px;
+            background: #fff5f5
+        }
+
+        .danger-zone h4 {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--red);
+            margin-bottom: 5px
+        }
+
+        .danger-zone p {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 12px
+        }
+
+        .dark-mode .danger-zone {
+            background: #2d1b1b;
+            border-color: #7f1d1d
+        }
+
+        .info-box {
+            background: var(--brand-light);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 13px;
+            color: var(--ink);
+            margin-bottom: 16px;
+            border-left: 3px solid var(--brand)
+        }
+
+        @media(max-width:760px) {
+            .settings-wrap {
+                grid-template-columns: 1fr
+            }
+
+            .sidebar {
+                position: relative;
+                top: 0
+            }
+
+            .field-row,
+            .field-row-3 {
+                grid-template-columns: 1fr
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top-bar">
+        <div class="top-bar-brand">
+            <img src="https://i.ibb.co/XfRLzWwy/Logo.png" alt="Lumion" />
+            Lumion HRIS — Admin Settings
+        </div>
+        <div class="top-bar-actions">
+            <span class="role-badge" id="top-role-badge">Admin</span>
+            <a class="top-bar-back" href="hris-dashboard-admin.html">← Dashboard</a>
+        </div>
+    </div>
+
+    <div class="settings-wrap">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-avatar" id="sidebar-avatar">A</div>
+                <div class="sidebar-name" id="sidebar-name">Admin User</div>
+                <div class="sidebar-subrole" id="sidebar-subrole">Administrator</div>
+            </div>
+
+            <div class="sidebar-section-label">Account</div>
+            <ul class="sidebar-nav">
+                <li><a href="#" class="active" data-s="profile" id="nav-profile"><span class="ni">👤</span> My
+                        Profile</a></li>
+                <li><a href="#" data-s="avatar" id="nav-avatar"><span class="ni">🖼️</span> Profile Picture</a></li>
+                <li><a href="#" data-s="password" id="nav-password"><span class="ni">🔑</span> Password</a></li>
+            </ul>
+
+            <div class="sidebar-section-label">Organisation</div>
+            <ul class="sidebar-nav">
+                <li><a href="#" data-s="roles" id="nav-roles" class="super-only"><span class="ni">🔐</span> Roles &amp;
+                        Permissions <span class="lock-badge">★ Super</span></a></li>
+                <li><a href="#" data-s="payroll" id="nav-payroll"><span class="ni">💰</span> Payroll Config</a></li>
+                <li><a href="#" data-s="performance" id="nav-performance"><span class="ni">📊</span> Performance</a>
+                </li>
+                <li><a href="#" data-s="employees" id="nav-employees"><span class="ni">👥</span> Employee Config</a>
+                </li>
+                <li><a href="#" data-s="jobs" id="nav-jobs"><span class="ni">💼</span> Jobs &amp; Recruiting</a></li>
+                <li><a href="#" data-s="interviews" id="nav-interviews"><span class="ni">🎤</span> Interview
+                        Settings</a></li>
+            </ul>
+
+            <div class="sidebar-section-label">System</div>
+            <ul class="sidebar-nav">
+                <li><a href="#" data-s="notifications" id="nav-notifications"><span class="ni">🔔</span>
+                        Notifications</a></li>
+                <li><a href="#" data-s="system" id="nav-system" class="super-only"><span class="ni">🌐</span> System
+                        &amp; Integrations <span class="lock-badge">★ Super</span></a></li>
+                <li><a href="#" data-s="audit" id="nav-audit" class="super-only"><span class="ni">📋</span> Audit Log
+                        <span class="lock-badge">★ Super</span></a></li>
+            </ul>
+        </aside>
+
+        <!-- Main panel -->
+        <main class="main-panel">
+
+            <!-- My Profile -->
+            <div class="section-card active" id="section-profile">
+                <div class="sec-head">
+                    <div class="sec-title">My Profile</div>
+                    <div class="sec-sub">Update your admin account details.</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group"><label>First Name</label><input id="p-firstname" placeholder="Admin" />
+                    </div>
+                    <div class="field-group"><label>Last Name</label><input id="p-lastname" placeholder="User" /></div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group"><label>Email</label><input id="p-email" type="email" readonly
+                            style="opacity:.7;cursor:not-allowed" /></div>
+                    <div class="field-group"><label>Phone</label><input id="p-phone" type="tel"
+                            placeholder="+234 800 000 0000" /></div>
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-profile">Save Profile</button></div>
+            </div>
+
+            <!-- Profile Picture -->
+            <div class="section-card" id="section-avatar">
+                <div class="sec-head">
+                    <div class="sec-title">Profile Picture</div>
+                    <div class="sec-sub">Upload an avatar for your admin account.</div>
+                </div>
+                <div class="avatar-upload-zone">
+                    <div class="avatar-preview" id="avatar-preview">A</div>
+                    <div>
+                        <p style="font-size:12px;color:var(--muted);margin-bottom:10px">JPG, PNG or GIF · Max 2MB</p>
+                        <label class="btn btn-primary"
+                            style="display:inline-flex;align-items:center;gap:6px;cursor:pointer">
+                            📁 Choose Photo <input type="file" id="avatar-file" accept="image/*" style="display:none" />
+                        </label>
+                        <button class="btn btn-secondary" id="remove-avatar" style="margin-left:8px">Remove</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Password -->
+            <div class="section-card" id="section-password">
+                <div class="sec-head">
+                    <div class="sec-title">Change Password</div>
+                    <div class="sec-sub">Keep your admin account secure.</div>
+                </div>
+                <div class="field-group"><label>Current Password</label><input type="password" id="pw-current"
+                        autocomplete="current-password" /></div>
+                <div class="field-group">
+                    <label>New Password</label>
+                    <input type="password" id="pw-new" autocomplete="new-password" />
+                    <div class="pw-strength-bar">
+                        <div class="pw-strength-fill" id="pw-fill"></div>
+                    </div>
+                    <div class="pw-strength-label" id="pw-label">Enter a new password</div>
+                </div>
+                <div class="field-group">
+                    <label>Confirm New Password</label>
+                    <input type="password" id="pw-confirm" autocomplete="new-password" />
+                    <div style="font-size:12px;color:var(--red);margin-top:4px;display:none" id="pw-match-err">Passwords
+                        do not match.</div>
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-password">Update Password</button></div>
+            </div>
+
+            <!-- Roles & Permissions (super admin only) -->
+            <div class="section-card" id="section-roles">
+                <div class="sec-head">
+                    <div class="sec-title">Roles &amp; Permissions</div>
+                    <div class="sec-sub">Manage who has access to what. Super Admin only.</div>
+                </div>
+                <div class="info-box">
+                    Changes here affect who can access admin features. <strong>Super Admin</strong> has full access.
+                    <strong>Admin</strong> manages staff and operations. <strong>User</strong> has employee-only access.
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="role-table" id="roles-table">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Email</th>
+                                <th>Current Role</th>
+                                <th>Change Role</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="roles-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="btn-row">
+                    <button class="btn btn-primary" id="save-roles">Save Role Changes</button>
+                    <button class="btn btn-secondary" id="add-user-btn">+ Add User</button>
+                </div>
+            </div>
+
+            <!-- Payroll Config -->
+            <div class="section-card" id="section-payroll">
+                <div class="sec-head">
+                    <div class="sec-title">Payroll Configuration</div>
+                    <div class="sec-sub">Set pay cycle, tax brackets, pension, and payslip branding.</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label>Currency</label>
+                        <select id="pay-currency">
+                            <option value="NGN">₦ Nigerian Naira (NGN)</option>
+                            <option value="USD">$ US Dollar (USD)</option>
+                            <option value="GHS">₵ Ghanaian Cedi (GHS)</option>
+                            <option value="KES">KSh Kenyan Shilling (KES)</option>
+                            <option value="ZAR">R South African Rand (ZAR)</option>
+                            <option value="GBP">£ British Pound (GBP)</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Pay Cycle</label>
+                        <select id="pay-cycle">
+                            <option value="monthly">Monthly</option>
+                            <option value="biweekly">Bi-Weekly</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label>Pension Rate (Employee %)</label>
+                        <input type="number" id="pay-pension" value="8" min="0" max="30" step="0.5" />
+                    </div>
+                    <div class="field-group">
+                        <label>Employer Pension Contribution (%)</label>
+                        <input type="number" id="pay-employer-pension" value="10" min="0" max="30" step="0.5" />
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Payslip Company Name</label>
+                    <input type="text" id="pay-company-name" placeholder="Lumion Technology Ltd" />
+                </div>
+                <div class="field-group">
+                    <label>Payslip Footer Note</label>
+                    <textarea id="pay-footer"
+                        placeholder="e.g. This payslip is computer generated and requires no signature."></textarea>
+                </div>
+                <h4 style="font-size:13px;font-weight:700;margin-bottom:10px">PAYE Tax Brackets</h4>
+                <table class="bracket-table" id="tax-table">
+                    <thead>
+                        <tr>
+                            <th>Min Income (₦)</th>
+                            <th>Max Income (₦)</th>
+                            <th>Rate (%)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tax-tbody"></tbody>
+                </table>
+                <button class="btn btn-secondary btn-sm" id="add-bracket">+ Add Bracket</button>
+                <div class="field-group" style="margin-top:16px">
+                    <label>Bonus Policy</label>
+                    <select id="pay-bonus">
+                        <option value="performance">Performance-based</option>
+                        <option value="discretionary">Discretionary</option>
+                        <option value="annual">Fixed Annual Bonus</option>
+                        <option value="none">No Bonus Policy</option>
+                    </select>
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-payroll">Save Payroll Settings</button>
+                </div>
+            </div>
+
+            <!-- Performance Settings -->
+            <div class="section-card" id="section-performance">
+                <div class="sec-head">
+                    <div class="sec-title">Performance Settings</div>
+                    <div class="sec-sub">Configure review cycles, KPI frameworks, rating scales and appraisal rules.
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label>Review Cycle Frequency</label>
+                        <select id="perf-cycle">
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="biannual">Bi-Annual</option>
+                            <option value="annual">Annual</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>KPI Framework</label>
+                        <select id="perf-framework">
+                            <option value="okr">OKR (Objectives &amp; Key Results)</option>
+                            <option value="bsc">Balanced Scorecard (BSC)</option>
+                            <option value="kpi">KPI-only</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label>Rating Scale</label>
+                        <select id="perf-scale">
+                            <option value="5">1 – 5 Stars</option>
+                            <option value="10">1 – 10 Scale</option>
+                            <option value="grade">A–F Grade</option>
+                            <option value="percent">0–100%</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Self-Appraisal Deadline (days before review)</label>
+                        <input type="number" id="perf-deadline" value="7" min="1" max="30" />
+                    </div>
+                </div>
+                <h4 style="font-size:13px;font-weight:700;margin:16px 0 10px">KPI Component Weights</h4>
+                <div id="kpi-weights">
+                    <div class="kpi-row"><span class="kpi-label">Productivity</span><input type="range" min="0"
+                            max="100" value="30" data-kk="w-productivity" id="w-productivity" /><span class="kpi-val"
+                            id="w-productivity-val">30%</span></div>
+                    <div class="kpi-row"><span class="kpi-label">Quality of Work</span><input type="range" min="0"
+                            max="100" value="25" data-kk="w-quality" id="w-quality" /><span class="kpi-val"
+                            id="w-quality-val">25%</span></div>
+                    <div class="kpi-row"><span class="kpi-label">Teamwork &amp; Culture</span><input type="range"
+                            min="0" max="100" value="20" data-kk="w-teamwork" id="w-teamwork" /><span class="kpi-val"
+                            id="w-teamwork-val">20%</span></div>
+                    <div class="kpi-row"><span class="kpi-label">Leadership</span><input type="range" min="0" max="100"
+                            value="15" data-kk="w-leadership" id="w-leadership" /><span class="kpi-val"
+                            id="w-leadership-val">15%</span></div>
+                    <div class="kpi-row"><span class="kpi-label">Innovation</span><input type="range" min="0" max="100"
+                            value="10" data-kk="w-innovation" id="w-innovation" /><span class="kpi-val"
+                            id="w-innovation-val">10%</span></div>
+                </div>
+                <div class="field-group" style="margin-top:16px">
+                    <label>360-Degree Reviews</label>
+                    <div class="toggle-row" style="padding:10px 0;border:none">
+                        <div class="toggle-info">
+                            <div class="tl">Enable 360-Degree Reviews</div>
+                            <div class="td">Peers, managers and direct reports can submit reviews</div>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" id="perf-360" checked /><span
+                                class="toggle-track"></span></label>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Peer Nomination Required</label>
+                    <div class="toggle-row" style="padding:10px 0;border:none">
+                        <div class="toggle-info">
+                            <div class="tl">Employees nominate their own reviewers</div>
+                            <div class="td">Manager must approve nominations</div>
+                        </div>
+                        <label class="toggle-switch"><input type="checkbox" id="perf-nominate" /><span
+                                class="toggle-track"></span></label>
+                    </div>
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-performance">Save Performance
+                        Settings</button></div>
+            </div>
+
+            <!-- Employee Config -->
+            <div class="section-card" id="section-employees">
+                <div class="sec-head">
+                    <div class="sec-title">Employee Configuration</div>
+                    <div class="sec-sub">Leave allocations, probation, notice period, departments and locations.</div>
+                </div>
+                <div class="field-row-3">
+                    <div class="field-group"><label>Annual Leave (days/yr)</label><input type="number" id="emp-annual"
+                            value="21" min="0" /></div>
+                    <div class="field-group"><label>Sick Leave (days/yr)</label><input type="number" id="emp-sick"
+                            value="10" min="0" /></div>
+                    <div class="field-group"><label>Exam / Study Leave (days)</label><input type="number" id="emp-exam"
+                            value="5" min="0" /></div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group"><label>Probation Period (months)</label><input type="number"
+                            id="emp-probation" value="3" min="0" max="24" /></div>
+                    <div class="field-group"><label>Notice Period (weeks)</label><input type="number" id="emp-notice"
+                            value="4" min="1" /></div>
+                </div>
+                <div class="field-group">
+                    <label>Departments</label>
+                    <div class="tag-list" id="dept-tags"></div>
+                    <div style="display:flex;gap:8px">
+                        <input type="text" id="dept-input" placeholder="Add department…"
+                            style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);outline:none" />
+                        <button class="btn btn-secondary btn-sm" id="add-dept">+ Add</button>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Office Locations</label>
+                    <div class="tag-list" id="loc-tags"></div>
+                    <div style="display:flex;gap:8px">
+                        <input type="text" id="loc-input" placeholder="Add location…"
+                            style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);outline:none" />
+                        <button class="btn btn-secondary btn-sm" id="add-loc">+ Add</button>
+                    </div>
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-employees">Save Employee Config</button>
+                </div>
+            </div>
+
+            <!-- Jobs & Recruiting -->
+            <div class="section-card" id="section-jobs">
+                <div class="sec-head">
+                    <div class="sec-title">Jobs &amp; Recruiting</div>
+                    <div class="sec-sub">Configure your hiring pipeline, auto-match thresholds and offer settings.</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group"><label>Auto-Match Score Threshold (%)</label><input type="number"
+                            id="jobs-threshold" value="70" min="0" max="100" /></div>
+                    <div class="field-group">
+                        <label>Default Job Approval Workflow</label>
+                        <select id="jobs-approval">
+                            <option value="none">No approval required</option>
+                            <option value="manager">Manager approval</option>
+                            <option value="hr">HR approval</option>
+                            <option value="both">Manager + HR approval</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Hiring Pipeline Stages (drag to reorder)</label>
+                    <div class="stages-list" id="pipeline-stages"></div>
+                    <div style="display:flex;gap:8px;margin-top:4px">
+                        <input type="text" id="stage-input" placeholder="New stage name…"
+                            style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:13px;background:var(--bg);color:var(--ink);outline:none" />
+                        <button class="btn btn-secondary btn-sm" id="add-stage">+ Add Stage</button>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Offer Letter Template (intro paragraph)</label>
+                    <textarea id="jobs-offer-template"
+                        placeholder="Dear [Candidate Name], We are pleased to extend an offer for the position of [Job Title] at Lumion Technology…"></textarea>
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-jobs">Save Jobs Settings</button></div>
+            </div>
+
+            <!-- Interview Settings -->
+            <div class="section-card" id="section-interviews">
+                <div class="sec-head">
+                    <div class="sec-title">Interview Settings</div>
+                    <div class="sec-sub">Configure stages, scorecards, virtual platform, and scheduling buffer.</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label>Virtual Platform Preference</label>
+                        <select id="int-platform">
+                            <option value="zoom">Zoom</option>
+                            <option value="teams">Microsoft Teams</option>
+                            <option value="meet">Google Meet</option>
+                            <option value="phone">Phone Call</option>
+                            <option value="inperson">In-Person</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Scheduling Buffer (minutes between interviews)</label>
+                        <input type="number" id="int-buffer" value="15" min="0" max="120" step="5" />
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Default Interview Panel Size</label>
+                    <input type="number" id="int-panel-size" value="2" min="1" max="10" />
+                </div>
+                <h4 style="font-size:13px;font-weight:700;margin:14px 0 10px">Scorecard Criteria</h4>
+                <div id="scorecards">
+                    <div class="score-card">
+                        <h4>Technical Round</h4>
+                        <div class="score-row"><label>Problem Solving</label><input type="range" min="0" max="10"
+                                value="8" oninput="this.nextElementSibling.textContent=this.value" /><span>8</span>
+                        </div>
+                        <div class="score-row"><label>Technical Depth</label><input type="range" min="0" max="10"
+                                value="9" oninput="this.nextElementSibling.textContent=this.value" /><span>9</span>
+                        </div>
+                        <div class="score-row"><label>Communication</label><input type="range" min="0" max="10"
+                                value="7" oninput="this.nextElementSibling.textContent=this.value" /><span>7</span>
+                        </div>
+                    </div>
+                    <div class="score-card">
+                        <h4>Culture Fit Round</h4>
+                        <div class="score-row"><label>Team Collaboration</label><input type="range" min="0" max="10"
+                                value="9" oninput="this.nextElementSibling.textContent=this.value" /><span>9</span>
+                        </div>
+                        <div class="score-row"><label>Values Alignment</label><input type="range" min="0" max="10"
+                                value="8" oninput="this.nextElementSibling.textContent=this.value" /><span>8</span>
+                        </div>
+                        <div class="score-row"><label>Growth Mindset</label><input type="range" min="0" max="10"
+                                value="8" oninput="this.nextElementSibling.textContent=this.value" /><span>8</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-interviews">Save Interview
+                        Settings</button></div>
+            </div>
+
+            <!-- Notifications -->
+            <div class="section-card" id="section-notifications">
+                <div class="sec-head">
+                    <div class="sec-title">Notification Settings</div>
+                    <div class="sec-sub">Choose which events trigger email alerts to you and your team.</div>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="tl">New Employee Added</div>
+                        <div class="td">Alert when a new hire is created in the system</div>
+                    </div><label class="toggle-switch"><input type="checkbox" id="n-newemp" checked /><span
+                            class="toggle-track"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="tl">Leave Request Submitted</div>
+                        <div class="td">Immediate alert when an employee submits a leave request</div>
+                    </div><label class="toggle-switch"><input type="checkbox" id="n-leave" checked /><span
+                            class="toggle-track"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="tl">Payroll Run Completed</div>
+                        <div class="td">Alert when monthly payroll is processed</div>
+                    </div><label class="toggle-switch"><input type="checkbox" id="n-payroll" checked /><span
+                            class="toggle-track"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="tl">Performance Review Due</div>
+                        <div class="td">Reminder 7 days before review cycle closes</div>
+                    </div><label class="toggle-switch"><input type="checkbox" id="n-perf" checked /><span
+                            class="toggle-track"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="tl">Candidate Status Changed</div>
+                        <div class="td">Alert when a candidate advances or is rejected</div>
+                    </div><label class="toggle-switch"><input type="checkbox" id="n-cand" checked /><span
+                            class="toggle-track"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="tl">Asset Assigned / Returned</div>
+                        <div class="td">Equipment assignment changes</div>
+                    </div><label class="toggle-switch"><input type="checkbox" id="n-asset" /><span
+                            class="toggle-track"></span></label>
+                </div>
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <div class="tl">Policy Reminder Broadcast</div>
+                        <div class="td">Weekly policy acknowledgment reminders</div>
+                    </div><label class="toggle-switch"><input type="checkbox" id="n-policy" checked /><span
+                            class="toggle-track"></span></label>
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-notifications">Save Notifications</button>
+                </div>
+            </div>
+
+            <!-- System & Integrations (super admin only) -->
+            <div class="section-card" id="section-system">
+                <div class="sec-head">
+                    <div class="sec-title">System &amp; Integrations</div>
+                    <div class="sec-sub">Global system configuration. Super Admin access only.</div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group"><label>Company Name</label><input id="sys-company"
+                            placeholder="Lumion Technology Ltd" /></div>
+                    <div class="field-group"><label>Company Logo URL</label><input id="sys-logo"
+                            placeholder="https://…/logo.png" /></div>
+                </div>
+                <div class="field-row">
+                    <div class="field-group">
+                        <label>System Timezone</label>
+                        <select id="sys-timezone">
+                            <option value="Africa/Lagos">Africa/Lagos (WAT)</option>
+                            <option value="Africa/Nairobi">Africa/Nairobi (EAT)</option>
+                            <option value="Africa/Johannesburg">Africa/Johannesburg (SAST)</option>
+                            <option value="Europe/London">Europe/London (GMT/BST)</option>
+                            <option value="America/New_York">America/New_York (EST)</option>
+                            <option value="UTC">UTC</option>
+                        </select>
+                    </div>
+                    <div class="field-group">
+                        <label>Date Format</label>
+                        <select id="sys-dateformat">
+                            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                            <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="field-group">
+                    <label>Supabase Project URL (read-only)</label>
+                    <input id="sys-supabase-url" readonly
+                        style="opacity:.7;cursor:not-allowed;font-family:monospace;font-size:12px" />
+                </div>
+                <div class="field-group">
+                    <label>Webhook URL (POST on events)</label>
+                    <input id="sys-webhook" placeholder="https://hooks.example.com/lumion" />
+                </div>
+                <div class="field-group">
+                    <label>Allowed Email Domains (comma-separated)</label>
+                    <input id="sys-domains" placeholder="lumion.com, example.org" />
+                </div>
+                <div class="btn-row"><button class="btn btn-primary" id="save-system">Save System Config</button></div>
+                <div style="margin-top:24px">
+                    <div class="danger-zone">
+                        <h4>⚠ Danger Zone</h4>
+                        <p>Resetting the system config will clear all admin settings stored locally. Supabase data is
+                            not affected.</p>
+                        <button class="btn btn-danger" id="reset-system">Reset System Config</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audit Log (super admin only) -->
+            <div class="section-card" id="section-audit">
+                <div class="sec-head">
+                    <div style="display:flex;align-items:center;justify-content:space-between">
+                        <div>
+                            <div class="sec-title">Audit Log</div>
+                            <div class="sec-sub">Track all settings changes with timestamp and actor.</div>
+                        </div>
+                        <button class="btn btn-secondary btn-sm" id="clear-audit">Clear Log</button>
+                    </div>
+                </div>
+                <div style="overflow-x:auto">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Actor</th>
+                                <th>Action</th>
+                                <th>Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="audit-empty"
+                    style="display:none;padding:24px;text-align:center;color:var(--muted);font-size:13px">No audit log
+                    entries yet.</div>
+            </div>
+
+        </main>
+    </div>
+
+    <script type="module" src="js/admin-settings-logic.js"></script>
+</body>
+
+</html>

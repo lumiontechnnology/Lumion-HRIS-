@@ -113,47 +113,155 @@
       </form>
     </div>
   </div>
-  <script type="module">
-    import { signupWithSupabase } from './js/auth.js';
+  <script>
+    // Wait for all scripts to load before running
+    window.addEventListener('load', function () {
+      const form = document.getElementById('signup-form');
+      const msg = document.getElementById('msg');
 
-    const form = document.getElementById('signup-form');
-    const msg = document.getElementById('msg');
+      // Get or create Supabase client directly
+      function getSupabase() {
+        if (window.supabaseClient) return window.supabaseClient;
+        const cfg = window.__env__ || {};
+        const url = cfg.NEXT_PUBLIC_SUPABASE_URL;
+        const key = cfg.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (!url || !key || typeof supabase === 'undefined') return null;
+        window.supabaseClient = supabase.createClient(url, key);
+        return window.supabaseClient;
+      }
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      msg.textContent = '';
-      const name = form.querySelector('input[name="name"]').value.trim();
-      const email = form.querySelector('input[name="email"]').value.trim();
-      const password = form.querySelector('input[name="password"]').value.trim();
-      const role = form.querySelector('select[name="role"]').value;
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        msg.textContent = '';
+        msg.className = 'hint';
 
-      const btn = form.querySelector('button');
-      const originalText = btn.textContent;
-      btn.textContent = 'Signing up...';
-      btn.disabled = true;
+        const name = form.querySelector('input[name="name"]').value.trim();
+        const email = form.querySelector('input[name="email"]').value.trim().toLowerCase();
+        const password = form.querySelector('input[name="password"]').value.trim();
+        const role = form.querySelector('select[name="role"]').value;
 
-      try {
-        const res = await signupWithSupabase(email, password, name, role);
-        if (!res.ok) {
+        if (!name) { msg.className = 'err'; msg.textContent = 'Full name is required.'; return; }
+        if (!email) { msg.className = 'err'; msg.textContent = 'Email is required.'; return; }
+        if (password.length < 6) { msg.className = 'err'; msg.textContent = 'Password must be at least 6 characters.'; return; }
+
+        const client = getSupabase();
+        if (!client) {
           msg.className = 'err';
-          msg.textContent = 'Signup failed: ' + res.error;
-          btn.textContent = originalText;
-          btn.disabled = false;
+          msg.textContent = '❌ Supabase is not configured. Check that config/env.js is present and has the correct URL and anon key.';
           return;
         }
 
-        msg.className = 'ok';
-        msg.textContent = 'Account created! Please check your email inbox to confirm your account before logging in. Redirecting...';
-        setTimeout(() => { window.location.href = 'login.html'; }, 3000);
-      } catch (err) {
-        msg.className = 'err';
-        msg.textContent = 'An unexpected error occurred';
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }
+        const btn = form.querySelector('button[type="submit"]');
+        const orig = btn.textContent;
+        btn.textContent = 'Creating account…';
+        btn.disabled = true;
+
+        try {
+          // Step 1: Sign Up
+          const { data: signupData, error: signupError } = await client.auth.signUp({
+            email,
+            password,
+            options: { data: { full_name: name, role } }
+          });
+
+          if (signupError) {
+            msg.className = 'err';
+            msg.textContent = 'Signup failed: ' + signupError.message;
+            btn.textContent = orig; btn.disabled = false;
+            return;
+          }
+
+          msg.className = 'ok';
+          msg.textContent = '✅ Account created! Logging you in…';
+
+          // Step 2: Auto-login immediately
+          const { data: loginData, error: loginError } = await client.auth.signInWithPassword({ email, password });
+
+          if (!loginError && loginData?.user) {
+            const sbUser = loginData.user;
+            const userRole = (sbUser.user_metadata?.role || role || 'user').toLowerCase();
+
+            // Store session
+            localStorage.setItem('lumion_user', JSON.stringify({
+              id: sbUser.id, email, name, role: userRole,
+              user_metadata: sbUser.user_metadata
+            }));
+            localStorage.setItem('isLoggedIn', 'true');
+
+            const target = 'user-dashboard.html';
+
+            setTimeout(function () { window.location.href = target; }, 700);
+            return;
+          }
+
+          // Login blocked (email confirmation required)
+          msg.textContent = '✅ Account created! Check your inbox for a confirmation email, then come back to log in.';
+          setTimeout(function () { window.location.href = 'login.html'; }, 4000);
+
+        } catch (err) {
+          msg.className = 'err';
+          msg.textContent = 'Unexpected error: ' + (err.message || err);
+          btn.textContent = orig; btn.disabled = false;
+        }
+      });
     });
   </script>
-  <script type="module" src="./js/header-footer.js"></script>
+
+  const form = document.getElementById('signup-form');
+  const msg = document.getElementById('msg');
+
+  form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  msg.textContent = '';
+  const name = form.querySelector('input[name="name"]').value.trim();
+  const email = form.querySelector('input[name="email"]').value.trim().toLowerCase();
+  const password = form.querySelector('input[name="password"]').value.trim();
+  const role = form.querySelector('select[name="role"]').value;
+
+  if (password.length < 6) { msg.className='err' ; msg.textContent='Password must be at least 6 characters.' ; return; }
+    const btn=form.querySelector('button'); const originalText=btn.textContent; btn.textContent='Creating account…' ;
+    btn.disabled=true; try { // Step 1: Sign up const res=await signupWithSupabase(email, password, name, role); if
+    (!res.ok) { msg.className='err' ; msg.textContent='Signup failed: ' + res.error; btn.textContent=originalText;
+    btn.disabled=false; return; } msg.className='ok' ; msg.textContent='✅ Account created! Logging you in…' ; // Step 2:
+    Attempt auto-login immediately (works if email confirmation is disabled) if (window.supabaseClient) { const { data,
+    error }=await window.supabaseClient.auth.signInWithPassword({ email, password }); if (!error && data?.user) { const
+    sbUser=data.user; const userRole=(sbUser.user_metadata?.role || role || 'user' ).toLowerCase(); // Register in local
+    Store const s=Store.getState(); const existing=s.users.find(u=> u.email === email);
+    if (!existing) {
+    Store.addUser({ id: sbUser.id, email, name, role: userRole });
+    }
+    localStorage.setItem('lumionHR_current_user_id', sbUser.id);
+    localStorage.setItem('lumion_user', JSON.stringify({
+    id: sbUser.id, email, name, role: userRole,
+    user_metadata: sbUser.user_metadata
+    }));
+    localStorage.setItem('isLoggedIn', 'true');
+
+    const target = 'user-dashboard.html';
+
+    setTimeout(() => { window.location.href = target; }, 800);
+    return;
+    }
+
+    // Auto-login failed — email confirmation is likely required
+    msg.textContent = '✅ Account created! Please check your email inbox to confirm your account, then log in.\n\n💡 Tip:
+    To skip this step, go to Supabase Dashboard → Authentication → Providers → Email and disable "Confirm email".';
+    setTimeout(() => { window.location.href = 'login.html'; }, 5000);
+
+    } else {
+    // No Supabase — redirect to login
+    setTimeout(() => { window.location.href = 'login.html'; }, 2000);
+    }
+
+    } catch (err) {
+    msg.className = 'err';
+    msg.textContent = 'An unexpected error occurred: ' + (err.message || err);
+    btn.textContent = originalText;
+    btn.disabled = false;
+    }
+    });
+    </script>
+    <script type="module" src="./js/header-footer.js"></script>
 </body>
 
 </html>
