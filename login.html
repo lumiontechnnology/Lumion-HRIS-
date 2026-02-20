@@ -82,11 +82,23 @@
         <button type="submit">Login</button>
         <div class="small"><a href="signup.html">Create an account</a></div>
       </form>
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button id="demo-user-btn" style="flex:1; padding:10px; border-radius:8px; background:#10b981; color:#fff; border:none; cursor:pointer;">Demo User</button>
+        <button id="demo-admin-btn" style="flex:1; padding:10px; border-radius:8px; background:#ef4444; color:#fff; border:none; cursor:pointer;">Demo Admin</button>
+      </div>
     </div>
   </div>
   <script type="module">
-    import { handleLoginForm } from './js/auth.js';
+    import { handleLoginForm, loginLocal } from './js/auth.js';
     handleLoginForm();
+
+    // Wire demo buttons to the local seeded accounts in `js/store.js`.
+    // Admin: admin@lumion.com / admin123
+    // User: stanford.george@lumion.com / user123
+    const demoUser = () => loginLocal('stanford.george@lumion.com', 'user123');
+    const demoAdmin = () => loginLocal('admin@lumion.com', 'admin123');
+    document.getElementById('demo-user-btn')?.addEventListener('click', demoUser);
+    document.getElementById('demo-admin-btn')?.addEventListener('click', demoAdmin);
   </script>
 </body>
 

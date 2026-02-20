@@ -232,3 +232,24 @@ export function handleLoginForm() {
     }
   });
 }
+
+// Local demo login (uses `js/store.js` seeded users). Useful when running the app
+// without Supabase or for quick local demos. Returns an object similar to other
+// login helpers: { ok: true, user } or { ok: false, error }
+export function loginLocal(email, password) {
+  try {
+    const user = Store.login(email, password);
+    if (!user) return { ok: false, error: 'Invalid local demo credentials' };
+
+    // Persist session like other flows expect
+    localStorage.setItem('lumionHR_current_user_id', user.id);
+    localStorage.setItem('isLoggedIn', 'true');
+    localStorage.setItem('lumion_user', JSON.stringify({ id: user.id, email: user.email, name: user.name, role: user.role }));
+
+    const target = user.role === 'admin' ? 'hris-dashboard-admin.html' : 'user-dashboard.html';
+    window.location.href = target;
+    return { ok: true, user };
+  } catch (err) {
+    return { ok: false, error: err && err.message ? err.message : 'local_login_failed' };
+  }
+}
